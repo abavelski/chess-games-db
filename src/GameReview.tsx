@@ -12,7 +12,7 @@ const annotationGlyphs: Record<number, { symbol: string; name: string }> = {
   12: { symbol: '=', name: 'Equal chances, active position' },
 };
 
-function Review({ game, initialPath }: { game: GameDetail; initialPath: string }) {
+export function GameReview({ game, initialPath, onClose }: { game: GameDetail; initialPath: string; onClose: () => void }) {
   const viewer = useRef<Viewer | null>(null);
   const transcript = useRef<HTMLDivElement>(null);
   const [path, setPath] = useState(initialPath);
@@ -26,6 +26,32 @@ function Review({ game, initialPath }: { game: GameDetail; initialPath: string }
     if (value) setPath(value.path.path);
   }, []);
   const onPathChange = useCallback((value: string) => setPath(value), []);
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = `Game review · ${game.white || game.event || game.source_title}`;
+    const keydown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey ||
+        (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]')))) return;
+      const board = viewer.current;
+      switch (event.key) {
+        case 'ArrowLeft': board?.goTo(event.shiftKey ? 'first' : 'prev', false); break;
+        case 'ArrowRight': board?.goTo(event.shiftKey ? 'last' : 'next', false); break;
+        case 'Home': case 'ArrowUp': board?.goTo('first', false); break;
+        case 'End': case 'ArrowDown': board?.goTo('last', false); break;
+        case 'f': case 'F': board?.flip(); break;
+        case 'Escape': onClose(); break;
+        default: return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    window.addEventListener('keydown', keydown, true);
+    return () => {
+      window.removeEventListener('keydown', keydown, true);
+      document.title = previousTitle;
+    };
+  }, [game.white, game.event, game.source_title, onClose]);
   useEffect(() => {
     const current = transcript.current?.querySelector('[aria-current="step"]');
     current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -41,7 +67,7 @@ function Review({ game, initialPath }: { game: GameDetail; initialPath: string }
         <h1>{title}</h1>
         <p>{[game.event, game.site, game.date, game.eco, game.result].filter(value => value && value !== '?').join(' · ')}</p>
       </div>
-      <button className="secondary-button" onClick={() => void window.chessArchive.closeReview()}><ArrowLeft size={16} /> Back to library</button>
+      <button className="secondary-button" onClick={onClose} autoFocus><ArrowLeft size={16} /> Back to library</button>
     </header>
     <div className="review-workspace">
       <section className="review-board" aria-label="Game review board">
@@ -54,7 +80,7 @@ function Review({ game, initialPath }: { game: GameDetail; initialPath: string }
           <button title="Last mainline position" aria-label="Last mainline position" disabled={!ready || !viewer.current?.game.mainline.length} onClick={() => go('last')}><ChevronsRight size={21} /></button>
           <button title="Flip board" aria-label="Flip board" disabled={!ready} onClick={() => viewer.current?.flip()}><ArrowLeftRight size={20} /></button>
         </div>
-        <p className="review-help">Select any move or variation to explore it. Focus the board to use ← / →. Colored arrows and squares follow the selected position.</p>
+        <p className="review-help">Select any move or variation to explore it. ← / → moves · Home / End first / last · F flips · Esc returns to library.</p>
         {game.start_fen && <details className="review-position"><summary>Starting position</summary><code>{game.start_fen}</code></details>}
       </section>
       <section className="review-score" aria-labelledby="review-score-title">
@@ -63,17 +89,20 @@ function Review({ game, initialPath }: { game: GameDetail; initialPath: string }
           {model.error && <div className="notice error">{model.error}</div>}
           {model.data?.positionError && <div className="notice error">{model.data.positionError}</div>}
           {model.data?.tokens.map((token, index) => {
-            const style = { marginLeft: Math.min(token.depth, 5) * 14 };
-            if (token.type === 'comment') return <p className="review-comment" key={index} style={style}>{token.text}</p>;
-            if (token.type === 'variation-start') return <div className="review-variation" key={index} style={style}>Variation</div>;
-            if (token.type === 'variation-end') return <div className="review-variation-end" key={index} />;
+            if (token.type === 'comment') return token.depth
+              ? <span className="review-comment inline-comment" key={index}> {'{'} {token.text} {'}'} </span>
+              : <p className="review-comment" key={index}>{token.text}</p>;
+            if (token.type === 'variation-start') return <span className="review-variation" key={index} aria-label="Variation"> (</span>;
+            if (token.type === 'variation-end') return <span className="review-variation-end" key={index}>) </span>;
             const ply = token.ply || 1;
             const number = `${Math.ceil(ply / 2)}${ply % 2 ? '.' : '…'}`;
+            const previous = model.data?.tokens[index - 1];
+            const showNumber = ply % 2 === 1 || previous?.type !== 'move' || previous.depth !== token.depth;
             return <button key={index} className={'review-move' + (token.depth ? ' in-variation' : '')}
               data-review-path={token.path} aria-current={token.path === path ? 'step' : undefined}
               title={token.path === null ? 'The source contains an illegal move; its text is preserved.' : `Go to ${number} ${token.san}`}
               disabled={!ready || token.path === null} onClick={() => viewer.current?.toPath(new Path(token.path!), false)}>
-              <span className="review-move-number">{number}</span> {token.san}
+              {showNumber && <span className="review-move-number">{number} </span>}{token.san}
               {token.nags?.map((nag, i) => <span className="review-glyph" title={annotationGlyphs[nag]?.name || `Annotation $${nag}`} key={i}>{annotationGlyphs[nag]?.symbol || `$${nag}`}</span>)}
               {token.annotated && <Compass size={12} aria-label="Board annotation" />}
             </button>;
@@ -87,20 +116,4 @@ function Review({ game, initialPath }: { game: GameDetail; initialPath: string }
       </section>
     </div>
   </main>;
-}
-
-export function GameReview() {
-  const [review, setReview] = useState<{ game: GameDetail; initialPath: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    window.chessArchive.getReview().then(value => {
-      if (!alive) return;
-      if (value) setReview(value);
-      else setError('This review is no longer available. Reopen it from the library.');
-    }).catch(error => { if (alive) setError(String(error)); });
-    return () => { alive = false; };
-  }, []);
-  if (error) return <main className="review-shell"><div className="notice error">{error}</div></main>;
-  return review ? <Review {...review} /> : <main className="review-shell" aria-busy="true">Opening game review…</main>;
 }

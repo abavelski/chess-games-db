@@ -6,6 +6,7 @@ import {
   ArrowRight, Hash, PanelRightClose, PanelRightOpen, Maximize2,
 } from 'lucide-react';
 import { PgnBoard } from './PgnBoard';
+import { GameReview } from './GameReview';
 import type { Catalog, GameRow, GameDetail, RecordRow, RecordDetail, Page, SearchFilters, Tab } from './types';
 
 type Filters = {
@@ -65,19 +66,11 @@ function DetailMeta({ label, value }: { label: string; value: string | number | 
   return <div className="detail-meta"><dt>{label}</dt><dd>{value === null || value === undefined || value === '' ? '—' : value}</dd></div>;
 }
 
-function GamePanel({ game, onClose }: { game: GameDetail; onClose: () => void }) {
+function GamePanel({ game, onClose, onReview, suspended }: { game: GameDetail; onClose: () => void; onReview: (game: GameDetail, path: string) => void; suspended: boolean }) {
   const [mode, setMode] = useState<'board' | 'pgn' | 'metadata'>(game.record_kind === 'text' ? 'pgn' : 'board');
   const [copied, setCopied] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-  const [reviewOpening, setReviewOpening] = useState(false);
   const position = useRef('');
   const rememberPosition = useCallback((path: string) => { position.current = path; }, []);
-  const openReview = async () => {
-    setReviewOpening(true); setReviewError(null);
-    try { await window.chessArchive.openReview(game.id, position.current); }
-    catch (error) { setReviewError(errorMessage(error)); }
-    finally { setReviewOpening(false); }
-  };
   const copy = async () => {
     try { await navigator.clipboard.writeText(game.pgn); setCopied(true); }
     catch { setCopied(false); }
@@ -96,10 +89,9 @@ function GamePanel({ game, onClose }: { game: GameDetail; onClose: () => void })
       {game.result && <span className="pill neutral">{game.result}</span>}
     </div>
     <div className="detail-source"><BookMarked size={16} /> {game.source_title}</div>
-    <button className="secondary-button review-open" onClick={openReview} disabled={reviewOpening}>
-      <Maximize2 size={16} /> {reviewOpening ? 'Opening review…' : 'Open game review'}
+    <button className="secondary-button review-open" onClick={() => onReview(game, position.current)}>
+      <Maximize2 size={16} /> Open game review
     </button>
-    {reviewError && <div className="notice error">{reviewError}</div>}
     <div className="detail-tabs" role="tablist" aria-label="Entry view">
       {(['board', 'pgn', 'metadata'] as const).map(view => (
         <button key={view} role="tab" aria-selected={mode === view}
@@ -108,7 +100,7 @@ function GamePanel({ game, onClose }: { game: GameDetail; onClose: () => void })
         </button>
       ))}
     </div>
-    {mode === 'board' && <div className="board-view">
+    {mode === 'board' && !suspended && <div className="board-view">
       <PgnBoard pgn={game.pgn} initialPath={position.current} onPathChange={rememberPosition} />
       <p className="hint">Use the move list or board controls to step through the annotated game and variations.</p>
       {game.start_fen && <div className="fen"><span>Starting FEN</span><code>{game.start_fen}</code></div>}
@@ -176,6 +168,21 @@ function RecordPanel({ record, onClose }: { record: RecordDetail; onClose: () =>
 }
 
 export default function App() {
+  const reviewTrigger = useRef<HTMLElement | null>(null);
+  const libraryScroll = useRef({ x: 0, y: 0 });
+  const [review, setReview] = useState<{ game: GameDetail; initialPath: string } | null>(null);
+  const openReview = useCallback((game: GameDetail, initialPath: string) => {
+    reviewTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    libraryScroll.current = { x: window.scrollX, y: window.scrollY };
+    setReview({ game, initialPath });
+  }, []);
+  const closeReview = useCallback(() => {
+    setReview(null);
+    requestAnimationFrame(() => {
+      window.scrollTo(libraryScroll.current.x, libraryScroll.current.y);
+      reviewTrigger.current?.focus({ preventScroll: true });
+    });
+  }, []);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
@@ -280,7 +287,7 @@ export default function App() {
   const end = Math.min((results?.page ?? 1) * (results?.pageSize ?? 40), total);
   const pageCount = Math.max(1, Math.ceil(total / (results?.pageSize ?? 40)));
 
-  return <div className="app-shell">
+  return <><div hidden={!!review}><div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><div className="brand-icon">♞</div>
         <div><strong>Chess Books</strong><span>EXPLORER</span></div></div>
@@ -445,12 +452,14 @@ export default function App() {
             {detailError && <div className="notice error"><AlertCircle size={18} /> {detailError}</div>}
             {detailLoading ? <div className="details-placeholder"><RefreshCw className="spin" size={26} /><span>Opening entry…</span></div>
               : detail && tab === 'records' ? <RecordPanel key={'r' + detail.id} record={detail as RecordDetail} onClose={() => setPanelOpen(false)} />
-              : detail ? <GamePanel key={'g' + detail.id} game={detail as GameDetail} onClose={() => setPanelOpen(false)} />
+              : detail ? <GamePanel key={'g' + detail.id} game={detail as GameDetail} suspended={!!review} onReview={openReview} onClose={() => setPanelOpen(false)} />
               : !detailError ? <div className="details-placeholder"><div className="placeholder-chess">♙</div><h3>Choose an entry</h3><p>Select a game or position to study it here.</p></div> : null}
           </aside>}
         </div>
         <div className="page-footer"><Hash size={13} /> Read-only local SQLite · Schema v3 <span>·</span> PGNs are verified before display</div>
       </>}
     </main>
-  </div>;
+  </div></div>
+    {review && <GameReview {...review} onClose={closeReview} />}
+  </>;
 }

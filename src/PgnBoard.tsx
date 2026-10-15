@@ -28,7 +28,7 @@ export function PgnBoard({ pgn, review = false, initialPath = '', onReady, onPat
         showPlayers: false,
         showControls: !review,
         scrollToMove: false,
-        keyboardToMove: true,
+        keyboardToMove: !review,
         lichess: false,
         menu: {
           getPgn: { enabled: true },

@@ -10,7 +10,4 @@ contextBridge.exposeInMainWorld('chessArchive', Object.freeze({
   getGame: (id) => ipcRenderer.invoke('archive:game', id),
   searchRecords: (filters) => ipcRenderer.invoke('archive:records', filters),
   getRecord: (id) => ipcRenderer.invoke('archive:record', id),
-  openReview: (id, initialPath) => ipcRenderer.invoke('review:open', id, initialPath),
-  getReview: () => ipcRenderer.invoke('review:get'),
-  closeReview: () => ipcRenderer.invoke('review:close'),
 }));

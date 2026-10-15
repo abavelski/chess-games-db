@@ -8,7 +8,6 @@ const here = fileURLToPath(new URL('.', import.meta.url));
 let window;
 let archive;
 let currentPath = null;
-const reviews = new Map();
 
 const preferencePath = () => join(app.getPath('userData'), 'archive.json');
 
@@ -31,7 +30,7 @@ function currentArchive() {
   return archive;
 }
 
-function desktopWindow(title, review = false) {
+function desktopWindow(title) {
   const desktop = new BrowserWindow({
     width: 1510,
     height: 920,
@@ -48,12 +47,11 @@ function desktopWindow(title, review = false) {
   });
   desktop.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   desktop.webContents.on('will-navigate', (event) => event.preventDefault());
-  const hash = review ? 'review' : '';
   return {
     desktop,
     load: () => !app.isPackaged && process.argv.includes('--dev')
-      ? desktop.loadURL('http://127.0.0.1:5173/' + (hash ? '#' + hash : ''))
-      : desktop.loadFile(join(here, '..', 'dist', 'index.html'), { hash }),
+      ? desktop.loadURL('http://127.0.0.1:5173/')
+      : desktop.loadFile(join(here, '..', 'dist', 'index.html')),
   };
 }
 
@@ -83,26 +81,6 @@ app.whenReady().then(() => {
   ipcMain.handle('archive:game', (_event, id) => currentArchive().getGame(id));
   ipcMain.handle('archive:records', (_event, filters) => currentArchive().searchRecords(filters));
   ipcMain.handle('archive:record', (_event, id) => currentArchive().getRecord(id));
-  ipcMain.handle('review:open', async (_event, id, initialPath) => {
-    const game = currentArchive().getGame(id);
-    if (!game) throw new Error('This archive entry could not be found.');
-    const { desktop, load } = desktopWindow('Game review · ' + (game.white || game.event || game.source_title), true);
-    const key = desktop.webContents.id;
-    // Pin the verified PGN to this window so changing archives cannot change
-    // an existing review or make it display a different game with the same ID.
-    reviews.set(key, { game, initialPath: typeof initialPath === 'string' ? initialPath.slice(0, 10000) : '' });
-    desktop.on('closed', () => reviews.delete(key));
-    try { await load(); }
-    catch (error) { desktop.destroy(); throw error; }
-  });
-  ipcMain.handle('review:get', event => reviews.get(event.sender.id) ?? null);
-  ipcMain.handle('review:close', event => {
-    if (!reviews.has(event.sender.id)) return;
-    if (!window || window.isDestroyed()) createWindow();
-    window.show();
-    window.focus();
-    BrowserWindow.fromWebContents(event.sender)?.close();
-  });
 
   const candidates = [];
   try {

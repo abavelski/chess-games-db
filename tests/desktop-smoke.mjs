@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { app } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import Database from 'better-sqlite3';
 
 // Run with Electron so this exercises its native SQLite ABI and sandboxed preload.
@@ -36,8 +36,8 @@ writeFileSync(join(temporary, 'archive.json'), JSON.stringify({ path }));
 
 const errors = [];
 app.on('browser-window-created', (_event, window) => {
-  window.webContents.on('console-message', (_event, details) => {
-    if (details.level === 'error') errors.push(details.message);
+  window.webContents.on('console-message', event => {
+    if (event.level === 'error') errors.push(event.message);
   });
   window.webContents.on('preload-error', (_event, _path, error) => errors.push(error.message));
 });
@@ -71,11 +71,10 @@ async function checkWindow(window) {
   assert.deepEqual(state.errors, []);
 
   const previewWidth = await window.webContents.executeJavaScript('document.querySelector("cg-board").getBoundingClientRect().width');
-  const reviewCreated = once(app, 'browser-window-created');
+  const windowCount = BrowserWindow.getAllWindows().length;
   await window.webContents.executeJavaScript('document.querySelector(".review-open").click()');
-  const [, reviewWindow] = await reviewCreated;
-  await once(reviewWindow.webContents, 'did-finish-load');
-  const reviewState = await reviewWindow.webContents.executeJavaScript(`(async () => {
+  const reviewState = await window.webContents.executeJavaScript(`(async () => {
+    const root = document.querySelector('.review-shell');
     const waitFor = async predicate => {
       const deadline = Date.now() + 5000;
       while (!predicate()) {
@@ -83,28 +82,27 @@ async function checkWindow(window) {
         await new Promise(resolve => setTimeout(resolve, 25));
       }
     };
-    await waitFor(() => document.querySelector('svg.cg-shapes line'));
-    const comments = [...document.querySelectorAll('.review-comment')].map(p => p.textContent);
-    const current = () => document.querySelector('.review-move[aria-current="step"]')?.textContent;
+    await waitFor(() => root.querySelector('svg.cg-shapes line'));
+    const comments = [...root.querySelectorAll('.review-comment')].map(p => p.textContent.trim().replace(/^\{ (.*) \}$/s, '$1'));
+    const current = () => root.querySelector('.review-move[aria-current="step"]')?.textContent;
     const initial = current();
-    const arrows = [...document.querySelectorAll('svg.cg-shapes line')].map(line => line.getAttribute('stroke'));
-    const squares = document.querySelectorAll('svg.cg-shapes circle').length;
-    const width = document.querySelector('cg-board').getBoundingClientRect().width;
-    [...document.querySelectorAll('.review-move')].find(b => b.textContent.includes('d4')).click();
+    const arrows = [...root.querySelectorAll('svg.cg-shapes line')].map(line => line.getAttribute('stroke'));
+    const squares = root.querySelectorAll('svg.cg-shapes circle').length;
+    const width = root.querySelector('cg-board').getBoundingClientRect().width;
+    [...root.querySelectorAll('.review-move')].find(b => b.textContent.includes('d4')).click();
     await waitFor(() => current()?.includes('d4'));
-    await waitFor(() => document.querySelectorAll('svg.cg-shapes line').length === 0);
+    await waitFor(() => root.querySelectorAll('svg.cg-shapes line').length === 0);
     const variation = current();
-    document.querySelector('[aria-label="Next move"]').click();
+    root.querySelector('[aria-label="Next move"]').click();
     await waitFor(() => current()?.includes('d5'));
-    document.querySelector('[aria-label="Last mainline position"]').click();
+    root.querySelector('[aria-label="Last mainline position"]').click();
     await waitFor(() => current()?.includes('Nc6'));
-    document.querySelector('[aria-label="First position"]').click();
+    root.querySelector('[aria-label="First position"]').click();
     await waitFor(() => !current());
-    document.querySelector('[aria-label="Flip board"]').click();
-    const flipped = !!document.querySelector('.orientation-black');
-    const snapshot = await window.chessArchive.getReview();
-    const original = document.querySelector('.review-original pre').textContent;
-    return { comments, initial, variation, arrows, squares, width, flipped, original, snapshotPgn: snapshot.game.pgn };
+    root.querySelector('[aria-label="Flip board"]').click();
+    const flipped = !!root.querySelector('.orientation-black');
+    const original = root.querySelector('.review-original pre').textContent;
+    return { comments, initial, variation, arrows, squares, width, flipped, original, parentheses: root.querySelectorAll('.review-variation').length, ends: root.querySelectorAll('.review-variation-end').length, controlsBottom: root.querySelector('.review-controls').getBoundingClientRect().bottom, viewport: innerHeight };
   })()`);
   assert.deepEqual(reviewState.comments, ['Opening introduction.', 'Space in the center.', 'Another plan:',
     'A queen-pawn approach.', 'Nested note.', 'Final variation.', 'Closing text.']);
@@ -116,11 +114,56 @@ async function checkWindow(window) {
   assert.ok(reviewState.width > previewWidth, 'Review board must be larger than the preview');
   assert.equal(reviewState.flipped, true);
   assert.equal(reviewState.original, pgn);
-  assert.equal(reviewState.snapshotPgn, pgn);
-  const reviewClosed = once(reviewWindow, 'closed');
-  await reviewWindow.webContents.executeJavaScript('document.querySelector(".review-header button").click()');
-  await reviewClosed;
-  assert.equal(window.isDestroyed(), false, 'Returning from review must preserve the library');
+  window.setSize(920, 650);
+  const compact = await window.webContents.executeJavaScript(`(async () => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const root = document.querySelector('.review-shell');
+    const board = root.querySelector('cg-board').getBoundingClientRect();
+    const score = root.querySelector('.review-score').getBoundingClientRect();
+    const controls = root.querySelector('.review-controls').getBoundingClientRect();
+    return board.width > 300 && Math.abs(board.width - board.height) < 1 &&
+      controls.bottom <= innerHeight && score.bottom <= innerHeight && score.right <= innerWidth;
+  })()`);
+  assert.equal(compact, true, 'Board, controls, and commentary must fit the minimum window size');
+  window.setSize(1510, 920);
+  assert.equal(BrowserWindow.getAllWindows().length, windowCount, 'Review must use the library window');
+  assert.equal(reviewState.parentheses, 3);
+  assert.equal(reviewState.ends, 3);
+  assert.ok(reviewState.controlsBottom <= reviewState.viewport, 'Controls must fit in the window');
+  // Use real Electron key input, including while the board itself has focus.
+  const key = async (keyCode, expected) => {
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode });
+    const current = await window.webContents.executeJavaScript(`(async () => {
+      await new Promise(resolve => setTimeout(resolve, 60));
+      return document.querySelector('.review-move[aria-current="step"]')?.textContent || '';
+    })()`);
+    assert.match(current, expected);
+  };
+  await key('Right', /e4/);
+  await key('Right', /e5/);
+  await window.webContents.executeJavaScript('document.querySelector(".review-shell .lpv").focus()');
+  await key('Left', /e4/);
+  await key('End', /Nc6/);
+  await key('Home', /^$/);
+  await key('F', /^$/);
+  assert.equal(await window.webContents.executeJavaScript('!!document.querySelector(".review-shell .orientation-white")'), true);
+  const ignored = await window.webContents.executeJavaScript(`(() => {
+    const input = document.createElement('input');
+    document.querySelector('.review-shell').appendChild(input); input.focus();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    input.remove();
+    return !document.querySelector('.review-move[aria-current="step"]');
+  })()`);
+  assert.equal(ignored, true, 'Typing and text-editing keys must not navigate the board');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  const returned = await window.webContents.executeJavaScript(`(async () => {
+    await new Promise(resolve => setTimeout(resolve, 60));
+    return !document.querySelector('.review-shell') && !!document.querySelector('.review-open');
+  })()`);
+  assert.equal(returned, true, 'Escape must restore the existing library');
+  assert.equal(window.isDestroyed(), false);
 
   const grouping = await window.webContents.executeJavaScript(`(async () => {
     const waitFor = async predicate => {
@@ -178,7 +221,7 @@ async function smoke() {
     }
     assert.deepEqual(errors, []);
     assert.equal(archiveHash(), originalHash, 'Browsing must preserve every byte of the archive');
-    console.log('Desktop smoke passed: library, book grouping, separate game review, all commentary, colored arrows, variations, navigation, and archive preservation.');
+    console.log('Desktop smoke passed: library, book grouping, same-window review and keyboard shortcuts, all commentary, colored arrows, variations, navigation, and archive preservation.');
   } catch (error) {
     console.error(error);
     exitCode = 1;
