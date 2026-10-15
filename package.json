@@ -7,11 +7,13 @@
   "main": "electron/main.mjs",
   "license": "GPL-3.0-or-later",
   "scripts": {
-    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && node scripts/start-electron.mjs . --dev\"",
+    "start": "node scripts/start-electron.mjs .",
     "build": "tsc --noEmit && vite build",
     "dist": "npm run build && electron-builder",
     "dist:dir": "npm run build && electron-builder --dir",
     "test": "node --test tests/*.test.mjs",
+    "test:desktop": "npm run build && node scripts/start-electron.mjs tests/desktop-smoke.mjs",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
@@ -46,5 +48,12 @@
     "mac": {"target": ["dmg", "zip"], "category": "public.app-category.education"},
     "win": {"target": ["nsis"]},
     "linux": {"target": ["AppImage", "deb"], "category": "Education"}
+  },
+  "allowScripts": {
+    "electron@38.8.6": true,
+    "better-sqlite3@12.11.1": true,
+    "esbuild@0.28.2": true,
+    "@parcel/watcher@2.6.0": true,
+    "electron-winstaller@5.4.0": true
   }
 }

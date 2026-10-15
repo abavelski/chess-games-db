@@ -47,10 +47,10 @@ function createWindow() {
   });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
-  if (app.isPackaged) {
-    window.loadFile(join(here, '..', 'dist', 'index.html'));
-  } else {
+  if (!app.isPackaged && process.argv.includes('--dev')) {
     window.loadURL('http://127.0.0.1:5173');
+  } else {
+    window.loadFile(join(here, '..', 'dist', 'index.html'));
   }
 }
 
@@ -91,7 +91,10 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('will-quit', () => {
   archive?.close();
   archive = null;
-  if (process.platform !== 'darwin') app.quit();
 });

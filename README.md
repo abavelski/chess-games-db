@@ -17,9 +17,11 @@ For a production build or local installer:
 
 ```sh
 npm run build      # typecheck and bundle the React renderer
+npm start          # run the built desktop app without a development server
 npm run dist:dir   # unpacked desktop app
 npm run dist       # installer/DMG/AppImage (depends on platform)
 npm test           # SQL filter/query unit tests
+npm run test:desktop # desktop smoke test (requires a graphical session)
 ```
 
 The app opens the previously selected database if present, and during development also looks for `data/chess-books.sqlite3`. Otherwise, click **Open database** to select an existing SQLite file. **The database is not included in Git or any installer.** The app never writes to the archive and does not create an empty replacement if a file is missing.
