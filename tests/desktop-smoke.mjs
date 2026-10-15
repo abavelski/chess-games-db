@@ -83,7 +83,7 @@ async function checkWindow(window) {
       }
     };
     await waitFor(() => root.querySelector('svg.cg-shapes line'));
-    const comments = [...root.querySelectorAll('.review-comment')].map(p => p.textContent.trim().replace(/^\{ (.*) \}$/s, '$1'));
+    const comments = [...root.querySelectorAll('.review-comment')].map(p => p.textContent.trim());
     const current = () => root.querySelector('.review-move[aria-current="step"]')?.textContent;
     const initial = current();
     const arrows = [...root.querySelectorAll('svg.cg-shapes line')].map(line => line.getAttribute('stroke'));

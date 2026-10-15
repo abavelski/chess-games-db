@@ -76,7 +76,7 @@ export function GameReview({ game, initialPath, onClose }: { game: GameDetail; i
   const currentNode = viewer.current?.game.nodeAt(new Path(path));
   const renderToken = (token: ReviewToken, index: number) => {
     if (token.type === 'comment') return token.depth
-      ? <span className="review-comment inline-comment" key={index}> {'{'} {token.text} {'}'} </span>
+      ? <span className="review-comment inline-comment" key={index}> {token.text} </span>
       : <p className="review-comment" key={index}>{token.text}</p>;
     if (token.type === 'variation-start') return <span className="review-variation" key={index} aria-label="Variation"> (</span>;
     if (token.type === 'variation-end') return <span className="review-variation-end" key={index}>) </span>;
