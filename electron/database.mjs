@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { decompress } from 'fzstd';
 import { gameQuery, recordQuery } from './queries.mjs';
+import { groupBooks } from './books.mjs';
 
 const LIMIT = 16 * 1024 * 1024;
 
@@ -84,16 +85,18 @@ export class ChessArchive {
       'sum(CASE WHEN is_training = 1 THEN 1 ELSE 0 END) AS training ' +
       'FROM games'
     ).get();
+    const books = groupBooks(sources);
     return {
       path: this.path,
       sources,
+      books,
       totals: {
         entries: totals.entries,
         games: totals.games || 0,
         positions: totals.positions || 0,
         texts: totals.texts || 0,
         training: totals.training || 0,
-        books: sources.length,
+        books: books.length,
       },
     };
   }

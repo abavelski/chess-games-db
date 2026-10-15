@@ -167,6 +167,7 @@ export default function App() {
   const [openError, setOpenError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('all');
   const [sourceId, setSourceId] = useState<number | null>(null);
+  const [bookId, setBookId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filters, setFilters] = useState<Filters>({ ...defaultFilters });
@@ -204,6 +205,9 @@ export default function App() {
   const chooseSource = (id: number | null) => {
     setSourceId(id); setPage(1); setSelectedId(null); setDetail(null);
   };
+  const chooseBook = (id: string | null) => {
+    setBookId(id); chooseSource(null);
+  };
 
   const openArchive = async () => {
     setOpening(true);
@@ -212,7 +216,7 @@ export default function App() {
       const result = await window.chessArchive.openDatabase();
       if (!result.canceled && result.catalog) {
         setCatalog(result.catalog);
-        setSourceId(null); setSelectedId(null); setDetail(null); setResults(null); setPage(1);
+        setBookId(null); setSourceId(null); setSelectedId(null); setDetail(null); setResults(null); setPage(1);
       }
     } catch (e) { setOpenError(errorMessage(e)); }
     finally { setOpening(false); }
@@ -224,6 +228,7 @@ export default function App() {
     setFetching(true); setQueryError(null); setResults(null);
     const query: SearchFilters = {
       search: debouncedSearch, sourceId, page, pageSize: 40,
+      sourceIds: bookId === null ? undefined : catalog.books.find(book => book.id === bookId)?.source_ids ?? [],
       ...filters,
       kind: ['game', 'position', 'line', 'text'].includes(tab) ? tab : 'all',
       training: tab === 'training' ? 'yes' : filters.training,
@@ -238,7 +243,7 @@ export default function App() {
     }).catch(e => { if (alive) setQueryError(errorMessage(e)); })
       .finally(() => { if (alive) setFetching(false); });
     return () => { alive = false; };
-  }, [catalog, tab, sourceId, page, filters, debouncedSearch]);
+  }, [catalog, tab, bookId, sourceId, page, filters, debouncedSearch]);
 
   useEffect(() => {
     if (!catalog || selectedId === null) { setDetail(null); return; }
@@ -254,7 +259,7 @@ export default function App() {
   }, [catalog, tab, selectedId]);
 
   const currentTab = tabs.find(t => t.key === tab) || tabs[0];
-  const chosenBook = catalog?.sources.find(s => s.id === sourceId);
+  const chosenBook = catalog?.books.find(book => book.id === bookId);
   const hasFilters = Object.entries(filters).some(([k, v]) => v !== defaultFilters[k as keyof Filters]);
   const total = results?.total ?? 0;
   const start = total ? ((results?.page ?? 1) - 1) * (results?.pageSize ?? 40) + 1 : 0;
@@ -279,12 +284,12 @@ export default function App() {
           })}
         </nav>
         <div className="sources-heading"><div className="nav-section-title">YOUR LIBRARY</div>
-          {catalog && <span>{catalog.sources.length}</span>}</div>
-        <button onClick={() => chooseSource(null)} className={'book-link ' + (sourceId === null ? 'selected' : '')}>
+          {catalog && <span>{catalog.books.length}</span>}</div>
+        <button onClick={() => chooseBook(null)} className={'book-link ' + (bookId === null ? 'selected' : '')}>
           <Library size={15} /> All books
         </button>
-        {catalog?.sources.map(s => <button key={s.id} className={'book-link ' + (s.id === sourceId ? 'selected' : '')}
-          title={s.title} onClick={() => chooseSource(s.id)}>
+        {catalog?.books.map(s => <button key={s.id} className={'book-link ' + (s.id === bookId ? 'selected' : '')}
+          title={s.title} onClick={() => chooseBook(s.id)}>
           <BookOpen size={15} /><span>{s.title}</span><span className="book-count">{num(s.game_count)}</span>
         </button>)}
         {!catalog && <div className="library-help">Your books will appear here when you open a database.</div>}
@@ -307,6 +312,14 @@ export default function App() {
         </div>
         <button className="secondary-button open-top" onClick={openArchive} disabled={opening}><FolderOpen size={17} /> Open database</button>
       </div>
+      {chosenBook && chosenBook.sections.length > 1 && <div className="book-sections">
+        <SelectInput label="Book section" value={sourceId === null ? 'all' : String(sourceId)}
+          onChange={value => chooseSource(value === 'all' ? null : Number(value))}
+          options={[
+            ['all', `All sections (${chosenBook.sections.length})`],
+            ...chosenBook.sections.map(section => [String(section.id), section.label] as [string, string]),
+          ]} />
+      </div>}
       {openError && <div className="notice error"><AlertCircle size={17} /> {openError}</div>}
       {!catalog ? <section className="welcome">
         <div className="welcome-symbol">♜</div>
@@ -376,7 +389,7 @@ export default function App() {
             {queryError ? <div className="empty-results"><AlertCircle size={30} /><h3>Unable to search</h3><p>{queryError}</p></div>
               : fetching ? <div className="empty-results"><RefreshCw className="spin" size={28} /><p>Loading your archive…</p></div>
               : !results?.rows.length ? <div className="empty-results"><Search size={30} /><h3>No matches found</h3><p>Try changing the source, search, or active filters.</p>
-                <button className="secondary-button" onClick={() => { setSearch(''); setFilters({ ...defaultFilters }); chooseSource(null); }}>Clear search and filters</button></div>
+                <button className="secondary-button" onClick={() => { setSearch(''); setFilters({ ...defaultFilters }); chooseBook(null); }}>Clear search and filters</button></div>
               : <div className="results-list">
                 {(results.rows as Array<GameRow | RecordRow>).map(row => {
                   const selected = row.id === selectedId;

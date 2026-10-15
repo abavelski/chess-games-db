@@ -59,6 +59,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .overline span { color: #c3bcae; padding: 0 8px; }
 .page-heading h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(28px, 2.7vw, 39px); font-weight: 500; letter-spacing: -1.2px; margin: 8px 0 5px; color: #233631; line-height: 1.16; }
 .page-heading p { font-size: 13px; color: #79827b; margin: 0; }
+.book-sections { margin-bottom: 20px; max-width: 540px; }
 .secondary-button { display: inline-flex; justify-content: center; align-items: center; gap: 9px; background: #fff; border: 1px solid #deded7; border-radius: 9px; color: #3a4640; font-size: 12px; font-weight: 680; padding: 11px 15px; box-shadow: 0 1px 2px #142b2110; white-space: nowrap; }
 .secondary-button:hover { border-color: #bbaf9f; background: #fffdf8; }
 .stat-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 23px; }

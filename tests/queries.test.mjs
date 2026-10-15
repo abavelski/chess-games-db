@@ -43,3 +43,18 @@ test('source records can be searched by type and extraction status', () => {
   assert.equal(q.params.search, 'error');
   assert.ok(q.where.includes('r.metadata_json'));
 });
+
+test('book filters bind every section for both games and original records', () => {
+  for (const query of [gameQuery, recordQuery]) {
+    const q = query({ sourceIds: [36, 37, 36, "1) OR 1=1 --"] });
+    assert.match(q.where, /source_id IN \(@source0, @source1\)/);
+    assert.equal(q.params.source0, 36);
+    assert.equal(q.params.source1, 37);
+    assert.ok(!q.where.includes('OR 1=1'));
+    const section = query({ sourceIds: [36, 37], sourceId: 37 });
+    assert.equal(section.params.sourceId, 37);
+    assert.match(section.where, /source_id = @sourceId/);
+    assert.match(query({ sourceIds: [] }).where, /\b0\b/);
+    assert.throws(() => query({ sourceIds: Array.from({ length: 1001 }, (_, i) => i + 1) }), /Too many/);
+  }
+});

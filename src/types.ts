@@ -13,6 +13,14 @@ export interface Source {
 export interface Catalog {
   path: string;
   sources: Source[];
+  books: Array<{
+    id: string;
+    title: string;
+    author: string | null;
+    source_ids: number[];
+    sections: Array<{ id: number; label: string; source_key: string }>;
+    game_count: number;
+  }>;
   totals: {
     books: number;
     entries: number;
@@ -80,6 +88,7 @@ export interface Page<T> {
 export interface SearchFilters {
   search?: string;
   sourceId?: number | null;
+  sourceIds?: number[];
   kind?: string;
   training?: string;
   deleted?: string;

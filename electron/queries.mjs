@@ -17,13 +17,29 @@ const boundedInt = (value, minimum, maximum) => {
 };
 const contains = (field, name) => "instr(lower(coalesce(" + field + ", '')), lower(@" + name + ")) > 0";
 
+function sourceFilter(f, alias, where, params) {
+  const sourceId = boundedInt(f.sourceId, 1, 2147483647);
+  if (sourceId !== null) {
+    where.push(alias + '.source_id = @sourceId');
+    params.sourceId = sourceId;
+  }
+  if (Array.isArray(f.sourceIds)) {
+    // Keep an empty/invalid selection empty rather than exposing all books.
+    const ids = [...new Set(f.sourceIds.map(id => boundedInt(id, 1, 2147483647)).filter(id => id !== null))];
+    if (ids.length > 1000) throw new Error('Too many book sections selected.');
+    where.push(ids.length ? alias + '.source_id IN (' + ids.map((id, i) => {
+      params['source' + i] = id;
+      return '@source' + i;
+    }).join(', ') + ')' : '0');
+  }
+}
+
 export function gameQuery(input = {}) {
   const f = input && typeof input === 'object' ? input : {};
   const where = [];
   const params = {};
 
-  const sourceId = boundedInt(f.sourceId, 1, 2147483647);
-  if (sourceId !== null) { where.push('g.source_id = @sourceId'); params.sourceId = sourceId; }
+  sourceFilter(f, 'g', where, params);
 
   if (['game', 'position', 'line', 'text'].includes(f.kind)) {
     where.push('g.record_kind = @kind');
@@ -82,8 +98,7 @@ export function recordQuery(input = {}) {
   const f = input && typeof input === 'object' ? input : {};
   const where = [];
   const params = {};
-  const sourceId = boundedInt(f.sourceId, 1, 2147483647);
-  if (sourceId !== null) { where.push('r.source_id = @sourceId'); params.sourceId = sourceId; }
+  sourceFilter(f, 'r', where, params);
   if (['game', 'text'].includes(f.recordType)) {
     where.push('r.record_type = @recordType'); params.recordType = f.recordType;
   }

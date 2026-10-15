@@ -30,6 +30,7 @@ The app opens the previously selected database if present, and during developmen
 
 - Browse all entries or narrow to **games**, **setup positions**, **lines**, **text**, **training records**, or **original source records**.
 - Filter by **book**, player (White/Black), event, annotator, year range, ECO prefix, result, training flag, and source-deletion flag.
+- Books imported as multiple section databases appear once in the library, with a combined entry count. Select a book to browse all its sections or choose an individual **Book section**. Grouping uses the explicit catalog book identity (`book:catalog:…:db-…`), preserves every original source and record, and never rewrites the SQLite archive.
 - Search titles, source keys, players, events and metadata; inspect paginated results and choose an ordering.
 - Examine boards with move controls, comments and variations from the **Lichess PGN Viewer**, including FEN setups; switch to the authoritative **original PGN** or the record's raw headers and metadata.
 - Inspect original source-record extraction status, source keys, JSON metadata, and a limited UTF-8 preview of raw move bytes when those bytes are text.
