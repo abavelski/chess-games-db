@@ -1,0 +1,30 @@
+// Bundle the upstream Lichess viewer, Chessground board layout and embedded SVG
+// pieces locally. No CDN or online assets are required while browsing.
+@import '../node_modules/@lichess-org/pgn-viewer/scss/lichess-pgn-viewer.lib';
+@import '../node_modules/@lichess-org/pgn-viewer/scss/chessground.base';
+@import '../node_modules/@lichess-org/pgn-viewer/scss/chessground.cburnett.css';
+
+cg-board {
+  background-color: #f0d9b5;
+  background-image: conic-gradient(#b58863 25%, #f0d9b5 0 50%, #b58863 0 75%, #f0d9b5 0);
+  background-size: 25% 25%;
+}
+
+.lpv {
+  --c-lpv-bg: #fbf9f4;
+  --c-lpv-font: #272e33;
+  --c-lpv-accent: #a37635;
+  --c-lpv-font-shy: #768079;
+  --c-lpv-bg-controls: #fbf9f4;
+  --c-lpv-bg-player: #fbf9f4;
+  --c-lpv-bg-movelist: #fbf9f4;
+  --c-lpv-bg-variation: #eeeae0;
+  --c-lpv-bg-pane: #f4f0e8;
+  --c-lpv-border: #e7e2d8;
+  border-radius: 12px;
+  box-shadow: none;
+  width: 100%;
+  font-size: 13px;
+}
+.lpv--moves-bottom { grid-template-columns: minmax(0, 1fr); }
+.lpv cg-board { border-radius: 4px; }
