@@ -6,6 +6,7 @@ export interface ReviewToken {
   path?: string | null;
   ply?: number;
   nags?: number[];
+  evaluations?: Array<{ value: string; depth?: number }>;
   annotated?: boolean;
 }
 export function commentText(comment: string, keepBoardAnnotations?: boolean): string;

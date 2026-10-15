@@ -51,3 +51,17 @@ test('setup positions, commentary-only records, and illegal moves retain their t
   assert.equal(illegal.tokens.find(t => t.san === 'Nc6').path, null);
   assert.equal(illegal.tokens.at(-1).text, 'Still readable.');
 });
+
+test('numeric and mate evaluations belong to their move without replacing commentary', () => {
+  const pgn = '1. e4 $14 { [%eval +0.35,18] Keep the center. } (1. d4 { [%eval #3] }) e5 { [%eval 0.00] } 2. Nf3 { [%eval -0.80/10] } Nc6 { [%eval #-2] } *';
+  const review = reviewPgn(pgn);
+  const moves = review.tokens.filter(t => t.type === 'move');
+  assert.deepEqual(moves.map(m => m.evaluations), [
+    [{ value: '+0.35', depth: 18 }], [{ value: '#3', depth: undefined }],
+    [{ value: '0.00', depth: undefined }], [{ value: '-0.80', depth: 10 }],
+    [{ value: '#-2', depth: undefined }],
+  ]);
+  assert.deepEqual(moves[0].nags, [14]);
+  assert.deepEqual(review.tokens.filter(t => t.type === 'comment').map(t => t.text), ['Keep the center.']);
+  assert.equal(commentText('[%eval unknown]'), 'Evaluation: unknown');
+});

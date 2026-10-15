@@ -12,7 +12,7 @@ function parse(pgn) {
   return result;
 }
 
-export function commentText(comment, keepBoardAnnotations = false) {
+function restoreComment(comment) {
   // cbtext is the lossless UTF-8 backup of text whose braces were escaped by
   // the importer. Prefer it to the escaped copy rather than displaying both.
   const backup = /\[%cbtext\s+([A-Za-z0-9+/=]+)\]/.exec(comment);
@@ -21,7 +21,11 @@ export function commentText(comment, keepBoardAnnotations = false) {
       comment = new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(backup[1]), c => c.charCodeAt(0)));
     } catch { /* Keep the readable fallback when a backup is damaged. */ }
   }
-  return comment.replace(/\[%([\w]+)(?::[\w-]+)?(?:\s+([^\]]*))?\]/g, (tag, kind, payload = '') => {
+  return comment;
+}
+
+export function commentText(comment, keepBoardAnnotations = false) {
+  return restoreComment(comment).replace(/\[%([\w]+)(?::[\w-]+)?(?:\s+([^\]]*))?\]/g, (tag, kind, payload = '') => {
     const value = payload.trim();
     switch (kind.toLowerCase()) {
       case 'pre': case 'post': return value;
@@ -92,9 +96,20 @@ export function reviewPgn(pgn) {
       san = makeSanAndPlay(nextPosition, move);
     }
     comments(node.data.startingComments, depth);
+    const evaluations = [];
+    const after = (node.data.comments || []).map(comment => restoreComment(comment).replace(
+      /\[%eval\s+([+-]?(?:\d+(?:\.\d+)?|#-?\d+))(?:\s*[,/]\s*(\d+))?\s*\]/gi,
+      (_tag, value, searchDepth) => {
+        const number = Number(value);
+        const score = value.includes('#') ? value : (number > 0 ? '+' : '') + number.toFixed(2);
+        evaluations.push({ value: score, depth: searchDepth === undefined ? undefined : Number(searchDepth) });
+        return '';
+      },
+    ));
     tokens.push({ type: 'move', san, path: nextPath, ply: ply + 1, nags: node.data.nags || [], depth,
+      evaluations,
       annotated: /\[%(?:cal|csl)\s/.test([...(node.data.startingComments || []), ...(node.data.comments || [])].join(' ')) });
-    comments(node.data.comments, depth);
+    comments(after, depth);
     if (node.children.length) tasks.push({ type: 'line', node: node.children[0], alternatives: node.children.slice(1),
       position: move ? nextPosition : null, path: nextPath, ply: ply + 1, depth });
     for (let i = task.alternatives.length - 1; i >= 0; i--) {

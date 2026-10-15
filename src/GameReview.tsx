@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowLeftRight, ChevronLeft, ChevronRight, ChevronsLeft, Che
 import { Path } from '@lichess-org/pgn-viewer/path';
 import { glyphs } from '@lichess-org/pgn-viewer/view/glyph';
 import { PgnBoard, type Viewer } from './PgnBoard';
-import { reviewPgn } from './pgn.mjs';
+import { reviewPgn, type ReviewToken } from './pgn.mjs';
 import type { GameDetail } from './types';
 
 const annotationGlyphs: Record<number, { symbol: string; name: string }> = {
@@ -21,6 +21,20 @@ export function GameReview({ game, initialPath, onClose }: { game: GameDetail; i
     try { return { data: reviewPgn(game.pgn), error: null }; }
     catch (error) { return { data: null, error: error instanceof Error ? error.message : String(error) }; }
   }, [game.pgn]);
+  const score = useMemo(() => {
+    const tokens = model.data?.tokens || [];
+    const groups: Array<{ tokens: ReviewToken[]; index: number }> = [];
+    for (let index = 0; index < tokens.length; index++) {
+      const white = tokens[index];
+      const black = tokens[index + 1];
+      const paired = white.type === 'move' && (white.ply || 0) % 2 === 1 &&
+        black?.type === 'move' && black.ply === white.ply! + 1 && black.depth === white.depth &&
+        (white.path === null || black.path?.slice(0, -2) === white.path);
+      groups.push({ tokens: paired ? [white, black] : [white], index });
+      if (paired) index++;
+    }
+    return groups;
+  }, [model]);
   const onReady = useCallback((value: Viewer | null) => {
     viewer.current = value; setReady(!!value);
     if (value) setPath(value.path.path);
@@ -60,6 +74,33 @@ export function GameReview({ game, initialPath, onClose }: { game: GameDetail; i
   const title = game.white || game.black ? `${game.white || 'Unknown'} vs ${game.black || 'Unknown'}` : game.event || 'Study position';
   const go = (direction: 'first' | 'prev' | 'next' | 'last') => viewer.current?.goTo(direction, false);
   const currentNode = viewer.current?.game.nodeAt(new Path(path));
+  const renderToken = (token: ReviewToken, index: number) => {
+    if (token.type === 'comment') return token.depth
+      ? <span className="review-comment inline-comment" key={index}> {'{'} {token.text} {'}'} </span>
+      : <p className="review-comment" key={index}>{token.text}</p>;
+    if (token.type === 'variation-start') return <span className="review-variation" key={index} aria-label="Variation"> (</span>;
+    if (token.type === 'variation-end') return <span className="review-variation-end" key={index}>) </span>;
+    const ply = token.ply || 1;
+    const number = `${Math.ceil(ply / 2)}${ply % 2 ? '.' : '…'}`;
+    const previous = model.data?.tokens[index - 1];
+    const showNumber = ply % 2 === 1 || previous?.type !== 'move' || previous.depth !== token.depth;
+    const evaluationNags = (token.nags || []).filter(nag => nag >= 10 && nag <= 21);
+    const evaluations = [
+      ...evaluationNags.map(nag => ({ value: annotationGlyphs[nag]?.symbol || (nag === 20 ? '+−' : '−+'),
+        title: annotationGlyphs[nag]?.name || 'Decisive advantage' })),
+      ...(token.evaluations || []).map(evaluation => ({ value: evaluation.value,
+        title: evaluation.depth === undefined ? 'Position evaluation' : `Position evaluation · depth ${evaluation.depth}` })),
+    ];
+    return <button key={index} className={'review-move' + (token.depth ? ' in-variation' : '')}
+      data-review-path={token.path} aria-current={token.path === path ? 'step' : undefined}
+      title={token.path === null ? 'The source contains an illegal move; its text is preserved.' : `Go to ${number} ${token.san}`}
+      disabled={!ready || token.path === null} onClick={() => viewer.current?.toPath(new Path(token.path!), false)}>
+      {showNumber && <span className="review-move-number">{number} </span>}{token.san}
+      {token.nags?.filter(nag => !evaluationNags.includes(nag)).map((nag, i) => <span className="review-glyph" title={annotationGlyphs[nag]?.name || `Annotation $${nag}`} key={i}>{annotationGlyphs[nag]?.symbol || `$${nag}`}</span>)}
+      {evaluations.length > 0 && <small className="review-evaluation"> ({evaluations.map((evaluation, i) => <span title={evaluation.title} key={i}>{i > 0 ? ', ' : ''}{evaluation.value}</span>)})</small>}
+      {token.annotated && <Compass size={12} aria-label="Board annotation" />}
+    </button>;
+  };
   return <main className="review-shell">
     <header className="review-header">
       <div>
@@ -88,25 +129,9 @@ export function GameReview({ game, initialPath, onClose }: { game: GameDetail; i
         <div className="review-transcript" ref={transcript}>
           {model.error && <div className="notice error">{model.error}</div>}
           {model.data?.positionError && <div className="notice error">{model.data.positionError}</div>}
-          {model.data?.tokens.map((token, index) => {
-            if (token.type === 'comment') return token.depth
-              ? <span className="review-comment inline-comment" key={index}> {'{'} {token.text} {'}'} </span>
-              : <p className="review-comment" key={index}>{token.text}</p>;
-            if (token.type === 'variation-start') return <span className="review-variation" key={index} aria-label="Variation"> (</span>;
-            if (token.type === 'variation-end') return <span className="review-variation-end" key={index}>) </span>;
-            const ply = token.ply || 1;
-            const number = `${Math.ceil(ply / 2)}${ply % 2 ? '.' : '…'}`;
-            const previous = model.data?.tokens[index - 1];
-            const showNumber = ply % 2 === 1 || previous?.type !== 'move' || previous.depth !== token.depth;
-            return <button key={index} className={'review-move' + (token.depth ? ' in-variation' : '')}
-              data-review-path={token.path} aria-current={token.path === path ? 'step' : undefined}
-              title={token.path === null ? 'The source contains an illegal move; its text is preserved.' : `Go to ${number} ${token.san}`}
-              disabled={!ready || token.path === null} onClick={() => viewer.current?.toPath(new Path(token.path!), false)}>
-              {showNumber && <span className="review-move-number">{number} </span>}{token.san}
-              {token.nags?.map((nag, i) => <span className="review-glyph" title={annotationGlyphs[nag]?.name || `Annotation $${nag}`} key={i}>{annotationGlyphs[nag]?.symbol || `$${nag}`}</span>)}
-              {token.annotated && <Compass size={12} aria-label="Board annotation" />}
-            </button>;
-          })}
+          {score.map(({ tokens, index }) => tokens.length === 2
+            ? <span className="review-move-pair" key={index}>{renderToken(tokens[0], index)}{renderToken(tokens[1], index + 1)}</span>
+            : renderToken(tokens[0], index))}
           {game.result && game.result !== '*' && <p className="review-result">{game.result}</p>}
           <details className="review-headers"><summary>Game information · all PGN headers</summary><dl>
             {model.data?.headers.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}

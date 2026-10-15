@@ -20,9 +20,9 @@ const insertSource = db.prepare('INSERT INTO sources (source_key, title, origina
 insertSource.run('book:catalog:smoke:db-001', 'Smoke book', '/books/Smoke book/Level 1.cbh');
 insertSource.run('book:catalog:smoke:db-002', 'Smoke book', '/books/Smoke book/Level 2.cbh');
 insertSource.run('other', 'Other book', null);
-const pgn = '[White "Smoke White"]\n[Black "Smoke Black"]\n\n{ [%pre:ENG Opening introduction.] }\n1. e4 { [%post Space in the center.] [%cal Gb6a4,Yc3a4] [%csl Ra4] }\n({ [%pre Another plan:] } 1. d4 { A queen-pawn approach. } d5 (1... Nf6 { Nested note. }))\ne5 2. Nf3 (2. Bc4 { Final variation. }) Nc6 { Closing text. } *';
+const pgn = "[White \"Smoke White\"]\n[Black \"Smoke Black\"]\n\n{ [%pre:ENG Opening introduction.] }\n1. e4 $14 { [%post Space in the center.] [%cal Gb6a4,Yc3a4] [%csl Ra4] }\n({ [%pre Another plan:] } 1. d4 d5 { A queen-pawn approach. } (1... Nf6 { Nested note. }))\ne5 { [%eval -0.80/10] } 2. Nf3 (2. Bc4 { Final variation. }) Nc6 { Closing text. } *";
 // Zstandard-compressed fixture; no compression tool is required at test time.
-const compressed = Buffer.from('KLUv/WAxAD0HADJPMCUgjTgHGH1AJyaIx6N+4p2/WmADC8NR2TMpql7pcAe3J4QIJAMDAJ9XGcGyem6AQW/mt8V9uNtuBQxyVTBfKM7g1TTzyvL1J5YVQ6+8sQBdVR3mjOnzSrF9EcJ9QywUaGaKwx/T1fm85Oh18JEp+fpxjsyaB3fVswuWEPBsQyFytywRXdLIspmdKfluZ7ZQclm9P3x11ryk/ZpklOlF2e0M3ZqhwSMQgYMjTESvrCUtE7YOEi1pOU9eg2Q5y0YhRAENAGoLIkSUpZ2HgvEGahAxbAyhncvKsynlTp2CtnI+GYSpBA==', 'base64');
+const compressed = Buffer.from('KLUv/WBKABUIAIZQNiYQzTYHUotIpSOIR86QpbvDGhWXWH8dHwjAFq9e2X8jEhEAAAIAAS0AKgApAOqseUn7Ncky04uy2x+6NcOEW6CDCUe4iL5ZS1Jg2LpKtCTFGfMgLoqzbNRCFJR8TTlHxpoKd9WzEcYg8KykwXK3bBFd0siymZ0p+W5ntvByWb0/DsAffhPLiqFvLnGArqoO4/NKsX0Rwn1LLHQ0cybilG9OMP2Zrs7npUmvg48cAZ9XOcGyes6AQW/Mb4urudtuCKxyhTAegTycgUeBPhx3q+FFxKvRmFeWrx8OAAMb5IooZDtPNMZVjeWCVcurxSH0cFlkNqWMVLegrZxPBmEqAQ==', 'base64');
 for (const sourceId of [1, 2, 3]) {
   db.prepare('INSERT INTO games (source_id, source_game_key, white, black, pgn_zstd, pgn_sha256) VALUES (?, ?, ?, ?, ?, ?)')
     .run(sourceId, 'game', 'Smoke White', 'Smoke Black', compressed, createHash('sha256').update(pgn).digest('hex'));
@@ -67,7 +67,7 @@ async function checkWindow(window) {
   assert.equal(state.total, 3);
   assert.equal(state.pgn, pgn);
   assert.equal(state.board, true);
-  assert.equal(state.move, 'e4');
+  assert.match(state.move, /^e4/);
   assert.deepEqual(state.errors, []);
 
   const previewWidth = await window.webContents.executeJavaScript('document.querySelector("cg-board").getBoundingClientRect().width');
@@ -102,6 +102,13 @@ async function checkWindow(window) {
     root.querySelector('[aria-label="Flip board"]').click();
     const flipped = !!root.querySelector('.orientation-black');
     const original = root.querySelector('.review-original pre').textContent;
+    const pair = [...root.querySelectorAll('.review-move-pair')].find(p => p.textContent.includes('d4'));
+    const pairMoves = [...pair.querySelectorAll('.review-move')].map(button => button.getBoundingClientRect());
+    const evaluations = [...root.querySelectorAll('.review-evaluation')].map(e => e.textContent.trim());
+    if (Math.abs(pairMoves[0].top - pairMoves[1].top) > 1) throw new Error('White and Black moves must share a line');
+    if (!evaluations.includes('(⩲)') || !evaluations.includes('(-0.80)')) throw new Error('Evaluations must appear beside their move');
+    const evaluation = root.querySelector('.review-evaluation');
+    if (parseFloat(getComputedStyle(evaluation).fontSize) >= parseFloat(getComputedStyle(evaluation.parentElement).fontSize)) throw new Error('Evaluation text must be smaller');
     return { comments, initial, variation, arrows, squares, width, flipped, original, parentheses: root.querySelectorAll('.review-variation').length, ends: root.querySelectorAll('.review-variation-end').length, controlsBottom: root.querySelector('.review-controls').getBoundingClientRect().bottom, viewport: innerHeight };
   })()`);
   assert.deepEqual(reviewState.comments, ['Opening introduction.', 'Space in the center.', 'Another plan:',
