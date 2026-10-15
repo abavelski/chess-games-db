@@ -107,6 +107,9 @@ export interface SearchFilters {
   status?: string;
 }
 export interface ChessArchiveAPI {
+  openReview(id: number, initialPath?: string): Promise<void>;
+  getReview(): Promise<{ game: GameDetail; initialPath: string } | null>;
+  closeReview(): Promise<void>;
   openDatabase(): Promise<{ canceled: boolean; catalog?: Catalog }>;
   getCatalog(): Promise<Catalog | null>;
   searchGames(f: SearchFilters): Promise<Page<GameRow>>;

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BookOpen, Library, Target, Flag, FileText, Layers3, Database, FolderOpen,
   Search, SlidersHorizontal, ChevronLeft, ChevronRight, X, RefreshCw,
   Copy, AlertCircle, CheckCircle2, ChevronsUpDown, BookMarked, ListFilter,
-  ArrowRight, Hash, PanelRightClose, PanelRightOpen,
+  ArrowRight, Hash, PanelRightClose, PanelRightOpen, Maximize2,
 } from 'lucide-react';
 import { PgnBoard } from './PgnBoard';
 import type { Catalog, GameRow, GameDetail, RecordRow, RecordDetail, Page, SearchFilters, Tab } from './types';
@@ -68,6 +68,16 @@ function DetailMeta({ label, value }: { label: string; value: string | number | 
 function GamePanel({ game, onClose }: { game: GameDetail; onClose: () => void }) {
   const [mode, setMode] = useState<'board' | 'pgn' | 'metadata'>(game.record_kind === 'text' ? 'pgn' : 'board');
   const [copied, setCopied] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewOpening, setReviewOpening] = useState(false);
+  const position = useRef('');
+  const rememberPosition = useCallback((path: string) => { position.current = path; }, []);
+  const openReview = async () => {
+    setReviewOpening(true); setReviewError(null);
+    try { await window.chessArchive.openReview(game.id, position.current); }
+    catch (error) { setReviewError(errorMessage(error)); }
+    finally { setReviewOpening(false); }
+  };
   const copy = async () => {
     try { await navigator.clipboard.writeText(game.pgn); setCopied(true); }
     catch { setCopied(false); }
@@ -86,6 +96,10 @@ function GamePanel({ game, onClose }: { game: GameDetail; onClose: () => void })
       {game.result && <span className="pill neutral">{game.result}</span>}
     </div>
     <div className="detail-source"><BookMarked size={16} /> {game.source_title}</div>
+    <button className="secondary-button review-open" onClick={openReview} disabled={reviewOpening}>
+      <Maximize2 size={16} /> {reviewOpening ? 'Opening review…' : 'Open game review'}
+    </button>
+    {reviewError && <div className="notice error">{reviewError}</div>}
     <div className="detail-tabs" role="tablist" aria-label="Entry view">
       {(['board', 'pgn', 'metadata'] as const).map(view => (
         <button key={view} role="tab" aria-selected={mode === view}
@@ -95,7 +109,7 @@ function GamePanel({ game, onClose }: { game: GameDetail; onClose: () => void })
       ))}
     </div>
     {mode === 'board' && <div className="board-view">
-      <PgnBoard pgn={game.pgn} />
+      <PgnBoard pgn={game.pgn} initialPath={position.current} onPathChange={rememberPosition} />
       <p className="hint">Use the move list or board controls to step through the annotated game and variations.</p>
       {game.start_fen && <div className="fen"><span>Starting FEN</span><code>{game.start_fen}</code></div>}
     </div>}

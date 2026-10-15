@@ -8,6 +8,7 @@ const here = fileURLToPath(new URL('.', import.meta.url));
 let window;
 let archive;
 let currentPath = null;
+const reviews = new Map();
 
 const preferencePath = () => join(app.getPath('userData'), 'archive.json');
 
@@ -30,13 +31,13 @@ function currentArchive() {
   return archive;
 }
 
-function createWindow() {
-  window = new BrowserWindow({
+function desktopWindow(title, review = false) {
+  const desktop = new BrowserWindow({
     width: 1510,
     height: 920,
     minWidth: 920,
     minHeight: 650,
-    title: 'Chess Books Explorer',
+    title,
     backgroundColor: '#f6f3ec',
     webPreferences: {
       preload: join(here, 'preload.cjs'),
@@ -45,13 +46,22 @@ function createWindow() {
       sandbox: true,
     },
   });
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  window.webContents.on('will-navigate', (event) => event.preventDefault());
-  if (!app.isPackaged && process.argv.includes('--dev')) {
-    window.loadURL('http://127.0.0.1:5173');
-  } else {
-    window.loadFile(join(here, '..', 'dist', 'index.html'));
-  }
+  desktop.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  desktop.webContents.on('will-navigate', (event) => event.preventDefault());
+  const hash = review ? 'review' : '';
+  return {
+    desktop,
+    load: () => !app.isPackaged && process.argv.includes('--dev')
+      ? desktop.loadURL('http://127.0.0.1:5173/' + (hash ? '#' + hash : ''))
+      : desktop.loadFile(join(here, '..', 'dist', 'index.html'), { hash }),
+  };
+}
+
+function createWindow() {
+  const { desktop, load } = desktopWindow('Chess Books Explorer');
+  window = desktop;
+  desktop.on('closed', () => { if (window === desktop) window = null; });
+  void load();
 }
 
 app.whenReady().then(() => {
@@ -73,6 +83,26 @@ app.whenReady().then(() => {
   ipcMain.handle('archive:game', (_event, id) => currentArchive().getGame(id));
   ipcMain.handle('archive:records', (_event, filters) => currentArchive().searchRecords(filters));
   ipcMain.handle('archive:record', (_event, id) => currentArchive().getRecord(id));
+  ipcMain.handle('review:open', async (_event, id, initialPath) => {
+    const game = currentArchive().getGame(id);
+    if (!game) throw new Error('This archive entry could not be found.');
+    const { desktop, load } = desktopWindow('Game review · ' + (game.white || game.event || game.source_title), true);
+    const key = desktop.webContents.id;
+    // Pin the verified PGN to this window so changing archives cannot change
+    // an existing review or make it display a different game with the same ID.
+    reviews.set(key, { game, initialPath: typeof initialPath === 'string' ? initialPath.slice(0, 10000) : '' });
+    desktop.on('closed', () => reviews.delete(key));
+    try { await load(); }
+    catch (error) { desktop.destroy(); throw error; }
+  });
+  ipcMain.handle('review:get', event => reviews.get(event.sender.id) ?? null);
+  ipcMain.handle('review:close', event => {
+    if (!reviews.has(event.sender.id)) return;
+    if (!window || window.isDestroyed()) createWindow();
+    window.show();
+    window.focus();
+    BrowserWindow.fromWebContents(event.sender)?.close();
+  });
 
   const candidates = [];
   try {

@@ -1,0 +1,18 @@
+export interface ReviewToken {
+  type: 'comment' | 'move' | 'variation-start' | 'variation-end';
+  depth: number;
+  text?: string;
+  san?: string;
+  path?: string | null;
+  ply?: number;
+  nags?: number[];
+  annotated?: boolean;
+}
+export function commentText(comment: string, keepBoardAnnotations?: boolean): string;
+export function prepareDisplayPgn(pgn: string): string;
+export function reviewPgn(pgn: string): {
+  tokens: ReviewToken[];
+  headers: Array<[string, string]>;
+  displayPgn: string;
+  positionError: string | null;
+};
