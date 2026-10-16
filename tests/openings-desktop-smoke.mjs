@@ -108,8 +108,14 @@ async function smoke() {
       await waitForOpening(() => gameCount(0) && document.querySelector('.empty-results'));
       document.querySelector('.empty-results button').click();
       await waitForOpening(() => gameCount(45) && document.querySelector('.opening-filter').getAttribute('aria-busy') === 'false');
+      document.querySelector('.opening-unclassified-toggle input').click();
+      await waitForOpening(() => gameCount(3));
+      if (openingSelect('Opening family').value !== 'unclassified') throw new Error('Unclassified checkbox must synchronize with the opening selector');
+      document.querySelector('.opening-unclassified-toggle input').click();
+      await waitForOpening(() => gameCount(45));
       changeField(openingSelect('Opening family'),'unclassified');
       await waitForOpening(() => gameCount(3));
+      if (!document.querySelector('.opening-unclassified-toggle input').checked) throw new Error('Opening selector must synchronize with the unclassified checkbox');
       const labels = [...document.querySelectorAll('.game-opening-name')].map(el => el.textContent);
       if (!labels.includes('Opening not enriched') || labels.filter(label => label === 'Unclassified opening').length !== 2) throw new Error('Missing unmatched/invalid/stale states');
       document.querySelector('.opening-filter-heading button').click();

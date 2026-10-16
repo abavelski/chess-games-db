@@ -54,6 +54,12 @@ export function OpeningFilter({ filters, selection, onChange }: {
   return <section className="opening-filter" aria-label="Opening filters" aria-busy={loading}>
     <div className="opening-filter-heading"><strong>Opening</strong>
       <span role="status">{loading ? 'Updating openings…' : available ? `${facets.classified.toLocaleString()} of ${facets.total.toLocaleString()} games classified` : ''}</span>
+      {available && <label className="opening-unclassified-toggle">
+        <input type="checkbox" checked={selection?.id === 'unclassified'} disabled={loading} onChange={event => {
+          setSearch(''); onChange(event.target.checked ? { id: 'unclassified', path: [] } : null);
+        }} />
+        Unclassified only ({facets.unclassified.toLocaleString()})
+      </label>}
       {selection && <button className="subtle-button" onClick={() => { setSearch(''); onChange(null); }}>Clear opening</button>}
     </div>
     {error && <p role="alert" className="notice error">{error}</p>}

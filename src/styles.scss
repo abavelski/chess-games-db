@@ -328,3 +328,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .game-opening-name { color: #627e55; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .review-header .review-opening-name { color: #65824d; margin: 2px 0 4px; }
 .review-shell.has-opening { --review-board-size: min(calc(100dvh - 190px), calc(64vw - 20px)); }
+
+.opening-filter-heading { flex-wrap: wrap; }
+.opening-unclassified-toggle { display: inline-flex; align-items: center; gap: 6px; color: #627553; font-size: 12px; white-space: nowrap; cursor: pointer; }
+.opening-unclassified-toggle input { width: 14px; height: 14px; margin: 0; accent-color: #526e45; }
