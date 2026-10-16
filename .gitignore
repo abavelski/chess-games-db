@@ -8,3 +8,21 @@ release/
 dist-electron/
 *.tsbuildinfo
 npm-debug.log*
+
+.local-engines/
+# Local Python environments, engine weights and generated test/benchmark output.
+.venv/
+venv/
+*.pt
+*.pth
+*.onnx
+*.nnue
+.pytest_cache/
+.coverage
+coverage/
+test-results/
+playwright-report/
+*.log
+.env
+.env.*
+!.env.example

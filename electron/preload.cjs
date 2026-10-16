@@ -13,3 +13,16 @@ contextBridge.exposeInMainWorld('chessArchive', Object.freeze({
   searchRecords: (filters) => ipcRenderer.invoke('archive:records', filters),
   getRecord: (id) => ipcRenderer.invoke('archive:record', id),
 }));
+
+contextBridge.exposeInMainWorld('chessEngine', Object.freeze({
+  settings: () => ipcRenderer.invoke('engine:settings'),
+  configure: settings => ipcRenderer.invoke('engine:configure', settings),
+  pick: kind => ipcRenderer.invoke('engine:pick', kind),
+  analyze: request => ipcRenderer.invoke('engine:analyze', request),
+  stop: engine => ipcRenderer.invoke('engine:stop', engine),
+  onUpdate: callback => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('engine:update', listener);
+    return () => ipcRenderer.removeListener('engine:update', listener);
+  },
+}));

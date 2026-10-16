@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ChessArchive } from './database.mjs';
+import { registerEngineIpc } from './engine-ipc.mjs';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 let window;
@@ -63,6 +64,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  registerEngineIpc({ app, ipcMain, dialog });
   ipcMain.handle('archive:open', async () => {
     const answer = await dialog.showOpenDialog(window, {
       title: 'Open Chess Books SQLite archive',
