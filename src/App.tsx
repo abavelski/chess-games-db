@@ -1,7 +1,8 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, ChevronLeft, ChevronRight, ChevronsUpDown, FolderOpen, RefreshCw, Search, X } from 'lucide-react';
 import { GameReview } from './GameReview';
-import type { Catalog, GameDetail, GameRow, Page } from './types';
+import { OpeningFilter, type OpeningSelection } from './OpeningFilter';
+import type { Catalog, GameDetail, GameRow, Page, SearchFilters } from './types';
 
 // Keep the reader available for later without exposing book content in the default UI.
 const bookModeEnabled = import.meta.env.VITE_ENABLE_BOOK_MODE === 'true';
@@ -30,6 +31,7 @@ export default function App() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [page, setPage] = useState(1);
+  const [openingSelection, setOpeningSelection] = useState<OpeningSelection | null>(null);
   const [results, setResults] = useState<Page<GameRow> | null>(null);
   const [fetching, setFetching] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
@@ -41,6 +43,11 @@ export default function App() {
   const scroll = useRef({ x: 0, y: 0 });
   const gameRequest = useRef(0);
   const selectedBook = catalog?.books.find(book => book.id === bookId);
+  const baseFilters = useMemo<SearchFilters>(() => ({
+    ...filters, search: debouncedSearch,
+    sourceIds: bookId ? catalog?.books.find(book => book.id === bookId)?.source_ids ?? [] : undefined,
+    sourceId: sourceId ? Number(sourceId) : null,
+  }), [filters, debouncedSearch, bookId, sourceId, catalog]);
 
   const closeReview = useCallback(() => {
     setReview(null); setReader(false);
@@ -73,20 +80,18 @@ export default function App() {
     // Book contents, puzzles, positions and source records remain in the archive.
     // The browser always requests complete games only.
     window.chessArchive.searchGames({
-      ...filters, kind: 'game', deleted: 'active', search: debouncedSearch,
-      sourceIds: bookId ? catalog.books.find(book => book.id === bookId)?.source_ids ?? [] : undefined,
-      sourceId: sourceId ? Number(sourceId) : null, page, pageSize: 40,
+      ...baseFilters, kind: 'game', deleted: 'active', openingNodeId: openingSelection?.id, page, pageSize: 40,
     }).then(value => { if (alive) setResults(value); })
       .catch(error => { if (alive) setQueryError(errorMessage(error)); })
       .finally(() => { if (alive) setFetching(false); });
     return () => { alive = false; };
-  }, [catalog, bookId, sourceId, page, filters, debouncedSearch]);
+  }, [catalog, baseFilters, openingSelection, page]);
 
   const patchFilter = (key: keyof Filters, value: string) => {
     setFilters(previous => ({ ...previous, [key]: value })); setPage(1);
   };
   const resetFilters = () => {
-    setFilters(defaultFilters); setBookId(''); setSourceId(''); setSearch(''); setDebouncedSearch(''); setPage(1);
+    setOpeningSelection(null); setFilters(defaultFilters); setBookId(''); setSourceId(''); setSearch(''); setDebouncedSearch(''); setPage(1);
   };
   const openArchive = async () => {
     setOpening(true); setOpenError(null);
@@ -117,7 +122,7 @@ export default function App() {
   const pageCount = Math.max(1, Math.ceil(total / 40));
   const start = total ? ((results?.page ?? 1) - 1) * 40 + 1 : 0;
   const end = Math.min((results?.page ?? 1) * 40, total);
-  const hasFilters = !!(search || bookId || sourceId || Object.entries(filters).some(([key, value]) => value !== defaultFilters[key as keyof Filters]));
+  const hasFilters = !!(search || bookId || sourceId || openingSelection || Object.entries(filters).some(([key, value]) => value !== defaultFilters[key as keyof Filters]));
 
   return <>
     <div hidden={!!review || reader}>
@@ -159,7 +164,7 @@ export default function App() {
                   <option value="">All sections ({selectedBook.sections.length})</option>{selectedBook.sections.map(section => <option key={section.id} value={section.id}>{section.label}</option>)}
                 </select></label>}
               <details className="more-game-filters"><summary>More filters</summary><div className="filters-grid">
-                <FilterInput label="ECO" value={filters.eco} onChange={value => patchFilter('eco', value)} />
+                <FilterInput label="Source ECO" value={filters.eco} onChange={value => patchFilter('eco', value)} />
                 <label className="field"><span>Result</span><select value={filters.result} onChange={event => patchFilter('result', event.target.value)}>
                   <option value="all">Any result</option><option value="1-0">White wins</option><option value="0-1">Black wins</option><option value="1/2-1/2">Draw</option><option value="*">Unfinished</option>
                 </select></label>
@@ -170,6 +175,7 @@ export default function App() {
               }}>Read book</button>}
             </div>
           </section>
+          <OpeningFilter key={catalog.path} filters={baseFilters} selection={openingSelection} onChange={value => { setOpeningSelection(value); setPage(1); }} />
           <div className="results-titlebar"><div><h2>Games</h2><span role="status">{fetching ? 'Searching…' : `${num(total)} ${total === 1 ? 'game' : 'games'}`}</span></div>
             <label className="sort-box"><ChevronsUpDown size={15} /><select aria-label="Sort games" value={filters.sort} onChange={event => patchFilter('sort', event.target.value)}>
               <option value="book">Book order</option><option value="year_desc">Year · newest</option><option value="year_asc">Year · oldest</option>
@@ -186,7 +192,8 @@ export default function App() {
                 onClick={event => void openGame(game, event.currentTarget)}>
                 <span className="game-piece" aria-hidden="true">♟</span>
                 <span className="item-main"><strong>{gameTitle(game)}</strong>
-                  <span className="item-small">{[game.event, game.year, game.eco].filter(Boolean).join(' · ') || 'Event and date unavailable'}</span>
+                  <span className="item-small">{[game.event, game.year, game.eco && game.opening?.eco && game.eco !== game.opening.eco ? `Source ECO ${game.eco}` : game.eco].filter(Boolean).join(' · ') || 'Event and date unavailable'}</span>
+                  {(game.opening?.name || catalog.capabilities?.openings) && <span className="game-opening-name" title={game.opening?.name ?? undefined}>{game.opening?.name ? `${game.opening.name} · ${game.opening.eco}` : game.opening?.status === 'unenriched' ? 'Opening not enriched' : 'Unclassified opening'}</span>}
                   <small>{game.source_title}{game.annotator ? ` · Annotated by ${game.annotator}` : ''}</small></span>
                 <span className="item-extra"><span className="result-val">{game.result || '—'}</span><ChevronRight size={17} /></span>
               </button>)}</div>}

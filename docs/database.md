@@ -13,10 +13,10 @@ Requires Python 3 with SQLite foreign key and JSON function support (SQLite
 Zstandard library are needed to initialize the database. The path is relative
 to the working directory; parent directories are created as needed.
 
-The initializer applies numbered migrations through `003_record_classification.sql`
-and sets SQLite's `PRAGMA user_version` to `3` in one transaction. Existing
-version-1/2 databases are upgraded without losing rows. Repeating initialization
-on a version-3 database preserves all rows. An immediate write transaction serializes
+The initializer applies numbered migrations through `004_openings.sql`
+and sets SQLite's `PRAGMA user_version` to `4` in one transaction. Existing
+version-1/2/3 databases are upgraded without losing rows. Repeating initialization
+on a version-4 database preserves all rows. An immediate write transaction serializes
 concurrent initializers; failures roll back schema changes and the version.
 Newer schema versions are rejected. An unversioned database with conflicting
 tables fails rather than silently adopting an unknown schema. Future schema
@@ -30,7 +30,7 @@ own connection.
 
 ## Structure
 
-There are three tables: `sources`, `games`, and `source_records`. Integer primary keys are internal join keys; stable
+There are three archival tables: `sources`, `games`, and `source_records`; schema v4 adds the derived opening tables described below. Integer primary keys are internal join keys; stable
 import identities are the text keys described below. Optional unknown fields
 use SQL `NULL`. Text is Unicode. All three tables have UTC `created_at` and
 `updated_at` timestamps in `YYYY-MM-DDTHH:MM:SS.sssZ` format, defaulting to now.
@@ -280,8 +280,7 @@ could use an FTS5 virtual table for extracted comments and headers, linked to
 `games.id`. AI embeddings could live in a separate table or vector index with
 `game_id`, passage/variation identity, model name/version, dimensions, and the
 PGN checksum used to generate them. Derived records should be invalidated or
-rebuilt when `pgn_sha256` changes and removed when their game is deleted. These
-features are not part of the current three-table schema.
+rebuilt when `pgn_sha256` changes and removed when their game is deleted. Full-text search and embeddings are not part of the current schema; v4 adds only named opening classification.
 
 ## Migration history
 
@@ -290,6 +289,7 @@ features are not part of the current three-table schema.
 | `001_initial.sql` | Creates sources and games, stable identities, PGN storage, metadata constraints, and initial search indexes. |
 | `002_source_records.sql` | Adds source metadata JSON and the original-record archive table. |
 | `003_record_classification.sql` | Adds browsing kind, training/deletion labels, setup FEN, and kind/flag indexes. |
+| `004_openings.sql` | Adds revisioned opening catalogue, taxonomy, classifications, matches, and atomic publication. |
 
 Migration 003 backfills `text` from the guiding-text game type, `position` from
 `SetUp=1`, and `line` from missing/placeholder player names; remaining rows become

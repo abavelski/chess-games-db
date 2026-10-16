@@ -102,12 +102,13 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     </button>;
   };
   const Shell = embedded ? 'div' : 'main';
-  return <Shell className={"review-shell" + (embedded ? " book-game-review" : "")}>
+  return <Shell className={"review-shell" + (game.opening?.name && !embedded ? " has-opening" : "") + (embedded ? " book-game-review" : "")}>
     {!embedded && <header className="review-header">
       <div>
         <div className="eyebrow">GAME REVIEW · {game.source_title}</div>
         <h1>{title}</h1>
-        <p>{[game.event, game.site, game.date, game.eco, game.result].filter(value => value && value !== '?').join(' · ')}</p>
+        {game.opening?.name && <p className="review-opening-name" title={game.opening.name}>{game.opening.name} · {game.opening.eco}{game.eco && game.eco !== game.opening.eco ? ` · Source ECO ${game.eco}` : ''}</p>}
+        <p>{[game.event, game.site, game.date, game.opening?.name ? null : game.eco, game.result].filter(value => value && value !== '?').join(' · ')}</p>
       </div>
       <button className="secondary-button" onClick={onClose} autoFocus><ArrowLeft size={16} /> Back to games</button>
     </header>}

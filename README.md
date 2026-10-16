@@ -21,7 +21,7 @@ npm start          # run the built desktop app without a development server
 npm run dist:dir   # unpacked desktop app
 npm run dist       # installer/DMG/AppImage (depends on platform)
 npm test           # SQL filter/query unit tests
-npm run test:desktop # games-only desktop smoke test (requires a graphical session)
+npm run test:desktop # games and opening-filter desktop smoke tests (requires a graphical session)
 ```
 
 The app opens the previously selected database if present, and during development also looks for `data/chess-books.sqlite3`. Otherwise, click **Open database** to select an existing SQLite file. **The database is not included in Git or any installer.** The app never writes to the archive and does not create an empty replacement if a file is missing.
@@ -29,7 +29,8 @@ The app opens the previously selected database if present, and during developmen
 ## Browse and study
 
 - The front page contains **games only**, with search and filters for **book**, **White/Black players**, **annotator**, **event**, and **year range**. ECO and result are under **More filters**.
-- Each game shows its players, event, year, ECO, result, source book, and annotator when available.
+- Each game shows its players, event, year, ECO, result, source book, and annotator when available. Enriched archives also show the deepest named opening in the game list and review header.
+- The **Opening** section supports name search and family → line → subline selectors, with game counts at every level. Parent selections include descendants and transpositions. A game matches any named mainline position it reaches, so its deepest displayed name can differ from an earlier line used to filter it. **Unclassified** includes missing, stale, unmatched, and invalid classifications. **Source ECO** remains a separate filter for original archive tags.
 - Multi-file books appear once in the book filter. Select a **Book section** to narrow further. Games default to **Book order**, with year, player, title, and newest-added sorting also available.
 - Click a game to open **full-screen game review** in the same window. **Back to games** or **Esc** returns to the same filters, page, scroll position, and focused game.
 - Review shortcuts: **← / →** previous/next move, **Home / End** (or **↑ / ↓**) first/last position, **Shift+← / Shift+→** first/last position, and **F** to flip the board. Text input and editing keys retain their normal behavior.
@@ -43,7 +44,7 @@ The app uses a narrow, context-isolated Electron preload and parameterized, boun
 
 ### Schema version
 
-The desktop app requires **schema v3** and deliberately does not auto-migrate a user's archive. To create a new empty archive or upgrade an existing version-1/2 archive, **make a backup** and run:
+The desktop app supports **schema v3 and v4** and deliberately does not auto-migrate an archive. Named opening enrichment uses **v4**; v3 remains usable with original ECO filters. To create an archive or upgrade an existing one, **make a backup** and run:
 
 ```sh
 python3 scripts/init-db.py data/chess-books.sqlite3
@@ -67,7 +68,7 @@ See [docs/database.md](docs/database.md) for the schema, stable identifiers, PGN
 | `db/migrations/` | Versioned schema migrations |
 | `scripts/init-db.py` | Transactional initializer / upgrader |
 
-The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lichess PGN Viewer license. No custom chess engine or full-board-position index is included: opening explorer and position searches would require derived indexes beyond the existing SQL schema.
+The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lichess PGN Viewer license. No custom chess engine or full-game position index is included. Named opening matches are derived from the Lichess catalogue; live Explorer statistics are a separate future feature.
 
 ## Opening catalogue enrichment
 
@@ -99,3 +100,9 @@ browsable. Publication replaces the active revision only after all games have a
 result. The JSON report includes coverage, diagnostics by status, and the count
 of derived/source ECO differences. Changing PGN, catalogue or algorithm causes
 reclassification; the previous published revision remains available during work.
+
+After enrichment, launch the app and use **Change database** to select the enriched
+copy (or select the same archive again to refresh its metadata). The app remembers
+the selected file. Opening filters and labels work entirely offline; no Lichess
+account, token, or Explorer API is involved. The deepest named catalogue position
+is an opening classification, not a claim about where chess theory ends.

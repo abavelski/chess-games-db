@@ -310,3 +310,21 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   .game-filters-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .browser-archive>span { display: none; }
 }
+.opening-filter { padding: 17px 18px; margin-bottom: 24px; border: 1px solid #e3e5db; background: #fdfdf9; border-radius: 10px; }
+.opening-filter-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.opening-filter-heading strong { font-size: 13px; color: #39523f; }
+.opening-filter-heading>span { color: #8b9687; font-size: 11px; flex: 1; }
+.opening-filter-controls { display: flex; flex-wrap: wrap; gap: 12px; }
+.opening-filter-controls>.field { flex: 1 1 170px; }
+.opening-filter-controls>.opening-name-search { flex: 1.3 1 250px; }
+.opening-unavailable { color: #87917e; font-size: 12px; margin: 0; line-height: 1.6; }
+.opening-search-results { margin-top: 12px; border: 1px solid #e1e5da; border-radius: 6px; max-height: 240px; overflow-y: auto; background: #fff; }
+.opening-search-results button { display: flex; justify-content: space-between; align-items: center; text-align: left; gap: 16px; width: 100%; padding: 10px 12px; border: none; border-bottom: 1px solid #eef0e8; background: transparent; color: #3d5942; font-size: 12px; }
+.opening-search-results button:hover { background: #edf2e8; }
+.opening-search-results small { white-space: nowrap; color: #8a927f; }
+.opening-search-results p { margin: 12px; font-size: 12px; color: #8a927f; }
+.opening-breadcrumb { color: #526e4b; font-size: 12px; line-height: 1.5; margin: 12px 0 0; overflow-wrap: anywhere; }
+.opening-breadcrumb span { display: block; font-size: 10px; color: #8b9687; margin-top: 3px; }
+.game-opening-name { color: #627e55; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-header .review-opening-name { color: #65824d; margin: 2px 0 4px; }
+.review-shell.has-opening { --review-board-size: min(calc(100dvh - 190px), calc(64vw - 20px)); }

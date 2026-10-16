@@ -1,6 +1,6 @@
 # Opening enrichment tasks
 
-Implement **option 2 first**. Its four tasks deliver a complete offline app with named openings, line/subline filters, and game-list labels. Option 3 is a separate, optional release for reference-game move statistics. “First option” here means the first implementation below: option 2 from the investigation.
+**Option 2 is implemented and verified. Option 3 remains planned.** Implement **option 2 first** in a fresh checkout if using these task descriptions as implementation guidance. Its four tasks deliver a complete offline app with named openings, line/subline filters, and game-list labels. Option 3 is a separate, optional release for reference-game move statistics. “First option” here means the first implementation below: option 2 from the investigation.
 
 | Release | Tasks in order | Complete when |
 | --- | --- | --- |
