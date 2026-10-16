@@ -12,7 +12,7 @@ const annotationGlyphs: Record<number, { symbol: string; name: string }> = {
   12: { symbol: '=', name: 'Equal chances, active position' },
 };
 
-export function GameReview({ game, initialPath, onClose }: { game: GameDetail; initialPath: string; onClose: () => void }) {
+export function GameReview({ game, initialPath, onClose, embedded = false }: { game: GameDetail; initialPath: string; onClose: () => void; embedded?: boolean }) {
   const viewer = useRef<Viewer | null>(null);
   const transcript = useRef<HTMLDivElement>(null);
   const [path, setPath] = useState(initialPath);
@@ -101,15 +101,16 @@ export function GameReview({ game, initialPath, onClose }: { game: GameDetail; i
       {token.annotated && <Compass size={12} aria-label="Board annotation" />}
     </button>;
   };
-  return <main className="review-shell">
-    <header className="review-header">
+  const Shell = embedded ? 'div' : 'main';
+  return <Shell className={"review-shell" + (embedded ? " book-game-review" : "")}>
+    {!embedded && <header className="review-header">
       <div>
         <div className="eyebrow">GAME REVIEW · {game.source_title}</div>
         <h1>{title}</h1>
         <p>{[game.event, game.site, game.date, game.eco, game.result].filter(value => value && value !== '?').join(' · ')}</p>
       </div>
       <button className="secondary-button" onClick={onClose} autoFocus><ArrowLeft size={16} /> Back to library</button>
-    </header>
+    </header>}
     <div className="review-workspace">
       <section className="review-board" aria-label="Game review board">
         <PgnBoard pgn={game.pgn} review initialPath={initialPath} onReady={onReady} onPathChange={onPathChange} />
@@ -140,5 +141,5 @@ export function GameReview({ game, initialPath, onClose }: { game: GameDetail; i
         </div>
       </section>
     </div>
-  </main>;
+  </Shell>;
 }

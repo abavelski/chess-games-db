@@ -108,6 +108,7 @@ export interface SearchFilters {
 }
 export interface ChessArchiveAPI {
   openDatabase(): Promise<{ canceled: boolean; catalog?: Catalog }>;
+  bookContents(bookId: string): Promise<BookContents>;
   getCatalog(): Promise<Catalog | null>;
   searchGames(f: SearchFilters): Promise<Page<GameRow>>;
   getGame(id: number): Promise<GameDetail | null>;
@@ -119,3 +120,19 @@ declare global {
     chessArchive: ChessArchiveAPI;
   }
 }
+
+export type Book = Catalog['books'][number];
+export interface BookEntry {
+  record_id: number | null;
+  source_id: number;
+  record_key: string;
+  status: 'extracted' | 'failed';
+  game_id: number | null;
+  record_kind: string;
+  is_training: number;
+  is_deleted: number;
+  title: string;
+  error: string | null;
+  sequence: number;
+}
+export interface BookContents extends Book { entries: BookEntry[] }

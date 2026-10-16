@@ -6,6 +6,7 @@ import {
   ArrowRight, Hash, PanelRightClose, PanelRightOpen, Maximize2,
 } from 'lucide-react';
 import { PgnBoard } from './PgnBoard';
+import { BookReader } from './BookReader';
 import { GameReview } from './GameReview';
 import type { Catalog, GameRow, GameDetail, RecordRow, RecordDetail, Page, SearchFilters, Tab } from './types';
 
@@ -17,7 +18,7 @@ type Filters = {
 const defaultFilters: Filters = {
   white: '', black: '', eco: '', event: '', annotator: '',
   yearFrom: '', yearTo: '', result: 'all', training: 'all', deleted: 'active',
-  sort: 'newest', recordType: 'all', status: 'all',
+  sort: 'book', recordType: 'all', status: 'all',
 };
 const tabs = [
   { key: 'all', label: 'All entries', icon: Library, subtitle: 'Explore the complete chess book archive' },
@@ -168,6 +169,7 @@ function RecordPanel({ record, onClose }: { record: RecordDetail; onClose: () =>
 }
 
 export default function App() {
+  const [reader, setReader] = useState<{ book: Catalog['books'][number]; start: { sourceId: number | null; key?: string } } | null>(null);
   const reviewTrigger = useRef<HTMLElement | null>(null);
   const libraryScroll = useRef({ x: 0, y: 0 });
   const [review, setReview] = useState<{ game: GameDetail; initialPath: string } | null>(null);
@@ -177,7 +179,7 @@ export default function App() {
     setReview({ game, initialPath });
   }, []);
   const closeReview = useCallback(() => {
-    setReview(null);
+    setReview(null); setReader(null);
     requestAnimationFrame(() => {
       window.scrollTo(libraryScroll.current.x, libraryScroll.current.y);
       reviewTrigger.current?.focus({ preventScroll: true });
@@ -287,7 +289,7 @@ export default function App() {
   const end = Math.min((results?.page ?? 1) * (results?.pageSize ?? 40), total);
   const pageCount = Math.max(1, Math.ceil(total / (results?.pageSize ?? 40)));
 
-  return <><div hidden={!!review}><div className="app-shell">
+  return <><div hidden={!!review || !!reader}><div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><div className="brand-icon">♞</div>
         <div><strong>Chess Books</strong><span>EXPLORER</span></div></div>
@@ -331,6 +333,11 @@ export default function App() {
           <h1>{chosenBook?.title || currentTab.label}</h1>
           <p>{chosenBook ? (chosenBook.author || 'Book collection') + ' · ' + currentTab.subtitle : currentTab.subtitle}</p>
         </div>
+        {chosenBook && <button className="primary-button book-open" onClick={() => {
+          reviewTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          libraryScroll.current = { x: window.scrollX, y: window.scrollY };
+          setReader({ book: chosenBook, start: { sourceId } });
+        }}><BookOpen size={17} /> Read book</button>}
         <button className="secondary-button open-top" onClick={openArchive} disabled={opening}><FolderOpen size={17} /> Open database</button>
       </div>
       {chosenBook && chosenBook.sections.length > 1 && <div className="book-sections">
@@ -398,12 +405,14 @@ export default function App() {
           <h2>{tab === 'records' ? 'Original records' : 'Archive entries'}</h2>
           <span>{fetching ? 'Searching…' : num(total) + ' matching records'}</span>
         </div>
-          {tab !== 'records' && <label className="sort-box"><ChevronsUpDown size={15} />
-            <select value={filters.sort} onChange={e => patchFilter('sort', e.target.value)}>
-              <option value="newest">Newest added</option><option value="oldest">Oldest added</option>
-              <option value="year_desc">Year · newest</option><option value="year_asc">Year · oldest</option>
-              <option value="white">White player A–Z</option><option value="source">Book title A–Z</option>
-            </select></label>}
+          <label className="sort-box"><ChevronsUpDown size={15} />
+            <select aria-label="Sort entries" value={tab === 'records' && !['book', 'newest', 'oldest'].includes(filters.sort) ? 'book' : filters.sort} onChange={e => patchFilter('sort', e.target.value)}>
+              <option value="book">Book order</option><option value="newest">Newest added</option><option value="oldest">Oldest added</option>
+              {tab !== 'records' && <>
+                <option value="year_desc">Year · newest</option><option value="year_asc">Year · oldest</option>
+                <option value="white">White player A–Z</option><option value="source">Book title A–Z</option>
+              </>}
+            </select></label>
         </div>
         <div className={'workspace-grid ' + (!panelOpen ? 'no-panel' : '')}>
           <section className="results-panel" aria-label="Archive search results">
@@ -452,7 +461,7 @@ export default function App() {
             {detailError && <div className="notice error"><AlertCircle size={18} /> {detailError}</div>}
             {detailLoading ? <div className="details-placeholder"><RefreshCw className="spin" size={26} /><span>Opening entry…</span></div>
               : detail && tab === 'records' ? <RecordPanel key={'r' + detail.id} record={detail as RecordDetail} onClose={() => setPanelOpen(false)} />
-              : detail ? <GamePanel key={'g' + detail.id} game={detail as GameDetail} suspended={!!review} onReview={openReview} onClose={() => setPanelOpen(false)} />
+              : detail ? <GamePanel key={'g' + detail.id} game={detail as GameDetail} suspended={!!review || !!reader} onReview={openReview} onClose={() => setPanelOpen(false)} />
               : !detailError ? <div className="details-placeholder"><div className="placeholder-chess">♙</div><h3>Choose an entry</h3><p>Select a game or position to study it here.</p></div> : null}
           </aside>}
         </div>
@@ -460,6 +469,7 @@ export default function App() {
       </>}
     </main>
   </div></div>
+    {reader && catalog && <BookReader {...reader} archivePath={catalog.path} onClose={closeReview} />}
     {review && <GameReview {...review} onClose={closeReview} />}
   </>;
 }

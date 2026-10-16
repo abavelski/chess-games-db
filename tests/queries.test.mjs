@@ -15,7 +15,8 @@ test('defaults hide deleted games and bound pagination', () => {
   const q = gameQuery({ page: -9, pageSize: 500, sort: 'DROP TABLE games' });
   assert.equal(q.page, 1);
   assert.equal(q.pageSize, 40);
-  assert.equal(q.orderBy, 'g.id DESC');
+  assert.match(q.orderBy, /book_section_rank/);
+  assert.match(q.orderBy, /recordId/);
   assert.equal(q.params.deleted, 0);
   assert.equal(gameQuery({ deleted: 'all' }).params.deleted, undefined);
   assert.equal(gameQuery({ deleted: 'deleted' }).params.deleted, 1);

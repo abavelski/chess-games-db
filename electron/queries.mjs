@@ -1,6 +1,8 @@
+import { bookOrderSql } from './books.mjs';
 // Parameterized, bounded SQLite queries. Dynamic SQL consists only of our own
 // whitelisted column/sort fragments; user input is always bound as data.
 const SORTS = Object.freeze({
+  book: bookOrderSql('g', 'extras_json', 'source_game_key'),
   newest: 'g.id DESC',
   oldest: 'g.id ASC',
   year_desc: 'g.year DESC, g.id DESC',
@@ -83,7 +85,7 @@ export function gameQuery(input = {}) {
 
   const page = boundedInt(f.page, 1, 100000) ?? 1;
   const pageSize = boundedInt(f.pageSize, 1, 100) ?? 40;
-  const orderBy = SORTS[f.sort] ?? SORTS.newest;
+  const orderBy = SORTS[f.sort] ?? SORTS.book;
 
   return {
     where: where.length ? ' WHERE ' + where.join(' AND ') : '',
@@ -118,6 +120,6 @@ export function recordQuery(input = {}) {
   const pageSize = boundedInt(f.pageSize, 1, 100) ?? 40;
   return {
     where: where.length ? ' WHERE ' + where.join(' AND ') : '',
-    params, page, pageSize, offset: (page - 1) * pageSize,
+    params, orderBy: f.sort === 'newest' ? 'r.id DESC' : f.sort === 'oldest' ? 'r.id ASC' : bookOrderSql('r', 'metadata_json', 'source_record_key'), page, pageSize, offset: (page - 1) * pageSize,
   };
 }

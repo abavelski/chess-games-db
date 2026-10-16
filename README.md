@@ -21,7 +21,7 @@ npm start          # run the built desktop app without a development server
 npm run dist:dir   # unpacked desktop app
 npm run dist       # installer/DMG/AppImage (depends on platform)
 npm test           # SQL filter/query unit tests
-npm run test:desktop # desktop smoke test (requires a graphical session)
+npm run test:desktop # library and book-reader desktop smoke tests (requires a graphical session)
 ```
 
 The app opens the previously selected database if present, and during development also looks for `data/chess-books.sqlite3`. Otherwise, click **Open database** to select an existing SQLite file. **The database is not included in Git or any installer.** The app never writes to the archive and does not create an empty replacement if a file is missing.
@@ -31,6 +31,10 @@ The app opens the previously selected database if present, and during developmen
 - Browse all entries or narrow to **games**, **setup positions**, **lines**, **text**, **training records**, or **original source records**.
 - Filter by **book**, player (White/Black), event, annotator, year range, ECO prefix, result, training flag, and source-deletion flag.
 - Books imported as multiple section databases appear once in the library, with a combined entry count. Select a book to browse all its sections or choose an individual **Book section**. Grouping uses the explicit catalog book identity (`book:catalog:…:db-…`), preserves every original source and record, and never rewrites the SQLite archive.
+- Entries and source records default to **Book order**: books grouped by title, sections in natural filename order (including named Russian learning stages), and records by their preserved original numeric sequence. Other sort options remain available.
+- Select a book and click **Read book** to enter **Book mode**: a contents sidebar, readable chapter prose, and interactive games/positions with commentary in one sequence. Previous/Next or **Page Up / Page Down** moves between entries; move keys still operate the board. **Esc** or **Back to library** restores the library view. Your last reading entry is saved locally; choosing a specific section starts at that section.
+- Book mode includes source-deleted entries with labels and preserves failed extractions as unavailable-content placeholders. It works with archives that have games without matching raw records. It ignores library search/category filters to keep the complete book sequence.
+- Multi-file section order is an approximation based on section names, rather than verified printed chapter order. Chapter prose preserves line breaks and basic HTML formatting; legacy control markers are hidden, and embedded images/links are not reconstructed. Original PGN remains available.
 - Search titles, source keys, players, events and metadata; inspect paginated results and choose an ordering.
 - Examine boards with move controls, comments and variations from the **Lichess PGN Viewer**, including FEN setups; switch to the authoritative **original PGN** or the record's raw headers and metadata.
 - Click **Open game review** to expand the preview in the same window. The board and scrollable commentary fill the available space; side lines use compact parenthesized notation with inline comments. **Back to library** or **Esc** returns to the existing selection, filters, and scroll position.
@@ -62,6 +66,7 @@ See [docs/database.md](docs/database.md) for the schema, stable identifiers, PGN
 | `electron/database.mjs` | Read-only SQLite access, Zstandard decoding, checksum validation |
 | `electron/queries.mjs` | Parameterized filtering, sort whitelists, safe paging |
 | `src/App.tsx` | React library browser, filters, metadata and source records |
+| `src/BookReader.tsx`, `src/BookText.tsx` | Book navigation, reading progress, and chapter prose |
 | `src/PgnBoard.tsx` | Lichess viewer integration |
 | `db/migrations/` | Versioned schema migrations |
 | `scripts/init-db.py` | Transactional initializer / upgrader |

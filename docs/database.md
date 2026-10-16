@@ -255,6 +255,22 @@ cannot express duplicate keys/order semantics. This preserves what extraction
 emits; binary/media ChessBase data absent from PGN needs provenance or references
 in `extras_json` and is not recovered by this schema.
 
+## Reading order in the desktop app
+
+Book order uses numeric `extras_json.recordId` (ChessBase) or `extras_json.ordinal`
+(PGN), with known stable-key suffixes and finally local row IDs as fallbacks.
+Original-record lists use the same fields in `metadata_json`. Keys such as
+`cb:record:10` must not be sorted lexicographically before `cb:record:2`.
+
+Section order is derived in memory from natural filename/path ordering, with
+front matter first and named Russian learning stages ordered numerically. It is
+an approximation, not an authoritative chapter-order field. The archive is not
+modified. The book reader joins source records to games by source ID and stable
+record key, retaining failed records as placeholders and including games without
+matching source records. It includes source-deleted records with a visible label.
+Reading progress is stored in renderer local storage, scoped to archive path and
+book identity, using source ID and stable record key rather than a list offset.
+
 ## Later extensions
 
 Add versioned migrations for derived search structures without changing the
