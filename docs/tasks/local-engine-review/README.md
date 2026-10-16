@@ -1,6 +1,6 @@
 # Local engine analysis and Piece mode
 
-Status: task 1 complete (local process manager, offline Maia policy adapter, configuration IPC, lifecycle tests, and guided setup). Tasks 2–5 pending.
+Status: task 1 complete (local process manager, offline Maia policy adapter, configuration IPC, lifecycle tests, and guided setup). Task 2 complete (history-aware analysis requests, bounded session cache, legal temporary branches, and SAN line previews). Tasks 3–5 pending.
 
 Setup: [local engines and model installation](SETUP.md).
 

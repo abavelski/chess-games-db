@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowLeftRight, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Compass } from 'lucide-react';
+import type { Key } from '@lichess-org/chessground/types';
+import { chessgroundDests } from 'chessops/compat';
+import { appendMove, sourcePosition, type AnalysisPosition } from './analysis.mjs';
+import { useEngineAnalysis } from './useEngineAnalysis';
+import type { AnalysisOptions } from './engine-types';
 import { Path } from '@lichess-org/pgn-viewer/path';
 import { glyphs } from '@lichess-org/pgn-viewer/view/glyph';
 import { PgnBoard, type Viewer } from './PgnBoard';
@@ -16,6 +21,8 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
   const viewer = useRef<Viewer | null>(null);
   const transcript = useRef<HTMLDivElement>(null);
   const [path, setPath] = useState(initialPath);
+  const [temporary, setTemporary] = useState<AnalysisPosition | null>(null);
+  const [analysisOptions] = useState<AnalysisOptions>({ stockfish: false, maia: false, lines: 3, rating: 1500, revision: 0 });
   const [ready, setReady] = useState(false);
   const model = useMemo(() => {
     try { return { data: reviewPgn(game.pgn), error: null }; }
@@ -39,7 +46,20 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     viewer.current = value; setReady(!!value);
     if (value) setPath(value.path.path);
   }, []);
-  const onPathChange = useCallback((value: string) => setPath(value), []);
+  const onPathChange = useCallback((value: string) => { setTemporary(null); setPath(value); }, []);
+  const source = useMemo(() => {
+    if (!ready || !viewer.current) return null;
+    try { return sourcePosition(viewer.current); } catch { return null; }
+  }, [ready, path]);
+  const position = temporary || source;
+  useEngineAnalysis(position, analysisOptions);
+  const configureBoard = useCallback((board: Viewer) => {
+    const current = temporary || (() => { try { return sourcePosition(board); } catch { return null; } })();
+    if (!current || !board.ground) return;
+    board.ground.set({ fen: current.fen, check: current.position.isCheck(), lastMove: temporary ? current.moves.at(-1)?.match(/.{2}/g)?.slice(0, 2) as Key[] | undefined : board.cgState().lastMove, drawable: { shapes: temporary ? [] : board.ground.state.drawable.shapes, autoShapes: temporary ? [] : board.ground.state.drawable.autoShapes }, turnColor: current.turn, movable: { free: false, color: current.turn, dests: chessgroundDests(current.position), events: { after: (from, to) => {
+      try { setTemporary(appendMove(current, from, to)); } catch { board.toPath(board.path, false); }
+    } } }, draggable: { enabled: true }, selectable: { enabled: true }, premovable: { enabled: false } });
+  }, [temporary]);
   useEffect(() => {
     const previousTitle = document.title;
     document.title = `Game review · ${game.white || game.event || game.source_title}`;
@@ -114,7 +134,8 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     </header>}
     <div className="review-workspace">
       <section className="review-board" aria-label="Game review board">
-        <PgnBoard pgn={game.pgn} review initialPath={initialPath} onReady={onReady} onPathChange={onPathChange} />
+        <PgnBoard pgn={game.pgn} review initialPath={initialPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} />
+        {temporary && <div className="analysis-branch"><span>Temporary analysis · {temporary.sans.slice(source?.moves.length || 0).join(' ')}</span> <button onClick={() => { setTemporary(null); viewer.current?.toPath(new Path(path), false); }}>Return to book position</button></div>}
         <div className="review-controls" role="group" aria-label="Move navigation">
           <button title="First position" aria-label="First position" disabled={!ready || !path} onClick={() => go('first')}><ChevronsLeft size={21} /></button>
           <button title="Previous move" aria-label="Previous move" disabled={!ready || !path} onClick={() => go('prev')}><ChevronLeft size={24} /></button>
