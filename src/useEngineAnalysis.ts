@@ -5,6 +5,7 @@ import type { AnalysisOptions, EngineName, EngineState, EngineLine } from './eng
 const empty = (): EngineState => ({ status: 'off', lines: [], candidates: [] });
 // Memory-only cache, scoped to this application run. Completed results only.
 const cache = new Map<string, EngineState>();
+export function clearAnalysisCache() { cache.clear(); }
 export function useEngineAnalysis(position: AnalysisPosition | null, options: AnalysisOptions, paused = false) {
   const [state, setState] = useState<Record<EngineName, EngineState>>({ stockfish: empty(), maia: empty() });
   const sequence = useRef(0);

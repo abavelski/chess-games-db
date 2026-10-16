@@ -2,11 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowLeftRight, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Compass } from 'lucide-react';
 import type { Key } from '@lichess-org/chessground/types';
 import { chessgroundDests } from 'chessops/compat';
-import { appendMove, sourcePosition, type AnalysisPosition } from './analysis.mjs';
+import { makeSquare, parseSquare } from 'chessops/util';
+import { isMoveData } from '@lichess-org/pgn-viewer/game';
+import type { DrawShape } from '@lichess-org/chessground/draw';
+import { EnginePanel, EvaluationBar, readReviewPreferences } from './EnginePanel';
+import { appendMove, replayPosition, sourcePosition, type AnalysisPosition } from './analysis.mjs';
 import { useEngineAnalysis } from './useEngineAnalysis';
 import type { AnalysisOptions } from './engine-types';
 import { Path } from '@lichess-org/pgn-viewer/path';
-import { glyphs } from '@lichess-org/pgn-viewer/view/glyph';
+import { annotationShapes, glyphs } from '@lichess-org/pgn-viewer/view/glyph';
 import { PgnBoard, type Viewer } from './PgnBoard';
 import { reviewPgn, type ReviewToken } from './pgn.mjs';
 import type { GameDetail } from './types';
@@ -22,7 +26,11 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
   const transcript = useRef<HTMLDivElement>(null);
   const [path, setPath] = useState(initialPath);
   const [temporary, setTemporary] = useState<AnalysisPosition | null>(null);
-  const [analysisOptions] = useState<AnalysisOptions>({ stockfish: false, maia: false, lines: 3, rating: 1500, revision: 0 });
+  const [preferences] = useState(readReviewPreferences);
+  const [display, setDisplay] = useState(preferences.display);
+  const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>({ stockfish: false, maia: false, lines: preferences.lines, rating: preferences.rating, revision: 0 });
+  const [flipped, setFlipped] = useState(false);
+  const [promotion, setPromotion] = useState<{ from: string; to: string; position: AnalysisPosition } | null>(null);
   const [ready, setReady] = useState(false);
   const model = useMemo(() => {
     try { return { data: reviewPgn(game.pgn), error: null }; }
@@ -52,21 +60,34 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     try { return sourcePosition(viewer.current); } catch { return null; }
   }, [ready, path]);
   const position = temporary || source;
-  useEngineAnalysis(position, analysisOptions);
+  const engines = useEngineAnalysis(position, analysisOptions);
   const configureBoard = useCallback((board: Viewer) => {
     const current = temporary || (() => { try { return sourcePosition(board); } catch { return null; } })();
     if (!current || !board.ground) return;
-    board.ground.set({ fen: current.fen, check: current.position.isCheck(), lastMove: temporary ? current.moves.at(-1)?.match(/.{2}/g)?.slice(0, 2) as Key[] | undefined : board.cgState().lastMove, drawable: { shapes: temporary ? [] : board.ground.state.drawable.shapes, autoShapes: temporary ? [] : board.ground.state.drawable.autoShapes }, turnColor: current.turn, movable: { free: false, color: current.turn, dests: chessgroundDests(current.position), events: { after: (from, to) => {
-      try { setTemporary(appendMove(current, from, to)); } catch { board.toPath(board.path, false); }
-    } } }, draggable: { enabled: true }, selectable: { enabled: true }, premovable: { enabled: false } });
-  }, [temporary]);
+    setFlipped(board.orientation() === 'black');
+    const data = board.curData();
+    const shapes: DrawShape[] = !temporary && display.book ? data.shapes.map(shape => ({ orig: makeSquare(shape.from), dest: makeSquare(shape.to), brush: shape.color })) : [];
+    const auto: DrawShape[] = !temporary && display.book && isMoveData(data) ? annotationShapes(data, board.opts.maxGlyphs, board.opts.showRepetitions) : [];
+    const arrows = (moves: string[], brush: string, width: number) => moves.forEach((move, index) => {
+      if (move.length >= 4) auto.push({ orig: move.slice(0, 2) as Key, dest: move.slice(2, 4) as Key, brush, modifiers: { lineWidth: Math.max(2, width - index) } });
+    });
+    if (analysisOptions.stockfish && display.arrows) arrows(engines.stockfish.lines.map(line => line.moves[0]), 'engine', 9);
+    if (analysisOptions.maia && display.maiaArrows) arrows(engines.maia.candidates.map(candidate => candidate.move), 'human', 5);
+    board.ground.set({ fen: current.fen, check: current.position.isCheck(), lastMove: temporary ? current.moves.at(-1)?.match(/.{2}/g)?.slice(0, 2) as Key[] | undefined : board.cgState().lastMove,
+      drawable: { shapes, autoShapes: auto, brushes: { ...board.ground.state.drawable.brushes, engine: { key: 'engine', color: '#27854c', opacity: 0.75, lineWidth: 9 }, human: { key: 'human', color: '#9155c2', opacity: 0.9, lineWidth: 5 } } },
+      turnColor: current.turn, movable: { free: false, color: current.turn, dests: chessgroundDests(current.position), events: { after: (from, to) => {
+        const piece = current.position.board.get(parseSquare(from)!);
+        if (piece?.role === 'pawn' && (to[1] === '1' || to[1] === '8')) { setPromotion({ from, to, position: current }); return; }
+        try { setTemporary(appendMove(current, from, to)); } catch { board.toPath(board.path, false); }
+      } } }, draggable: { enabled: true }, selectable: { enabled: true }, premovable: { enabled: false } });
+  }, [temporary, display, analysisOptions.stockfish, analysisOptions.maia, engines]);
   useEffect(() => {
     const previousTitle = document.title;
     document.title = `Game review · ${game.white || game.event || game.source_title}`;
     const keydown = (event: KeyboardEvent) => {
       const target = event.target;
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey ||
-        (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]')))) return;
+        (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, dialog, [role="textbox"]')))) return;
       const board = viewer.current;
       switch (event.key) {
         case 'ArrowLeft': board?.goTo(event.shiftKey ? 'first' : 'prev', false); break;
@@ -134,8 +155,8 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     </header>}
     <div className="review-workspace">
       <section className="review-board" aria-label="Game review board">
-        <PgnBoard pgn={game.pgn} review initialPath={initialPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} />
-        {temporary && <div className="analysis-branch"><span>Temporary analysis · {temporary.sans.slice(source?.moves.length || 0).join(' ')}</span> <button onClick={() => { setTemporary(null); viewer.current?.toPath(new Path(path), false); }}>Return to book position</button></div>}
+        <div className={"analysis-board-frame" + (display.bar ? " with-bar" : "")}><PgnBoard pgn={game.pgn} review initialPath={initialPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} />{display.bar && <EvaluationBar state={engines.stockfish} enabled={analysisOptions.stockfish} flipped={flipped} />}</div>
+
         <div className="review-controls" role="group" aria-label="Move navigation">
           <button title="First position" aria-label="First position" disabled={!ready || !path} onClick={() => go('first')}><ChevronsLeft size={21} /></button>
           <button title="Previous move" aria-label="Previous move" disabled={!ready || !path} onClick={() => go('prev')}><ChevronLeft size={24} /></button>
@@ -148,6 +169,9 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
         {game.start_fen && <details className="review-position"><summary>Starting position</summary><code>{game.start_fen}</code></details>}
       </section>
       <section className="review-score" aria-labelledby="review-score-title">
+        <EnginePanel options={analysisOptions} setOptions={setAnalysisOptions} display={display} setDisplay={setDisplay} states={engines} position={position} onPreview={moves => { if (position) setTemporary(replayPosition(position.initialFen, moves)); }} />
+        {temporary && <div className="analysis-branch"><span>Temporary analysis · {temporary.sans.slice(source?.moves.length || 0).join(' ')}</span> <button onClick={() => { setTemporary(null); viewer.current?.toPath(new Path(path), false); }}>Return to book position</button></div>}
+        {promotion && <div className="promotion-choice" role="group" aria-label="Choose promotion">Promote to {(['queen', 'rook', 'bishop', 'knight'] as const).map(role => <button key={role} onClick={() => { setTemporary(appendMove(promotion.position, promotion.from, promotion.to, role)); setPromotion(null); }}>{role}</button>)}</div>}
         <div className="review-score-heading"><div className="eyebrow">THE ANNOTATED SCORE</div><h2 id="review-score-title">Moves & commentary</h2></div>
         <div className="review-transcript" ref={transcript}>
           {model.error && <div className="notice error">{model.error}</div>}

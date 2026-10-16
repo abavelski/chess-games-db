@@ -25,6 +25,7 @@ export function validateRequest(request) {
   return request;
 }
 export function parseEngineInfo(line, turn = 'white') {
+  if (/^info string engine-device (cpu|cuda|mps)$/.test(line)) return { device: line.split(' ').at(-1) };
   if (line.startsWith('info string maia-policy ')) {
     try {
       const data = JSON.parse(line.slice('info string maia-policy '.length));

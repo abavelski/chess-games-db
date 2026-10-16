@@ -21,6 +21,7 @@ print(f'Maia 3 79M · device={device} · torch={torch.__version__}', file=sys.st
 
 class PolicyEngine(Maia3UCIEngine):
     def cmd_go(self, line):
+        print('info string engine-device ' + device, flush=True)
         self.ensure_model_loaded()
         move, candidates = self.score_moves()
         print('info string maia-policy ' + json.dumps([
