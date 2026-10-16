@@ -1,5 +1,7 @@
 # O2-02 — Catalogue download and repeatable game classification
 
+Status: implemented and verified (offline fixtures, resume/invalidation, real 3,865-entry catalogue download, unit/archive suites, build and desktop smoke).
+
 Depends on: O2-01 storage contract. Read [shared rules](../README.md).
 
 Deliver:

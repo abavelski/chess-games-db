@@ -12,7 +12,9 @@
     "build": "tsc --noEmit && vite build",
     "dist": "npm run build && electron-builder",
     "dist:dir": "npm run build && electron-builder --dir",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test tests/*.test.mjs && npm run test:archive",
+    "test:archive": "node scripts/run-archive-tool.mjs --test tests/*.check.mjs",
+    "openings": "node scripts/run-archive-tool.mjs scripts/openings.mjs",
     "test:desktop": "npm run build && node scripts/start-electron.mjs tests/desktop-smoke.mjs",
     "test:book-reader": "VITE_ENABLE_BOOK_MODE=true npm run build && node scripts/start-electron.mjs tests/book-reader-smoke.mjs",
     "postinstall": "electron-builder install-app-deps"

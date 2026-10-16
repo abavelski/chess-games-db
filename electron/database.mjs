@@ -17,7 +17,7 @@ function requiredId(value) {
   return id;
 }
 
-function decodePgn(row) {
+export function decodePgn(row) {
   const compressed = row.pgn_zstd;
   if (!(compressed instanceof Uint8Array) || compressed.length > LIMIT) {
     throw new Error('PGN data is missing or exceeds the supported size.');

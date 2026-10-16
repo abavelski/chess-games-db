@@ -68,3 +68,34 @@ See [docs/database.md](docs/database.md) for the schema, stable identifiers, PGN
 | `scripts/init-db.py` | Transactional initializer / upgrader |
 
 The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lichess PGN Viewer license. No custom chess engine or full-board-position index is included: opening explorer and position searches would require derived indexes beyond the existing SQL schema.
+
+## Opening catalogue enrichment
+
+The desktop app remains read-only. Enrichment is an explicit, offline-capable
+maintenance step; start with a copy of your archive. Install dependencies with
+`npm install`. The commands below use Electron's Node runtime so SQLite uses the
+same native ABI as the app; no browser window is opened.
+
+```sh
+cp data/chess-books.sqlite3 data/chess-books.openings.sqlite3
+python3 scripts/init-db.py data/chess-books.openings.sqlite3
+npm run openings -- download --commit a6189a30dc273ccb21fc2536a9a2fefd5592a67a --out data/openings-a6189a3
+npm run openings -- enrich --input data/openings-a6189a3 --database data/chess-books.openings.sqlite3 --dry-run
+npm run openings -- enrich --input data/openings-a6189a3 --database data/chess-books.openings.sqlite3
+```
+
+The pinned upstream catalogue is [Lichess chess-openings](https://github.com/lichess-org/chess-openings),
+released under CC0. Download creates a new directory containing all five TSVs and
+a checksummed manifest; no network is needed to classify games afterward. For a
+newer catalogue, use its full commit SHA and a new directory. Optional taxonomy
+fixes can be supplied as `overrides.json` mapping full upstream names to arrays
+of labels; put the file's SHA-256 in manifest field `overrides`.
+
+Interrupted runs resume when the same command is repeated. `--max-games N` caps
+a run for staged processing (exit code 2 means not published yet). `--rebuild`
+starts a fresh classification run. Source games, headers, ECO and PGNs are never
+rewritten. Corrupt/illegal games are reported as invalid; unmatched games remain
+browsable. Publication replaces the active revision only after all games have a
+result. The JSON report includes coverage, diagnostics by status, and the count
+of derived/source ECO differences. Changing PGN, catalogue or algorithm causes
+reclassification; the previous published revision remains available during work.
