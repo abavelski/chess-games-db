@@ -4,6 +4,14 @@ A local, read-only **Electron + React + SQLite** desktop game browser. Filter an
 
 Built on the schema and migration system in this repository, with the **[Lichess PGN Viewer](https://github.com/lichess-org/pgn-viewer)** (which uses Chessground) for the board, move navigation, comments, and variations.
 
+## Local analysis and Piece mode
+
+Game review supports local full Stockfish and Maia 3 79M analysis. Use **Engine setup** to choose installed engines/model files, then enable Stockfish or Maia independently. Engine lines, arrows, the evaluation bar, and book board annotations have separate controls; Maia includes a human-rating selector and move probabilities. Click a suggested move to explore a temporary branch, or move a piece legally on the review board; **Return to book position** restores the source position. Pawn promotion offers all four choices.
+
+**Piece mode** hides everything except a free board and two controls. Move either side's pieces without chess legality constraints; **Reset position** restores the entry position, and **Return to review** (or Escape) restores the previous review, including its variation, temporary branch, orientation, scroll, focus, and engine switches. Analysis pauses while Piece mode is open. No study action edits the source PGN or archive.
+
+See [local engine installation](docs/tasks/local-engine-review/SETUP.md), [implementation tasks](docs/tasks/local-engine-review/README.md), and [verification results](docs/tasks/local-engine-review/VERIFICATION.md). Engines default off when opening a review. Display preferences, line count, and human rating are remembered locally.
+
 ## Run the desktop app
 
 Prerequisites: **Node.js 22+**, npm, and (if developing on Linux) the system dependencies required by Electron. Native SQLite bindings are rebuilt for Electron automatically during installation.

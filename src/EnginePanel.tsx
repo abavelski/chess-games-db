@@ -17,7 +17,7 @@ export function formatScore(score?: EngineLine['score']) {
 }
 export function EvaluationBar({ state, enabled, flipped }: { state: EngineState; enabled: boolean; flipped: boolean }) {
   const score = enabled ? state.lines[0]?.score : undefined;
-  const value = score ? score.type === 'mate' ? (score.value >= 0 ? 100 : 0) : 100 / (1 + Math.exp(-score.value / 350)) : 50;
+  const value = score ? score.type === 'mate' ? (score.winner ? score.winner === 'white' ? 100 : 0 : score.value >= 0 ? 100 : 0) : 100 / (1 + Math.exp(-score.value / 350)) : 50;
   return <div className={'evaluation-bar' + (flipped ? ' flipped' : '')} aria-label={`Stockfish evaluation from White's perspective: ${formatScore(score)}`} title={`White evaluation ${formatScore(score)} · ${enabled ? state.status : 'Stockfish off'}`}>
     <div className="evaluation-white" style={{ height: `${value}%` }} />
     <span>{formatScore(score)}</span>

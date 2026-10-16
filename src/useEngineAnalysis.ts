@@ -1,60 +1,57 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { analysisKey, type AnalysisPosition } from './analysis.mjs';
 import type { AnalysisOptions, EngineName, EngineState, EngineLine } from './engine-types';
 
-const empty = (): EngineState => ({ status: 'off', lines: [], candidates: [] });
-// Memory-only cache, scoped to this application run. Completed results only.
+const empty = (status = 'off'): EngineState => ({ status, lines: [], candidates: [] });
 const cache = new Map<string, EngineState>();
+let sequence = 0;
 export function clearAnalysisCache() { cache.clear(); }
-export function useEngineAnalysis(position: AnalysisPosition | null, options: AnalysisOptions, paused = false) {
-  const [state, setState] = useState<Record<EngineName, EngineState>>({ stockfish: empty(), maia: empty() });
-  const sequence = useRef(0);
-  const positionKey = position ? JSON.stringify([position.initialFen, position.moves]) : '';
+function useOneEngine(position: AnalysisPosition | null, engine: EngineName, enabled: boolean, lines: number, rating: number, revision: number, paused: boolean) {
+  const key = position ? analysisKey(position, engine, { revision, lines, rating }) : '';
+  const renderKey = JSON.stringify([key, enabled, paused]);
+  const idle = paused ? 'paused' : enabled && position ? 'loading' : 'off';
+  const [result, setResult] = useState<{ key: string; value: EngineState }>({ key: renderKey, value: empty(idle) });
   useEffect(() => {
     const api = window.chessEngine;
-    if (!api) return;
-    const ids = new Map<EngineName, string>();
-    const snapshots = new Map<EngineName, EngineState>();
-    const keys = new Map<EngineName, string>();
+    if (!api || !position || !enabled || paused) {
+      setResult({ key: renderKey, value: empty(idle) });
+      return;
+    }
+    let active = true;
+    let snapshot = empty('loading');
+    const id = `${Date.now()}-${++sequence}-${engine}`;
     const unsubscribe = api.onUpdate(event => {
-      if (ids.get(event.engine) !== event.id) return;
-      const previous = snapshots.get(event.engine) || empty();
-      const next: EngineState = { ...previous, status: event.status, error: event.error };
+      if (!active || event.id !== id || event.engine !== engine) return;
+      snapshot = { ...snapshot, status: event.status, error: event.error };
       if (event.moves && event.score && event.rank) {
         const line = event as EngineLine;
-        next.lines = [...previous.lines.filter(item => item.rank !== line.rank), line].sort((a, b) => a.rank - b.rank);
+        snapshot.lines = [...snapshot.lines.filter(item => item.rank !== line.rank), line].sort((a, b) => a.rank - b.rank);
       }
-      if (event.candidates) next.candidates = event.candidates;
-      if (event.device) next.device = event.device;
-      snapshots.set(event.engine, next);
-      setState(current => ({ ...current, [event.engine]: next }));
+      if (event.candidates) snapshot.candidates = event.candidates;
+      if (event.device) snapshot.device = event.device;
+      setResult({ key: renderKey, value: snapshot });
       if (event.status === 'complete') {
-        cache.set(keys.get(event.engine)!, next);
+        cache.set(key, snapshot);
         if (cache.size > 200) cache.delete(cache.keys().next().value!);
       }
     });
-    setState({ stockfish: { ...empty(), status: paused ? 'paused' : 'off' }, maia: { ...empty(), status: paused ? 'paused' : 'off' } });
+    const cached = cache.get(key);
+    setResult({ key: renderKey, value: cached || snapshot });
     const timer = setTimeout(() => {
-      if (!position || paused) return;
-      for (const engine of ['stockfish', 'maia'] as const) {
-        if (!options[engine]) continue;
-        const key = analysisKey(position, engine, { revision: options.revision, lines: options.lines, rating: engine === 'maia' ? options.rating : undefined });
-        keys.set(engine, key);
-        const cached = cache.get(key);
-        if (cached) { setState(current => ({ ...current, [engine]: cached })); continue; }
-        const id = `${Date.now()}-${++sequence.current}-${engine}`;
-        ids.set(engine, id);
-        void api.analyze({ id, engine, initialFen: position.initialFen, moves: position.moves, turn: position.turn, lines: options.lines, rating: options.rating }).catch(error => {
-          if (ids.get(engine) === id) setState(current => ({ ...current, [engine]: { ...empty(), status: 'error', error: String(error.message || error) } }));
-        });
-      }
+      if (cached) return;
+      void api.analyze({ id, engine, initialFen: position.initialFen, moves: position.moves, turn: position.turn, lines, rating }).catch(error => {
+        if (active) setResult({ key: renderKey, value: { ...empty('error'), error: String(error.message || error) } });
+      });
     }, 180);
-    return () => {
-      clearTimeout(timer); ids.clear(); unsubscribe();
-      for (const engine of ['stockfish', 'maia'] as const) void api.stop(engine).catch(() => {});
-    };
-  // Position snapshots are immutable and fully identified by their initial FEN/history.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [positionKey, options.stockfish, options.maia, options.lines, options.rating, options.revision, paused]);
-  return state;
+    return () => { active = false; clearTimeout(timer); unsubscribe(); void api.stop(engine).catch(() => {}); };
+    // Immutable position is fully identified by initial FEN and move history in key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderKey]);
+  // Never display a previous position's score/arrows while effects catch up.
+  return result.key === renderKey ? result.value : empty(idle);
+}
+export function useEngineAnalysis(position: AnalysisPosition | null, options: AnalysisOptions, paused = false) {
+  const stockfish = useOneEngine(position, 'stockfish', options.stockfish, options.lines, 1500, options.revision, paused);
+  const maia = useOneEngine(position, 'maia', options.maia, 5, options.rating, options.revision, paused);
+  return { stockfish, maia };
 }

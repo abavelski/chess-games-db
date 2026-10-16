@@ -55,3 +55,37 @@ test('manager suppresses obsolete results, reuses process and preserves history'
     manager.stop('stockfish');
   } finally { manager.close(); }
 });
+test('invalid positions, impossible histories and incorrect score perspectives are rejected', () => {
+  assert.throws(() => validateRequest({ ...request('bad'), initialFen: '8/8/8/8/8/8/8/8 w - - 0 1' }), /Invalid analysis position/);
+  assert.throws(() => validateRequest({ ...request('bad'), moves: ['e2e5'] }), /Invalid analysis position/);
+  assert.throws(() => validateRequest({ ...request('bad'), moves: ['e2e4'], turn: 'white' }), /Invalid analysis position/);
+});
+test('startup timeout kills an unresponsive process', async () => {
+  const engine = new UciProcess(process.execPath, ['-e', 'process.stdin.resume()'], { startupTimeout: 80 });
+  await assert.rejects(engine.ready, /timed out/);
+  assert.equal(engine.dead, true);
+});
+test('replacement during active search drains old output and disabling suppresses completion', async () => {
+  const events = [];
+  const manager = new EngineManager({ stockfishPath: process.execPath }, event => events.push(event), fake);
+  try {
+    manager.analyze(request('first'));
+    while (!events.some(event => event.id === 'first' && event.moves)) await new Promise(resolve => setTimeout(resolve, 5));
+    manager.analyze({ ...request('second'), moves: ['e2e4'], turn: 'black' });
+    await manager.queues.get('stockfish');
+    const last = events.filter(event => event.id === 'second');
+    assert.equal(last.at(-1).status, 'complete');
+    assert.equal(last.find(event => event.score)?.score.value, -45);
+    assert.equal(events.some(event => event.id === 'first' && event.status === 'complete'), false);
+    manager.analyze(request('disabled')); manager.stop('stockfish');
+    await manager.queues.get('stockfish');
+    assert.equal(events.some(event => event.id === 'disabled'), false);
+  } finally { manager.close(); }
+});
+test('terminal mate and drawn positions retain evaluation without a principal variation', () => {
+  const matedWhite = parseEngineInfo('info depth 0 score mate 0', 'white');
+  assert.equal(matedWhite.score.winner, 'black');
+  assert.deepEqual(matedWhite.moves, []);
+  assert.equal(parseEngineInfo('info depth 0 score mate 0', 'black').score.winner, 'white');
+  assert.equal(parseEngineInfo('info depth 0 score cp 0', 'black').score.value, -0);
+});

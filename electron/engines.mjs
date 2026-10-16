@@ -1,3 +1,6 @@
+import { Chess } from 'chessops/chess';
+import { parseFen } from 'chessops/fen';
+import { parseUci } from 'chessops/util';
 import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { existsSync } from 'node:fs';
@@ -22,6 +25,15 @@ export function validateRequest(request) {
   if (typeof request.initialFen !== 'string' || request.initialFen.length > 200 || /[\r\n\0]/.test(request.initialFen) || request.initialFen.split(' ').length !== 6) throw new Error('Invalid starting FEN');
   if (!Array.isArray(request.moves) || request.moves.length > 10000 || request.moves.some(move => typeof move !== 'string' || !movePattern.test(move))) throw new Error('Invalid moves');
   if (!['white', 'black'].includes(request.turn) || ![1, 3, 5].includes(request.lines) || !Number.isInteger(request.rating) || request.rating < 600 || request.rating > 2600) throw new Error('Invalid analysis settings');
+  try {
+    const position = Chess.fromSetup(parseFen(request.initialFen).unwrap()).unwrap();
+    for (const uci of request.moves) {
+      const move = parseUci(uci);
+      if (!move || !position.isLegal(move)) throw new Error('Illegal move');
+      position.play(move);
+    }
+    if (position.turn !== request.turn) throw new Error('Incorrect side to move');
+  } catch { throw new Error('Invalid analysis position or move history'); }
   return request;
 }
 export function parseEngineInfo(line, turn = 'white') {
@@ -33,12 +45,12 @@ export function parseEngineInfo(line, turn = 'white') {
     } catch { /* Ignore malformed engine output. */ }
     return null;
   }
-  if (!line.startsWith('info ') || !line.includes(' pv ')) return null;
+  if (!line.startsWith('info ')) return null;
   const score = line.match(/\bscore (cp|mate) (-?\d+)(?: (lowerbound|upperbound))?/);
-  const pv = line.split(' pv ')[1].trim().split(/\s+/).filter(move => movePattern.test(move));
-  if (!score || !pv.length) return null;
+  const pv = (line.split(' pv ')[1] || '').trim().split(/\s+/).filter(move => movePattern.test(move));
+  if (!score) return null;
   const sign = turn === 'white' ? 1 : -1;
-  return { rank: Number(line.match(/\bmultipv (\d+)/)?.[1] || 1), depth: Number(line.match(/\bdepth (\d+)/)?.[1] || 0), score: { type: score[1], value: Number(score[2]) * sign, bound: score[3] ? (sign === 1 ? score[3] : score[3] === 'lowerbound' ? 'upperbound' : 'lowerbound') : undefined }, moves: pv };
+  return { rank: Number(line.match(/\bmultipv (\d+)/)?.[1] || 1), depth: Number(line.match(/\bdepth (\d+)/)?.[1] || 0), score: { type: score[1], value: Number(score[2]) * sign, ...(score[1] === 'mate' && Number(score[2]) === 0 ? { winner: turn === 'white' ? 'black' : 'white' } : {}), bound: score[3] ? (sign === 1 ? score[3] : score[3] === 'lowerbound' ? 'upperbound' : 'lowerbound') : undefined }, moves: pv };
 }
 
 // Only this class talks to subprocess stdin/stdout. Searches are serialized and
@@ -57,6 +69,7 @@ export class UciProcess extends EventEmitter {
       if (buffer.length > 2e6) return this.fail(new Error('Engine output exceeded limit'));
       const lines = buffer.split(/\r?\n/); buffer = lines.pop();
       for (const line of lines) {
+        if (line.startsWith('id name ')) this.name = line.slice(8);
         for (const waiter of [...this.waiters]) if (waiter.match(line)) waiter.resolve(line);
         this.emit('line', line);
       }

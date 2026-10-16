@@ -17,7 +17,9 @@
     "openings": "node scripts/run-archive-tool.mjs scripts/openings.mjs",
     "test:desktop": "npm run build && node scripts/start-electron.mjs tests/desktop-smoke.mjs && node scripts/start-electron.mjs tests/openings-desktop-smoke.mjs && node scripts/start-electron.mjs tests/engine-desktop-smoke.mjs",
     "test:book-reader": "VITE_ENABLE_BOOK_MODE=true npm run build && node scripts/start-electron.mjs tests/book-reader-smoke.mjs",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "engines:verify": "node scripts/verify-local-engines.mjs",
+    "test:engines:local": "npm run build && node scripts/start-electron.mjs tests/real-engine-desktop.mjs"
   },
   "dependencies": {
     "@lichess-org/pgn-viewer": "^2.6.4",

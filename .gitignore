@@ -26,3 +26,9 @@ playwright-report/
 .env
 .env.*
 !.env.example
+# Private local chess archives and SQLite runtime sidecars.
+*.sqlite
+*.sqlite3
+*.db
+*-wal
+*-shm

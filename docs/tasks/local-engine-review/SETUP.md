@@ -29,3 +29,30 @@ Expect several hundred MB for weights, plus the Python/PyTorch environment and w
 Start with 4 Stockfish threads (or fewer on small machines), 256 MB hash, and a 3-second analysis budget. Change these in Engine setup. The largest Maia model stays loaded between predictions; disabling Maia stops new predictions, while closing review stops active work. Closing the window/app releases both engine processes. Saving setup restarts engines with the new configuration.
 
 Missing executable/checkpoint errors direct you to Engine setup. Install/cache assets before enabling engines. A crash or timeout leaves the book review usable; toggle the engine off/on to restart it. Review and automated tests require no online services. `.local-engines/`, virtual environments, weight files, and generated reports are ignored by Git.
+
+## Development profile and verification
+
+During development, the app also reads an optional ignored `.local-engines/engines.json` when no saved user configuration exists. This machine has that profile configured for full Stockfish 19 and Maia 79M; launch the app and enable them in review. Saving Engine setup takes precedence over the development profile. Packaged apps use the user-data configuration and the guided installation above.
+
+A profile has these fields (use absolute paths appropriate to your machine):
+
+```json
+{
+  "stockfishPath": "/absolute/path/to/stockfish",
+  "pythonPath": "/absolute/path/to/maia-venv/bin/python",
+  "checkpointPath": "/absolute/path/to/maia3-79m.pt",
+  "device": "auto",
+  "threads": 4,
+  "hash": 256,
+  "budget": 3000
+}
+```
+
+Run the explicit local-model checks after installing assets:
+
+```sh
+npm run engines:verify -- .local-engines/engines.json
+CHESS_ENGINE_CONFIG=.local-engines/engines.json npm run test:engines:local
+```
+
+The first command verifies policy legality/probabilities, records cold/warm latency and checkpoint checksum, and confirms child-process cleanup. The second uses the built Electron app with real engines, blocks all HTTP requests, and exercises analysis, arrows, the evaluation bar, Piece mode pause/resume, legal free exploration, and archive integrity. Its archive and preferences are isolated temporary fixtures. Neither command downloads anything. The standard desktop suite uses deterministic fixture engines; their executable shebang launch is verified on macOS/Linux. Windows packaging and executable selection require a Windows validation pass.

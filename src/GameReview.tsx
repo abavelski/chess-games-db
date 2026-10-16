@@ -64,7 +64,7 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     viewer.current = value; setReady(!!value);
     if (value) setPath(value.path.path);
   }, []);
-  const onPathChange = useCallback((value: string) => { setTemporary(null); setPath(value); }, []);
+  const onPathChange = useCallback((value: string) => { setTemporary(null); setPromotion(null); setPath(value); }, []);
   const source = useMemo(() => {
     if (!ready || !viewer.current) return null;
     try { return sourcePosition(viewer.current); } catch { return null; }
@@ -79,11 +79,11 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     const shapes: DrawShape[] = !temporary && display.book ? data.shapes.map(shape => ({ orig: makeSquare(shape.from), dest: makeSquare(shape.to), brush: shape.color })) : [];
     const auto: DrawShape[] = !temporary && display.book && isMoveData(data) ? annotationShapes(data, board.opts.maxGlyphs, board.opts.showRepetitions) : [];
     const arrows = (moves: string[], brush: string, width: number) => moves.forEach((move, index) => {
-      if (move.length >= 4) auto.push({ orig: move.slice(0, 2) as Key, dest: move.slice(2, 4) as Key, brush, modifiers: { lineWidth: Math.max(2, width - index) } });
+      if (move && move.length >= 4) auto.push({ orig: move.slice(0, 2) as Key, dest: move.slice(2, 4) as Key, brush, modifiers: { lineWidth: Math.max(2, width - index) } });
     });
     if (analysisOptions.stockfish && display.arrows) arrows(engines.stockfish.lines.map(line => line.moves[0]), 'engine', 9);
     if (analysisOptions.maia && display.maiaArrows) arrows(engines.maia.candidates.map(candidate => candidate.move), 'human', 5);
-    board.ground.set({ fen: current.fen, check: current.position.isCheck(), lastMove: temporary ? current.moves.at(-1)?.match(/.{2}/g)?.slice(0, 2) as Key[] | undefined : board.cgState().lastMove,
+    board.ground.set({ ...(board.ground.getFen() !== current.fen.split(' ')[0] ? { fen: current.fen } : {}), check: current.position.isCheck(), lastMove: temporary ? current.moves.at(-1)?.match(/.{2}/g)?.slice(0, 2) as Key[] | undefined : board.cgState().lastMove,
       drawable: { shapes, autoShapes: auto, brushes: { ...board.ground.state.drawable.brushes, engine: { key: 'engine', color: '#27854c', opacity: 0.75, lineWidth: 9 }, human: { key: 'human', color: '#9155c2', opacity: 0.9, lineWidth: 5 } } },
       turnColor: current.turn, movable: { free: false, color: current.turn, dests: chessgroundDests(current.position), events: { after: (from, to) => {
         const piece = current.position.board.get(parseSquare(from)!);

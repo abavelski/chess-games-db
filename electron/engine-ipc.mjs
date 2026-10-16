@@ -1,11 +1,17 @@
 import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { EngineManager, engineDefaults, validateSettings } from './engines.mjs';
 
 export function registerEngineIpc({ app, ipcMain, dialog }) {
   const path = join(app.getPath('userData'), 'engines.json');
   let settings = { ...engineDefaults };
-  try { settings = validateSettings(JSON.parse(readFileSync(path, 'utf8'))); } catch { /* First launch or invalid settings. */ }
+  const candidates = [path];
+  if (!app.isPackaged) candidates.push(fileURLToPath(new URL('../.local-engines/engines.json', import.meta.url)));
+  for (const candidate of candidates) {
+    try { settings = validateSettings(JSON.parse(readFileSync(candidate, 'utf8'))); break; }
+    catch { /* First launch or invalid settings; try the local development profile. */ }
+  }
   const managers = new Map();
   const manager = sender => {
     if (!managers.has(sender.id)) {

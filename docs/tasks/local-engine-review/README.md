@@ -1,8 +1,8 @@
 # Local engine analysis and Piece mode
 
-Status: task 1 complete (local process manager, offline Maia policy adapter, configuration IPC, lifecycle tests, and guided setup). Task 2 complete (history-aware analysis requests, bounded session cache, legal temporary branches, and SAN line previews). Task 3 complete (independent controls, setup dialog, arrows, evaluation bar, clickable lines, and desktop integration coverage). Task 4 complete (isolated clean/free board, reset, one-click state restoration, pause/resume, and Escape/focus coverage). Task 5 pending.
+Status: task 1 complete (local process manager, offline Maia policy adapter, configuration IPC, lifecycle tests, and guided setup). Task 2 complete (history-aware analysis requests, bounded session cache, legal temporary branches, and SAN line previews). Task 3 complete (independent controls, setup dialog, arrows, evaluation bar, clickable lines, and desktop integration coverage). Task 4 complete (isolated clean/free board, reset, one-click state restoration, pause/resume, and Escape/focus coverage). Task 5 complete (expanded automated coverage, real offline engine/desktop verification, pinned assets, performance measurements, and installation/user documentation). All five tasks implemented.
 
-Setup: [local engines and model installation](SETUP.md).
+Setup: [local engines and model installation](SETUP.md). Results: [verification and performance](VERIFICATION.md).
 
 ## Agreed scope
 

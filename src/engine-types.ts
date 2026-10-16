@@ -4,7 +4,7 @@ export interface EngineSettings {
   device: 'auto' | 'cpu' | 'mps' | 'cuda'; threads: number; hash: number; budget: number;
   model?: string; stockfishAvailable?: boolean; maiaAvailable?: boolean;
 }
-export interface EngineLine { rank: number; depth: number; score: { type: 'cp' | 'mate'; value: number; bound?: string }; moves: string[] }
+export interface EngineLine { rank: number; depth: number; score: { type: 'cp' | 'mate'; value: number; winner?: 'white' | 'black'; bound?: string }; moves: string[] }
 export interface Candidate { move: string; probability: number }
 export interface EngineUpdate extends Partial<EngineLine> { id: string; engine: EngineName; status: 'loading' | 'analyzing' | 'complete' | 'error'; error?: string; candidates?: Candidate[]; device?: string }
 export interface EngineRequest { id: string; engine: EngineName; initialFen: string; moves: string[]; turn: 'white' | 'black'; lines: number; rating: number }
