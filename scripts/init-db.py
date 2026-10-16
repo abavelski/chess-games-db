@@ -7,7 +7,7 @@ import sqlite3
 
 
 MIGRATIONS = Path(__file__).resolve().parents[1] / "db" / "migrations"
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def initialize(path: Path) -> None:

@@ -1,5 +1,7 @@
 # O2-01 — Derived opening storage and archive compatibility
 
+Status: implemented and verified (migration tests, unit suite, build, desktop smoke).
+
 Depends on: none. Read [shared rules](../README.md).
 
 Deliver:

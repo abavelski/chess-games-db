@@ -11,6 +11,7 @@ export interface Source {
   record_count: number;
 }
 export interface Catalog {
+  capabilities?: { openings: boolean };
   path: string;
   sources: Source[];
   books: Array<{

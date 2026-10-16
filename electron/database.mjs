@@ -52,8 +52,8 @@ export class ChessArchive {
     try {
       db.pragma('foreign_keys = ON');
       const version = db.pragma('user_version', { simple: true });
-      if (version !== 3) {
-        throw new Error('This app requires database schema version 3 (found ' + version + '). Run scripts/init-db.py on a backup to upgrade.');
+      if (![3, 4].includes(version)) {
+        throw new Error('This app supports database schema versions 3–4 (found ' + version + '). Run scripts/init-db.py on a backup to upgrade.');
       }
       for (const name of ['sources', 'games', 'source_records']) {
         if (!db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(name)) {
@@ -61,6 +61,7 @@ export class ChessArchive {
         }
       }
       this.db = db;
+      this.openingsSupported = version >= 4;
       const books = groupBooks(db.prepare('SELECT s.*, (SELECT count(*) FROM games g WHERE g.source_id = s.id) game_count FROM sources s ORDER BY s.title, s.id').all());
       this.books = books;
       const ranks = new Map();
@@ -93,6 +94,7 @@ export class ChessArchive {
     const books = groupBooks(sources);
     return {
       path: this.path,
+      capabilities: { openings: this.openingsSupported },
       sources,
       books,
       totals: {

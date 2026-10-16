@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { app, BrowserWindow } from 'electron';
 import Database from 'better-sqlite3';
+import { ChessArchive } from '../electron/database.mjs';
 
 // Run with Electron so this exercises its native SQLite ABI and sandboxed preload.
 const temporary = mkdtempSync(join(tmpdir(), 'chess-desktop-'));
@@ -40,6 +41,18 @@ for (let index = 0; index < 42; index++) {
 }
 db.prepare("UPDATE games SET annotator = 'Test Analyst', year = 1972, event = 'Test Match', eco = 'C20', result = '1-0' WHERE id = 1").run();
 db.close();
+const compatibilityPath = join(temporary, 'compatibility.sqlite3');
+copyFileSync(path, compatibilityPath);
+const compatibility = new Database(compatibilityPath);
+compatibility.exec(readFileSync(new URL('../db/migrations/004_openings.sql', import.meta.url), 'utf8'));
+compatibility.pragma('user_version = 4');
+const compatibleArchive = new ChessArchive(compatibilityPath);
+assert.equal(compatibleArchive.catalog().capabilities.openings, true);
+assert.equal(compatibleArchive.searchGames({ kind: 'game' }).total, 45);
+compatibleArchive.close();
+compatibility.pragma('user_version = 99');
+assert.throws(() => new ChessArchive(compatibilityPath), /supports database schema/);
+compatibility.close();
 const archiveHash = () => createHash('sha256').update(readFileSync(path)).digest('hex');
 const originalHash = archiveHash();
 writeFileSync(join(temporary, 'archive.json'), JSON.stringify({ path }));

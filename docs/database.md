@@ -302,3 +302,19 @@ The SQL files are migration inputs, not a standalone schema dump. Run the
 initializer to apply them in order and update `PRAGMA user_version`. Its
 `BEGIN IMMEDIATE` serializes initialization writers and all migrations run in
 one transaction. Use a backup before future migrations of an existing archive.
+
+## Derived openings (schema v4)
+
+Migration 004 adds `opening_revisions`, `opening_state`, `opening_nodes`,
+`opening_entries`, `game_openings`, and `game_opening_matches`. Source tables are
+unchanged. Node IDs identify full label paths; entry IDs identify upstream
+ECO/name/canonical-line tuples. Both are stable across revisions. Position keys
+omit move counters and include only legally available en-passant squares.
+
+`opening_state` publishes one completed revision atomically. Staging revisions
+remain invisible. Classification stores the input PGN hash, status, primary
+entry and matched ply; matches retain every named mainline position reached.
+Readers ignore classifications whose input hash differs from `games.pgn_sha256`.
+An invalid game has diagnostics, no authoritative primary entry, and no matches.
+Original source ECO remains separate from derived ECO. Electron accepts v3/v4,
+reports opening capability only for v4, and never migrates the archive itself.
