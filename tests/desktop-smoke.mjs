@@ -70,6 +70,8 @@ async function checkWindow(window) {
   assert.ok(window.webContents.getURL().startsWith('file:'), 'Built app must work without Vite');
   const state = await window.webContents.executeJavaScript(`(async () => {
     const catalog = await window.chessArchive.getCatalog();
+    const openingFacets = await window.chessArchive.openingFacets({});
+    if (openingFacets.supported || openingFacets.revision) throw new Error('Legacy archive must have no opening capability');
     const games = await window.chessArchive.searchGames({ search: 'Smoke White' });
     const game = await window.chessArchive.getGame(games.rows[0].id);
     const deadline = Date.now() + 5000;

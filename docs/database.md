@@ -318,3 +318,20 @@ Readers ignore classifications whose input hash differs from `games.pgn_sha256`.
 An invalid game has diagnostics, no authoritative primary entry, and no matches.
 Original source ECO remains separate from derived ECO. Electron accepts v3/v4,
 reports opening capability only for v4, and never migrates the archive itself.
+
+Opening read API: `openingFacets(filters)` returns `supported`, active `revision`,
+filtered `total`, `classified`, `unclassified`, and available taxonomy nodes with
+`id`, `parentId`, `label`, `path`, and distinct-game `count`. It returns the whole
+available tree so a client can search paths and scope children locally. Counts
+apply existing game filters but ignore `openingNodeId`; only active nondeleted
+games contribute. A game's several named matches never multiply totals.
+
+`searchGames` accepts `openingNodeId` (a stable path ID, or `unclassified`).
+Selections match any named mainline position under that node or its descendants,
+including earlier matched positions and transpositions. Invalid IDs fail clearly.
+Rows and details include `opening`: `status`, nullable `name`, derived `eco`,
+`nodeId`, `matchedPly`, and a `path` array. Original `eco` is unchanged.
+Unclassified includes unmatched, invalid, stale, and not-yet-enriched games;
+`opening.status` distinguishes those states. v3/empty-v4 lists retain normal ECO
+and return `unenriched` without reading absent tables. List labels use one bounded
+metadata query per page and never decompress PGNs.

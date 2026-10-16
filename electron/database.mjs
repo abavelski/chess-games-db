@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { decompress } from 'fzstd';
 import { gameQuery, recordQuery } from './queries.mjs';
 import { groupBooks, sequenceSql } from './books.mjs';
+import { activeOpeningRevision, openingSelection, openingLabels, openingFacets } from './opening-read.mjs';
 
 const LIMIT = 16 * 1024 * 1024;
 
@@ -109,7 +110,13 @@ export class ChessArchive {
   }
 
   searchGames(filters) {
+    const revision = activeOpeningRevision(this.db, this.openingsSupported);
     const q = gameQuery(filters);
+    const selection = openingSelection(this.db, revision, filters?.openingNodeId);
+    if (selection.clause) {
+      q.where += (q.where ? ' AND ' : ' WHERE ') + selection.clause;
+      Object.assign(q.params, selection.params);
+    }
     const from = ' FROM games g JOIN sources s ON s.id = g.source_id';
     const total = run(this.db.prepare('SELECT count(*) AS n' + from + q.where), 'get', q.params).n;
     const sql = 'SELECT g.id, g.source_id, g.source_game_key, g.white, g.black, ' +
@@ -118,7 +125,11 @@ export class ChessArchive {
       's.title AS source_title, s.author AS source_author' +
       from + q.where + ' ORDER BY ' + q.orderBy + ' LIMIT @limit OFFSET @offset';
     const rows = this.db.prepare(sql).all({ ...q.params, limit: q.pageSize, offset: q.offset });
-    return { rows, total, page: q.page, pageSize: q.pageSize };
+    return { rows: openingLabels(this.db, revision, rows), total, page: q.page, pageSize: q.pageSize };
+  }
+
+  openingFacets(filters) {
+    return openingFacets(this.db, this.openingsSupported, filters);
   }
 
   getGame(id) {
@@ -129,7 +140,7 @@ export class ChessArchive {
     if (!row) return null;
     const pgn = decodePgn(row);
     const { pgn_zstd, ...metadata } = row;
-    return { ...metadata, pgn };
+    return openingLabels(this.db, activeOpeningRevision(this.db, this.openingsSupported), [{ ...metadata, pgn }])[0];
   }
 
   searchRecords(filters) {

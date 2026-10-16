@@ -31,7 +31,23 @@ export interface Catalog {
     texts: number;
   };
 }
+export interface OpeningInfo {
+  status: 'matched' | 'unmatched' | 'invalid' | 'unenriched';
+  name: string | null;
+  eco: string | null;
+  nodeId: string | null;
+  path: string[];
+  matchedPly: number | null;
+}
+export interface OpeningNode {
+  id: string; label: string; parentId: string | null; path: string[]; count: number;
+}
+export interface OpeningFacets {
+  supported: boolean; revision: string | null; total: number; classified: number;
+  unclassified: number; nodes: OpeningNode[];
+}
 export interface GameRow {
+  opening?: OpeningInfo;
   id: number;
   source_id: number;
   source_game_key: string;
@@ -87,6 +103,7 @@ export interface Page<T> {
   pageSize: number;
 }
 export interface SearchFilters {
+  openingNodeId?: string;
   search?: string;
   sourceId?: number | null;
   sourceIds?: number[];
@@ -112,6 +129,7 @@ export interface ChessArchiveAPI {
   bookContents(bookId: string): Promise<BookContents>;
   getCatalog(): Promise<Catalog | null>;
   searchGames(f: SearchFilters): Promise<Page<GameRow>>;
+  openingFacets(f: SearchFilters): Promise<OpeningFacets>;
   getGame(id: number): Promise<GameDetail | null>;
   searchRecords(f: SearchFilters): Promise<Page<RecordRow>>;
   getRecord(id: number): Promise<RecordDetail | null>;

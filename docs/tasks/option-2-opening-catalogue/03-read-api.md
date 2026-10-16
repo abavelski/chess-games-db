@@ -1,5 +1,7 @@
 # O2-03 — Opening labels and hierarchical search API
 
+Status: implemented and verified (taxonomy/count/filter fixtures, legacy and stale-data behavior, IPC, unit/archive suites, build and desktop smoke).
+
 Depends on: O2-01 storage contract; use seeded fixtures without O2-02. Read [shared rules](../README.md).
 
 Deliver:
