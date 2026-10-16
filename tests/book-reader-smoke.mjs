@@ -83,8 +83,11 @@ async function smoke() {
         const deadline = Date.now() + 5000;
         while (!predicate()) { if (Date.now() > deadline) throw new Error('Reader UI did not update: ' + predicate); await new Promise(resolve => setTimeout(resolve, 20)); }
       };
-      await waitForReader(() => document.querySelector('.book-link[title="Reader book"]'));
-      document.querySelector('.book-link[title="Reader book"]').click();
+      await waitForReader(() => document.querySelector('[aria-label="Book"] option')?.textContent === 'All books');
+      const select = document.querySelector('[aria-label="Book"]');
+      const option = [...select.options].find(option => option.textContent === 'Reader book');
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, option.value);
+      select.dispatchEvent(new Event('change', { bubbles: true }));
       await waitForReader(() => document.querySelector('.book-open'));
       document.querySelector('.book-open').click();
       await waitForReader(() => document.querySelector('.book-prose')?.textContent.includes('Introduction to the book.'));

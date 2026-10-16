@@ -280,3 +280,33 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   .book-game-review .review-workspace { grid-template-columns: var(--review-board-size) minmax(220px, 1fr); }
   .book-open { padding: 11px; }
 }
+
+.game-browser { max-width: 1260px; margin: 0 auto; padding: 36px clamp(24px, 4vw, 64px) 32px; }
+.browser-header { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 30px; }
+.browser-brand { display: flex; align-items: center; gap: 16px; }
+.browser-brand>span { font: 48px/1 Georgia, serif; color: #8b734d; }
+.browser-brand h1 { margin: 0; font: 500 34px/1.2 Georgia, serif; color: #253b30; }
+.browser-brand p { margin: 6px 0 0; color: #829086; font-size: 12px; }
+.browser-archive { display: flex; align-items: center; gap: 16px; }
+.browser-archive>span { font-size: 11px; color: #8d978d; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browser-filters { margin-bottom: 24px; }
+.browser-filters .search-box { min-height: 46px; margin-bottom: 20px; }
+.game-filters-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr 1.2fr; gap: 12px; }
+.year-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.extra-game-filters { display: flex; align-items: start; gap: 18px; margin-top: 14px; }
+.extra-game-filters .book-sections { width: 200px; margin: 0; }
+.more-game-filters { color: #73816f; font-size: 12px; padding-top: 5px; }
+.more-game-filters summary { cursor: pointer; }
+.more-game-filters .filters-grid { margin-top: 12px; min-width: 320px; }
+.game-results .results-list { max-height: none; }
+.game-results .result-item { min-height: 86px; padding: 17px 22px; gap: 17px; }
+.game-piece { font: 30px/1 Georgia, serif; color: #7e9075; }
+.game-results .item-main strong { font-size: 14px; }
+.game-results .item-main small { font-size: 11px; color: #8c917f; }
+.game-results .item-small { font-size: 12px; color: #788578; }
+.game-results .result-val { font-size: 13px; color: #435d48; min-width: 54px; }
+.game-opening { color: #73816f; font-size: 12px; }
+@media(max-width: 1100px) {
+  .game-filters-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .browser-archive>span { display: none; }
+}

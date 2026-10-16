@@ -13,7 +13,8 @@
     "dist": "npm run build && electron-builder",
     "dist:dir": "npm run build && electron-builder --dir",
     "test": "node --test tests/*.test.mjs",
-    "test:desktop": "npm run build && node scripts/start-electron.mjs tests/desktop-smoke.mjs && node scripts/start-electron.mjs tests/book-reader-smoke.mjs",
+    "test:desktop": "npm run build && node scripts/start-electron.mjs tests/desktop-smoke.mjs",
+    "test:book-reader": "VITE_ENABLE_BOOK_MODE=true npm run build && node scripts/start-electron.mjs tests/book-reader-smoke.mjs",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

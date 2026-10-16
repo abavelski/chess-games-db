@@ -1,216 +1,64 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  BookOpen, Library, Target, Flag, FileText, Layers3, Database, FolderOpen,
-  Search, SlidersHorizontal, ChevronLeft, ChevronRight, X, RefreshCw,
-  Copy, AlertCircle, CheckCircle2, ChevronsUpDown, BookMarked, ListFilter,
-  ArrowRight, Hash, PanelRightClose, PanelRightOpen, Maximize2,
-} from 'lucide-react';
-import { PgnBoard } from './PgnBoard';
-import { BookReader } from './BookReader';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { AlertCircle, ChevronLeft, ChevronRight, ChevronsUpDown, FolderOpen, RefreshCw, Search, X } from 'lucide-react';
 import { GameReview } from './GameReview';
-import type { Catalog, GameRow, GameDetail, RecordRow, RecordDetail, Page, SearchFilters, Tab } from './types';
+import type { Catalog, GameDetail, GameRow, Page } from './types';
 
-type Filters = {
-  white: string; black: string; eco: string; event: string; annotator: string;
-  yearFrom: string; yearTo: string; result: string; training: string;
-  deleted: string; sort: string; recordType: string; status: string;
-};
-const defaultFilters: Filters = {
-  white: '', black: '', eco: '', event: '', annotator: '',
-  yearFrom: '', yearTo: '', result: 'all', training: 'all', deleted: 'active',
-  sort: 'book', recordType: 'all', status: 'all',
-};
-const tabs = [
-  { key: 'all', label: 'All entries', icon: Library, subtitle: 'Explore the complete chess book archive' },
-  { key: 'game', label: 'Games', icon: BookOpen, subtitle: 'Annotated master games and full scores' },
-  { key: 'position', label: 'Positions', icon: Target, subtitle: 'Start from a position or study a puzzle' },
-  { key: 'line', label: 'Lines & variations', icon: Layers3, subtitle: 'Opening lines, examples and fragments' },
-  { key: 'training', label: 'Training', icon: Flag, subtitle: 'Practice material flagged in the source books' },
-  { key: 'text', label: 'Book texts', icon: FileText, subtitle: 'Explanations and instructional passages' },
-  { key: 'records', label: 'Source records', icon: Database, subtitle: 'Original extraction records and provenance' },
-] as const;
-const num = (n: number) => new Intl.NumberFormat().format(n);
-const pretty = (value: string | null | undefined) => {
-  if (!value) return '—';
-  try { return JSON.stringify(JSON.parse(value), null, 2); }
-  catch { return value; }
-};
-const displayName = (g: GameRow) => {
-  if (g.record_kind === 'text') return g.event || g.source_game_key || 'Book commentary';
-  if (g.white || g.black) return (g.white || 'Unknown') + '  vs  ' + (g.black || 'Unknown');
-  if (g.record_kind === 'position') return 'Study position';
-  if (g.record_kind === 'line') return 'Study line';
-  return 'Untitled game';
-};
-const kindName = (kind: string) => { const names: Record<string, string> = { game: 'Game', position: 'Position', line: 'Line', text: 'Text' }; return names[kind] || kind; };
-const errorMessage = (e: unknown) => e instanceof Error ? e.message : String(e);
+// Keep the reader available for later without exposing book content in the default UI.
+const bookModeEnabled = import.meta.env.VITE_ENABLE_BOOK_MODE === 'true';
+const BookReader = lazy(() => import('./BookReader').then(module => ({ default: module.BookReader })));
+const defaultFilters = { white: '', black: '', annotator: '', event: '', yearFrom: '', yearTo: '', eco: '', result: 'all', sort: 'book' };
+type Filters = typeof defaultFilters;
+const num = (value: number) => new Intl.NumberFormat().format(value);
+const errorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
+const gameTitle = (game: GameRow) => `${game.white || 'Unknown'} vs ${game.black || 'Unknown'}`;
 
-function FilterInput({ label, value, placeholder, onChange }: {
-  label: string; value: string; placeholder?: string; onChange: (v: string) => void;
+function FilterInput({ label, value, onChange, year = false }: {
+  label: string; value: string; onChange: (value: string) => void; year?: boolean;
 }) {
-  return <label className="field"><span>{label}</span>
-    <input value={value} placeholder={placeholder || label} onChange={e => onChange(e.target.value)} />
-  </label>;
-}
-
-function SelectInput({ label, value, options, onChange }: {
-  label: string; value: string; options: Array<[string, string]>; onChange: (v: string) => void;
-}) {
-  return <label className="field"><span>{label}</span>
-    <select value={value} onChange={e => onChange(e.target.value)}>
-      {options.map(([v, text]) => <option key={v} value={v}>{text}</option>)}
-    </select>
-  </label>;
-}
-
-function DetailMeta({ label, value }: { label: string; value: string | number | null | undefined }) {
-  return <div className="detail-meta"><dt>{label}</dt><dd>{value === null || value === undefined || value === '' ? '—' : value}</dd></div>;
-}
-
-function GamePanel({ game, onClose, onReview, suspended }: { game: GameDetail; onClose: () => void; onReview: (game: GameDetail, path: string) => void; suspended: boolean }) {
-  const [mode, setMode] = useState<'board' | 'pgn' | 'metadata'>(game.record_kind === 'text' ? 'pgn' : 'board');
-  const [copied, setCopied] = useState(false);
-  const position = useRef('');
-  const rememberPosition = useCallback((path: string) => { position.current = path; }, []);
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(game.pgn); setCopied(true); }
-    catch { setCopied(false); }
-  };
-  return <div className="details-content">
-    <div className="details-top">
-      <div className="eyebrow">ARCHIVE ENTRY  <span>#{game.id}</span></div>
-      <button className="icon-button panel-close" onClick={onClose} title="Close details"><X size={18} /></button>
-    </div>
-    <h2 className="detail-title">{displayName(game)}</h2>
-    <div className="entry-tags">
-      <span className={'pill kind-' + game.record_kind}>{kindName(game.record_kind)}</span>
-      {game.is_training === 1 && <span className="pill training">Training</span>}
-      {game.is_deleted === 1 && <span className="pill deleted">Source deleted</span>}
-      {game.eco && <span className="pill neutral">{game.eco}</span>}
-      {game.result && <span className="pill neutral">{game.result}</span>}
-    </div>
-    <div className="detail-source"><BookMarked size={16} /> {game.source_title}</div>
-    <button className="secondary-button review-open" onClick={() => onReview(game, position.current)}>
-      <Maximize2 size={16} /> Open game review
-    </button>
-    <div className="detail-tabs" role="tablist" aria-label="Entry view">
-      {(['board', 'pgn', 'metadata'] as const).map(view => (
-        <button key={view} role="tab" aria-selected={mode === view}
-          className={mode === view ? 'active' : ''} onClick={() => setMode(view)}>
-          {view === 'pgn' ? 'PGN / text' : view === 'board' ? 'Board' : 'Metadata'}
-        </button>
-      ))}
-    </div>
-    {mode === 'board' && !suspended && <div className="board-view">
-      <PgnBoard pgn={game.pgn} initialPath={position.current} onPathChange={rememberPosition} />
-      <p className="hint">Use the move list or board controls to step through the annotated game and variations.</p>
-      {game.start_fen && <div className="fen"><span>Starting FEN</span><code>{game.start_fen}</code></div>}
-    </div>}
-    {mode === 'pgn' && <div className="raw-view">
-      <div className="raw-top"><span>Original decompressed PGN</span>
-        <button className="subtle-button" onClick={copy}><Copy size={14} /> {copied ? 'Copied' : 'Copy'}</button>
-      </div>
-      <pre className="text-dump">{game.pgn}</pre>
-    </div>}
-    {mode === 'metadata' && <div className="metadata-view">
-      <dl className="detail-grid">
-        <DetailMeta label="Book" value={game.source_title} />
-        <DetailMeta label="Author" value={game.source_author} />
-        <DetailMeta label="White" value={game.white} />
-        <DetailMeta label="Black" value={game.black} />
-        <DetailMeta label="Event" value={game.event} />
-        <DetailMeta label="Site" value={game.site} />
-        <DetailMeta label="Date" value={game.date} />
-        <DetailMeta label="Year" value={game.year} />
-        <DetailMeta label="ECO" value={game.eco} />
-        <DetailMeta label="Result" value={game.result} />
-        <DetailMeta label="Annotator" value={game.annotator} />
-        <DetailMeta label="Game type" value={game.game_type} />
-        <DetailMeta label="Training magnitude" value={game.training_magnitude} />
-        <DetailMeta label="Source key" value={game.source_game_key} />
-      </dl>
-      <h3>Original PGN headers</h3><pre className="json-block">{pretty(game.headers_json)}</pre>
-      <h3>Additional metadata</h3><pre className="json-block">{pretty(game.extras_json)}</pre>
-      <h3>SHA-256</h3><code className="hash">{game.pgn_sha256}</code>
-    </div>}
-  </div>;
-}
-
-function RecordPanel({ record, onClose }: { record: RecordDetail; onClose: () => void }) {
-  return <div className="details-content">
-    <div className="details-top">
-      <div className="eyebrow">SOURCE RECORD  <span>#{record.id}</span></div>
-      <button className="icon-button panel-close" onClick={onClose} title="Close details"><X size={18} /></button>
-    </div>
-    <h2 className="detail-title">{record.source_record_key}</h2>
-    <div className="entry-tags">
-      <span className="pill neutral">{record.record_type}</span>
-      <span className={'pill ' + (record.status === 'failed' ? 'deleted' : 'training')}>
-        {record.status === 'failed' ? <AlertCircle size={12} /> : <CheckCircle2 size={12} />}
-        {record.status}
-      </span>
-    </div>
-    <div className="detail-source"><BookMarked size={16} /> {record.source_title}</div>
-    <h3>Extraction information</h3>
-    <dl className="detail-grid">
-      <DetailMeta label="Source" value={record.source_title} />
-      <DetailMeta label="Type" value={record.record_type} />
-      <DetailMeta label="Status" value={record.status} />
-      <DetailMeta label="Move bytes" value={num(record.raw_moves_size)} />
-      <DetailMeta label="Annotation bytes" value={num(record.raw_annotations_size)} />
-      <DetailMeta label="Updated" value={record.updated_at} />
-    </dl>
-    <h3>Extraction metadata</h3><pre className="json-block">{pretty(record.metadata_json)}</pre>
-    <h3>Original move bytes (UTF-8 preview)</h3>
-    {record.raw_preview
-      ? <pre className="text-dump">{record.raw_preview}</pre>
-      : <p className="hint">No valid UTF-8 preview is available. The original binary record is retained in SQLite.</p>}
-  </div>;
+  return <label className="field"><span>{label}</span><input value={value}
+    type={year ? 'number' : 'text'} min={year ? 1 : undefined} max={year ? 9999 : undefined}
+    placeholder={year ? 'Any' : 'Any ' + label.toLowerCase()} onChange={event => onChange(event.target.value)} /></label>;
 }
 
 export default function App() {
-  const [reader, setReader] = useState<{ book: Catalog['books'][number]; start: { sourceId: number | null; key?: string } } | null>(null);
-  const reviewTrigger = useRef<HTMLElement | null>(null);
-  const libraryScroll = useRef({ x: 0, y: 0 });
-  const [review, setReview] = useState<{ game: GameDetail; initialPath: string } | null>(null);
-  const openReview = useCallback((game: GameDetail, initialPath: string) => {
-    reviewTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    libraryScroll.current = { x: window.scrollX, y: window.scrollY };
-    setReview({ game, initialPath });
-  }, []);
-  const closeReview = useCallback(() => {
-    setReview(null); setReader(null);
-    requestAnimationFrame(() => {
-      window.scrollTo(libraryScroll.current.x, libraryScroll.current.y);
-      reviewTrigger.current?.focus({ preventScroll: true });
-    });
-  }, []);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('all');
-  const [sourceId, setSourceId] = useState<number | null>(null);
-  const [bookId, setBookId] = useState<string | null>(null);
+  const [bookId, setBookId] = useState('');
+  const [sourceId, setSourceId] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [filters, setFilters] = useState<Filters>({ ...defaultFilters });
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [page, setPage] = useState(1);
-  const [results, setResults] = useState<Page<GameRow> | Page<RecordRow> | null>(null);
+  const [results, setResults] = useState<Page<GameRow> | null>(null);
   const [fetching, setFetching] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [detail, setDetail] = useState<GameDetail | RecordDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [gameError, setGameError] = useState<string | null>(null);
+  const [openingGame, setOpeningGame] = useState<number | null>(null);
+  const [review, setReview] = useState<GameDetail | null>(null);
+  const [reader, setReader] = useState(false);
+  const trigger = useRef<HTMLElement | null>(null);
+  const scroll = useRef({ x: 0, y: 0 });
+  const gameRequest = useRef(0);
+  const selectedBook = catalog?.books.find(book => book.id === bookId);
+
+  const closeReview = useCallback(() => {
+    setReview(null); setReader(false);
+    requestAnimationFrame(() => {
+      window.scrollTo(scroll.current.x, scroll.current.y);
+      trigger.current?.focus({ preventScroll: true });
+    });
+  }, []);
 
   useEffect(() => {
     if (!window.chessArchive) {
-      setOpenError('Open this interface through Electron (npm run dev), not in a standalone web browser.');
+      setOpenError('Open this app through Electron with npm run dev.');
       return;
     }
-    window.chessArchive.getCatalog().then(setCatalog).catch(e => setOpenError(errorMessage(e)));
+    let alive = true;
+    window.chessArchive.getCatalog().then(value => { if (alive) setCatalog(value); })
+      .catch(error => { if (alive) setOpenError(errorMessage(error)); });
+    return () => { alive = false; };
   }, []);
 
   useEffect(() => {
@@ -218,258 +66,140 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const patchFilter = (key: keyof Filters, value: string) => {
-    setFilters(old => ({ ...old, [key]: value }));
-    setPage(1);
-  };
-  const chooseTab = (next: Tab) => {
-    setTab(next); setPage(1); setSelectedId(null); setDetail(null); setPanelOpen(true);
-  };
-  const chooseSource = (id: number | null) => {
-    setSourceId(id); setPage(1); setSelectedId(null); setDetail(null);
-  };
-  const chooseBook = (id: string | null) => {
-    setBookId(id); chooseSource(null);
-  };
-
-  const openArchive = async () => {
-    setOpening(true);
-    setOpenError(null);
-    try {
-      const result = await window.chessArchive.openDatabase();
-      if (!result.canceled && result.catalog) {
-        setCatalog(result.catalog);
-        setBookId(null); setSourceId(null); setSelectedId(null); setDetail(null); setResults(null); setPage(1);
-      }
-    } catch (e) { setOpenError(errorMessage(e)); }
-    finally { setOpening(false); }
-  };
-
   useEffect(() => {
     if (!catalog) return;
     let alive = true;
-    setFetching(true); setQueryError(null); setResults(null);
-    const query: SearchFilters = {
-      search: debouncedSearch, sourceId, page, pageSize: 40,
-      sourceIds: bookId === null ? undefined : catalog.books.find(book => book.id === bookId)?.source_ids ?? [],
-      ...filters,
-      kind: ['game', 'position', 'line', 'text'].includes(tab) ? tab : 'all',
-      training: tab === 'training' ? 'yes' : filters.training,
-    };
-    const operation = tab === 'records'
-      ? window.chessArchive.searchRecords(query)
-      : window.chessArchive.searchGames(query);
-    operation.then(data => {
-      if (!alive) return;
-      setResults(data);
-      setSelectedId(old => data.rows.some(row => row.id === old) ? old : data.rows[0]?.id ?? null);
-    }).catch(e => { if (alive) setQueryError(errorMessage(e)); })
+    setFetching(true); setQueryError(null); setGameError(null);
+    // Book contents, puzzles, positions and source records remain in the archive.
+    // The browser always requests complete games only.
+    window.chessArchive.searchGames({
+      ...filters, kind: 'game', deleted: 'active', search: debouncedSearch,
+      sourceIds: bookId ? catalog.books.find(book => book.id === bookId)?.source_ids ?? [] : undefined,
+      sourceId: sourceId ? Number(sourceId) : null, page, pageSize: 40,
+    }).then(value => { if (alive) setResults(value); })
+      .catch(error => { if (alive) setQueryError(errorMessage(error)); })
       .finally(() => { if (alive) setFetching(false); });
     return () => { alive = false; };
-  }, [catalog, tab, bookId, sourceId, page, filters, debouncedSearch]);
+  }, [catalog, bookId, sourceId, page, filters, debouncedSearch]);
 
-  useEffect(() => {
-    if (!catalog || selectedId === null) { setDetail(null); return; }
-    let alive = true;
-    setDetail(null); setDetailError(null); setDetailLoading(true);
-    const request = tab === 'records'
-      ? window.chessArchive.getRecord(selectedId)
-      : window.chessArchive.getGame(selectedId);
-    request.then(value => { if (alive) setDetail(value); })
-      .catch(e => { if (alive) setDetailError(errorMessage(e)); })
-      .finally(() => { if (alive) setDetailLoading(false); });
-    return () => { alive = false; };
-  }, [catalog, tab, selectedId]);
-
-  const currentTab = tabs.find(t => t.key === tab) || tabs[0];
-  const chosenBook = catalog?.books.find(book => book.id === bookId);
-  const hasFilters = Object.entries(filters).some(([k, v]) => v !== defaultFilters[k as keyof Filters]);
+  const patchFilter = (key: keyof Filters, value: string) => {
+    setFilters(previous => ({ ...previous, [key]: value })); setPage(1);
+  };
+  const resetFilters = () => {
+    setFilters(defaultFilters); setBookId(''); setSourceId(''); setSearch(''); setDebouncedSearch(''); setPage(1);
+  };
+  const openArchive = async () => {
+    setOpening(true); setOpenError(null);
+    try {
+      const result = await window.chessArchive.openDatabase();
+      if (!result.canceled && result.catalog) {
+        gameRequest.current++;
+        setOpeningGame(null); setGameError(null); setResults(null);
+        resetFilters(); setCatalog(result.catalog);
+      }
+    } catch (error) { setOpenError(errorMessage(error)); }
+    finally { setOpening(false); }
+  };
+  const openGame = async (game: GameRow, element: HTMLButtonElement) => {
+    const request = ++gameRequest.current;
+    trigger.current = element;
+    scroll.current = { x: window.scrollX, y: window.scrollY };
+    setOpeningGame(game.id); setGameError(null);
+    try {
+      const detail = await window.chessArchive.getGame(game.id);
+      if (request !== gameRequest.current) return;
+      if (!detail) throw new Error('This game is no longer available in the archive.');
+      setReview(detail);
+    } catch (error) { if (request === gameRequest.current) setGameError(errorMessage(error)); }
+    finally { if (request === gameRequest.current) setOpeningGame(null); }
+  };
   const total = results?.total ?? 0;
-  const start = total ? ((results?.page ?? 1) - 1) * (results?.pageSize ?? 40) + 1 : 0;
-  const end = Math.min((results?.page ?? 1) * (results?.pageSize ?? 40), total);
-  const pageCount = Math.max(1, Math.ceil(total / (results?.pageSize ?? 40)));
+  const pageCount = Math.max(1, Math.ceil(total / 40));
+  const start = total ? ((results?.page ?? 1) - 1) * 40 + 1 : 0;
+  const end = Math.min((results?.page ?? 1) * 40, total);
+  const hasFilters = !!(search || bookId || sourceId || Object.entries(filters).some(([key, value]) => value !== defaultFilters[key as keyof Filters]));
 
-  return <><div hidden={!!review || !!reader}><div className="app-shell">
-    <aside className="sidebar">
-      <div className="brand"><div className="brand-icon">♞</div>
-        <div><strong>Chess Books</strong><span>EXPLORER</span></div></div>
-      <div className="sidebar-scroll">
-        <div className="nav-section-title">WORKSPACE</div>
-        <nav aria-label="Browse categories">
-          {tabs.map(item => {
-            const Icon = item.icon;
-            return <button key={item.key} onClick={() => chooseTab(item.key)}
-              className={'nav-link ' + (tab === item.key ? 'selected' : '')}
-              aria-current={tab === item.key ? 'page' : undefined}>
-              <Icon size={17} strokeWidth={1.8} /><span>{item.label}</span>
-              {tab === item.key && <span className="active-dot" />}
-            </button>;
-          })}
-        </nav>
-        <div className="sources-heading"><div className="nav-section-title">YOUR LIBRARY</div>
-          {catalog && <span>{catalog.books.length}</span>}</div>
-        <button onClick={() => chooseBook(null)} className={'book-link ' + (bookId === null ? 'selected' : '')}>
-          <Library size={15} /> All books
-        </button>
-        {catalog?.books.map(s => <button key={s.id} className={'book-link ' + (s.id === bookId ? 'selected' : '')}
-          title={s.title} onClick={() => chooseBook(s.id)}>
-          <BookOpen size={15} /><span>{s.title}</span><span className="book-count">{num(s.game_count)}</span>
-        </button>)}
-        {!catalog && <div className="library-help">Your books will appear here when you open a database.</div>}
-      </div>
-      <div className="sidebar-footer">
-        <div className="sidebar-db"><Database size={16} />
-          <div><strong>{catalog ? 'Local archive' : 'No archive open'}</strong>
-            <span title={catalog?.path}>{catalog ? catalog.path.split(/[\\/]/).pop() : 'SQLite database'}</span>
-          </div></div>
-        <button className="sidebar-open" onClick={openArchive} disabled={opening}>
-          <FolderOpen size={16} /> {opening ? 'Opening…' : catalog ? 'Change database' : 'Open database'}
-        </button>
-      </div>
-    </aside>
-    <main className="main-area">
-      <div className="page-heading">
-        <div><div className="overline">THE CHESS LIBRARY <span> / </span> {currentTab.label.toUpperCase()}</div>
-          <h1>{chosenBook?.title || currentTab.label}</h1>
-          <p>{chosenBook ? (chosenBook.author || 'Book collection') + ' · ' + currentTab.subtitle : currentTab.subtitle}</p>
-        </div>
-        {chosenBook && <button className="primary-button book-open" onClick={() => {
-          reviewTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-          libraryScroll.current = { x: window.scrollX, y: window.scrollY };
-          setReader({ book: chosenBook, start: { sourceId } });
-        }}><BookOpen size={17} /> Read book</button>}
-        <button className="secondary-button open-top" onClick={openArchive} disabled={opening}><FolderOpen size={17} /> Open database</button>
-      </div>
-      {chosenBook && chosenBook.sections.length > 1 && <div className="book-sections">
-        <SelectInput label="Book section" value={sourceId === null ? 'all' : String(sourceId)}
-          onChange={value => chooseSource(value === 'all' ? null : Number(value))}
-          options={[
-            ['all', `All sections (${chosenBook.sections.length})`],
-            ...chosenBook.sections.map(section => [String(section.id), section.label] as [string, string]),
-          ]} />
-      </div>}
-      {openError && <div className="notice error"><AlertCircle size={17} /> {openError}</div>}
-      {!catalog ? <section className="welcome">
-        <div className="welcome-symbol">♜</div>
-        <div className="eyebrow">YOUR PRIVATE CHESS STUDY</div>
-        <h2>Your library begins here.</h2>
-        <p>Open a local <strong>schema v3 SQLite</strong> archive to explore annotated games, training positions and book commentary. Your data stays on your computer.</p>
-        <button className="primary-button" onClick={openArchive} disabled={opening}><FolderOpen size={17} /> {opening ? 'Opening…' : 'Choose SQLite database'} <ArrowRight size={17} /></button>
-        <div className="welcome-foot">Expected file: <code>data/chess-books.sqlite3</code> · Nothing is uploaded or modified.</div>
-      </section> : <>
-        <div className="stat-strip">
-          <div className="stat-item"><div className="stat-icon"><BookMarked size={19} /></div><div><span>BOOKS</span><strong>{num(catalog.totals.books)}</strong></div></div>
-          <div className="stat-item"><div className="stat-icon"><Library size={19} /></div><div><span>ALL ENTRIES</span><strong>{num(catalog.totals.entries)}</strong></div></div>
-          <div className="stat-item"><div className="stat-icon"><BookOpen size={19} /></div><div><span>GAMES</span><strong>{num(catalog.totals.games)}</strong></div></div>
-          <div className="stat-item"><div className="stat-icon"><Target size={19} /></div><div><span>TRAINING</span><strong>{num(catalog.totals.training)}</strong></div></div>
-        </div>
-        <div className="search-toolbar">
-          <label className="search-box"><Search size={19} /><input value={search}
-            placeholder={tab === 'records' ? 'Search record keys or extraction metadata…' : 'Search players, books, events, annotations…'}
-            onChange={e => { setSearch(e.target.value); setPage(1); }} />
-            {search && <button title="Clear search" onClick={() => { setSearch(''); setPage(1); }}><X size={15} /></button>}
-          </label>
-          <button className={'filter-toggle ' + (filtersOpen || hasFilters ? 'engaged' : '')}
-            onClick={() => setFiltersOpen(v => !v)}><SlidersHorizontal size={17} /> Filters
-            {hasFilters && <span className="filter-indicator" />}
-          </button>
-          <button className="icon-button panel-toggle" title={panelOpen ? 'Hide details' : 'Show details'}
-            onClick={() => setPanelOpen(v => !v)}>{panelOpen ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}</button>
-        </div>
-        {filtersOpen && <div className="filters-panel">
-          <div className="filters-heading"><div><ListFilter size={17} /> Refine results</div>
-            <button className="subtle-button" onClick={() => { setFilters({ ...defaultFilters }); setPage(1); }}><RefreshCw size={14} /> Reset filters</button>
+  return <>
+    <div hidden={!!review || reader}>
+      <main className="game-browser">
+        <header className="browser-header">
+          <div className="browser-brand"><span aria-hidden="true">♞</span><div><h1>Games</h1><p>Browse a game. Explore every move.</p></div></div>
+          <div className="browser-archive">
+            {catalog && <span title={catalog.path}>{catalog.path.split(/[\\/]/).pop()}</span>}
+            <button className="secondary-button" onClick={openArchive} disabled={opening || !window.chessArchive}>
+              <FolderOpen size={16} /> {opening ? 'Opening…' : catalog ? 'Change database' : 'Open database'}
+            </button>
           </div>
-          {tab === 'records' ? <div className="filters-grid">
-            <SelectInput label="Record type" value={filters.recordType} onChange={v => patchFilter('recordType', v)}
-              options={ [['all', 'All records'], ['game', 'Game'], ['text', 'Text']] } />
-            <SelectInput label="Extraction status" value={filters.status} onChange={v => patchFilter('status', v)}
-              options={ [['all', 'Any status'], ['extracted', 'Extracted'], ['failed', 'Failed']] } />
-          </div> : <div className="filters-grid">
-            <FilterInput label="White player" value={filters.white} onChange={v => patchFilter('white', v)} />
-            <FilterInput label="Black player" value={filters.black} onChange={v => patchFilter('black', v)} />
-            <FilterInput label="Event" value={filters.event} onChange={v => patchFilter('event', v)} />
-            <FilterInput label="Annotator" value={filters.annotator} onChange={v => patchFilter('annotator', v)} />
-            <FilterInput label="ECO prefix" placeholder="e.g. B12" value={filters.eco} onChange={v => patchFilter('eco', v)} />
-            <FilterInput label="Year from" placeholder="1900" value={filters.yearFrom} onChange={v => patchFilter('yearFrom', v)} />
-            <FilterInput label="Year to" placeholder="2026" value={filters.yearTo} onChange={v => patchFilter('yearTo', v)} />
-            <SelectInput label="Result" value={filters.result} onChange={v => patchFilter('result', v)}
-              options={ [['all', 'Any result'], ['1-0', '1–0'], ['0-1', '0–1'], ['1/2-1/2', '½–½'], ['*', 'Unfinished']] } />
-            <SelectInput label="Training" value={filters.training} onChange={v => patchFilter('training', v)}
-              options={ [['all', 'All entries'], ['yes', 'Training only'], ['no', 'Not training']] } />
-            <SelectInput label="Deleted in source" value={filters.deleted} onChange={v => patchFilter('deleted', v)}
-              options={ [['active', 'Hide deleted'], ['all', 'Include deleted'], ['deleted', 'Only deleted']] } />
-          </div>}
-        </div>}
-        <div className="results-titlebar"><div>
-          <h2>{tab === 'records' ? 'Original records' : 'Archive entries'}</h2>
-          <span>{fetching ? 'Searching…' : num(total) + ' matching records'}</span>
-        </div>
-          <label className="sort-box"><ChevronsUpDown size={15} />
-            <select aria-label="Sort entries" value={tab === 'records' && !['book', 'newest', 'oldest'].includes(filters.sort) ? 'book' : filters.sort} onChange={e => patchFilter('sort', e.target.value)}>
-              <option value="book">Book order</option><option value="newest">Newest added</option><option value="oldest">Oldest added</option>
-              {tab !== 'records' && <>
-                <option value="year_desc">Year · newest</option><option value="year_asc">Year · oldest</option>
-                <option value="white">White player A–Z</option><option value="source">Book title A–Z</option>
-              </>}
-            </select></label>
-        </div>
-        <div className={'workspace-grid ' + (!panelOpen ? 'no-panel' : '')}>
-          <section className="results-panel" aria-label="Archive search results">
-            {queryError ? <div className="empty-results"><AlertCircle size={30} /><h3>Unable to search</h3><p>{queryError}</p></div>
-              : fetching ? <div className="empty-results"><RefreshCw className="spin" size={28} /><p>Loading your archive…</p></div>
-              : !results?.rows.length ? <div className="empty-results"><Search size={30} /><h3>No matches found</h3><p>Try changing the source, search, or active filters.</p>
-                <button className="secondary-button" onClick={() => { setSearch(''); setFilters({ ...defaultFilters }); chooseBook(null); }}>Clear search and filters</button></div>
-              : <div className="results-list">
-                {(results.rows as Array<GameRow | RecordRow>).map(row => {
-                  const selected = row.id === selectedId;
-                  if (tab === 'records') {
-                    const r = row as RecordRow;
-                    return <button key={r.id} className={'result-item ' + (selected ? 'selected' : '')}
-                      onClick={() => { setSelectedId(r.id); setPanelOpen(true); }}>
-                      <span className="item-icon"><Database size={19} /></span>
-                      <span className="item-main"><strong>{r.source_record_key}</strong>
-                        <small>{r.source_title}</small><span className="item-small">{r.record_type} · {r.raw_moves_size ?? 0} move bytes</span></span>
-                      <span className="item-extra"><span className={'tiny-status ' + r.status}>{r.status}</span><ChevronRight size={16} /></span>
-                    </button>;
-                  }
-                  const g = row as GameRow;
-                  return <button key={g.id} className={'result-item ' + (selected ? 'selected' : '')}
-                    onClick={() => { setSelectedId(g.id); setPanelOpen(true); }}>
-                    <span className={'item-icon type-' + g.record_kind}>{g.record_kind === 'position' ? <Target size={20} /> :
-                      g.record_kind === 'text' ? <FileText size={20} /> : g.record_kind === 'line' ? <Layers3 size={20} /> : <BookOpen size={20} />}</span>
-                    <span className="item-main"><strong>{displayName(g)}</strong>
-                      <small>{g.source_title}</small>
-                      <span className="item-small">{g.event || kindName(g.record_kind)}{g.year ? ' · ' + g.year : ''}</span></span>
-                    <span className="item-extra">
-                      {g.eco && <span className="eco-tag">{g.eco}</span>}
-                      {g.is_training === 1 && <span title="Training entry" className="training-mark"><Target size={14} /></span>}
-                      <span className="result-val">{g.result || '—'}</span>
-                      <ChevronRight size={16} /></span>
-                  </button>;
-                })}
-              </div>}
-            <div className="pagination"><span>{num(start)}–{num(end)} of {num(total)}</span>
-              <div><button className="page-button" aria-label="Previous page" disabled={page <= 1 || fetching}
-                onClick={() => setPage(v => Math.max(1, v - 1))}><ChevronLeft size={17} /></button>
-                <span>Page {page} of {pageCount}</span>
-                <button className="page-button" aria-label="Next page" disabled={page >= pageCount || fetching}
-                  onClick={() => setPage(v => Math.min(pageCount, v + 1))}><ChevronRight size={17} /></button></div>
+        </header>
+        {openError && <div role="alert" className="notice error"><AlertCircle size={17} />{openError}</div>}
+        {!catalog ? <section className="welcome">
+          <div className="welcome-symbol" aria-hidden="true">♜</div><h2>Open your games.</h2>
+          <p>Choose a local chess archive to browse and review annotated games.</p>
+          <button className="primary-button" onClick={openArchive} disabled={opening || !window.chessArchive}><FolderOpen size={17} />Choose database</button>
+        </section> : <>
+          <section className="browser-filters" aria-label="Filter games">
+            <label className="search-box"><Search size={18} /><input aria-label="Search games" value={search}
+              placeholder="Search games…" onChange={event => { setSearch(event.target.value); setPage(1); }} />
+              {search && <button aria-label="Clear search" onClick={() => { setSearch(''); setPage(1); }}><X size={15} /></button>}
+            </label>
+            <div className="game-filters-grid">
+              <label className="field"><span>Book</span><select aria-label="Book" value={bookId} onChange={event => { setBookId(event.target.value); setSourceId(''); setPage(1); }}>
+                <option value="">All books</option>{catalog.books.map(book => <option key={book.id} value={book.id}>{book.title}</option>)}
+              </select></label>
+              <FilterInput label="White player" value={filters.white} onChange={value => patchFilter('white', value)} />
+              <FilterInput label="Black player" value={filters.black} onChange={value => patchFilter('black', value)} />
+              <FilterInput label="Annotator" value={filters.annotator} onChange={value => patchFilter('annotator', value)} />
+              <FilterInput label="Event" value={filters.event} onChange={value => patchFilter('event', value)} />
+              <div className="year-filters"><FilterInput label="Year from" year value={filters.yearFrom} onChange={value => patchFilter('yearFrom', value)} />
+                <FilterInput label="Year to" year value={filters.yearTo} onChange={value => patchFilter('yearTo', value)} /></div>
+            </div>
+            <div className="extra-game-filters">
+              {selectedBook && selectedBook.sections.length > 1 && <label className="field book-sections"><span>Book section</span>
+                <select value={sourceId} onChange={event => { setSourceId(event.target.value); setPage(1); }}>
+                  <option value="">All sections ({selectedBook.sections.length})</option>{selectedBook.sections.map(section => <option key={section.id} value={section.id}>{section.label}</option>)}
+                </select></label>}
+              <details className="more-game-filters"><summary>More filters</summary><div className="filters-grid">
+                <FilterInput label="ECO" value={filters.eco} onChange={value => patchFilter('eco', value)} />
+                <label className="field"><span>Result</span><select value={filters.result} onChange={event => patchFilter('result', event.target.value)}>
+                  <option value="all">Any result</option><option value="1-0">White wins</option><option value="0-1">Black wins</option><option value="1/2-1/2">Draw</option><option value="*">Unfinished</option>
+                </select></label>
+              </div></details>
+              {hasFilters && <button className="subtle-button" onClick={resetFilters}><X size={14} />Clear filters</button>}
+              {bookModeEnabled && selectedBook && <button className="secondary-button book-open" onClick={event => {
+                trigger.current = event.currentTarget; scroll.current = { x: window.scrollX, y: window.scrollY }; setReader(true);
+              }}>Read book</button>}
             </div>
           </section>
-          {panelOpen && <aside className="details-panel" aria-label="Selected entry details">
-            {detailError && <div className="notice error"><AlertCircle size={18} /> {detailError}</div>}
-            {detailLoading ? <div className="details-placeholder"><RefreshCw className="spin" size={26} /><span>Opening entry…</span></div>
-              : detail && tab === 'records' ? <RecordPanel key={'r' + detail.id} record={detail as RecordDetail} onClose={() => setPanelOpen(false)} />
-              : detail ? <GamePanel key={'g' + detail.id} game={detail as GameDetail} suspended={!!review || !!reader} onReview={openReview} onClose={() => setPanelOpen(false)} />
-              : !detailError ? <div className="details-placeholder"><div className="placeholder-chess">♙</div><h3>Choose an entry</h3><p>Select a game or position to study it here.</p></div> : null}
-          </aside>}
-        </div>
-        <div className="page-footer"><Hash size={13} /> Read-only local SQLite · Schema v3 <span>·</span> PGNs are verified before display</div>
-      </>}
-    </main>
-  </div></div>
-    {reader && catalog && <BookReader {...reader} archivePath={catalog.path} onClose={closeReview} />}
-    {review && <GameReview {...review} onClose={closeReview} />}
+          <div className="results-titlebar"><div><h2>Games</h2><span role="status">{fetching ? 'Searching…' : `${num(total)} ${total === 1 ? 'game' : 'games'}`}</span></div>
+            <label className="sort-box"><ChevronsUpDown size={15} /><select aria-label="Sort games" value={filters.sort} onChange={event => patchFilter('sort', event.target.value)}>
+              <option value="book">Book order</option><option value="year_desc">Year · newest</option><option value="year_asc">Year · oldest</option>
+              <option value="white">White player A–Z</option><option value="source">Book title A–Z</option><option value="newest">Newest added</option>
+            </select></label>
+          </div>
+          {gameError && <div role="alert" className="notice error"><AlertCircle size={17} />{gameError}</div>}
+          {openingGame !== null && <p className="game-opening" role="status">Opening game…</p>}
+          <section className="results-panel game-results" aria-label="Games" aria-busy={fetching}>
+            {queryError ? <div className="empty-results" role="alert"><AlertCircle size={28} /><h3>Unable to search games</h3><p>{queryError}</p></div>
+              : fetching ? <div className="empty-results"><RefreshCw className="spin" size={26} /><p>Loading games…</p></div>
+              : !results?.rows.length ? <div className="empty-results"><Search size={28} /><h3>No games found</h3><p>Try another book or adjust your filters.</p><button className="secondary-button" onClick={resetFilters}>Clear filters</button></div>
+              : <div className="results-list">{results.rows.map(game => <button key={game.id} className="result-item" disabled={openingGame !== null}
+                onClick={event => void openGame(game, event.currentTarget)}>
+                <span className="game-piece" aria-hidden="true">♟</span>
+                <span className="item-main"><strong>{gameTitle(game)}</strong>
+                  <span className="item-small">{[game.event, game.year, game.eco].filter(Boolean).join(' · ') || 'Event and date unavailable'}</span>
+                  <small>{game.source_title}{game.annotator ? ` · Annotated by ${game.annotator}` : ''}</small></span>
+                <span className="item-extra"><span className="result-val">{game.result || '—'}</span><ChevronRight size={17} /></span>
+              </button>)}</div>}
+            <div className="pagination"><span>{num(start)}–{num(end)} of {num(total)}</span><div>
+              <button className="page-button" aria-label="Previous page" disabled={page <= 1 || fetching} onClick={() => setPage(value => value - 1)}><ChevronLeft size={17} /></button>
+              <span>Page {page} of {pageCount}</span><button className="page-button" aria-label="Next page" disabled={page >= pageCount || fetching} onClick={() => setPage(value => value + 1)}><ChevronRight size={17} /></button>
+            </div></div>
+          </section>
+        </>}
+      </main>
+    </div>
+    {review && <GameReview game={review} initialPath="" onClose={closeReview} />}
+    {bookModeEnabled && reader && selectedBook && catalog && <Suspense fallback={<p role="status">Opening book…</p>}><BookReader book={selectedBook}
+      start={{ sourceId: sourceId ? Number(sourceId) : null }} archivePath={catalog.path} onClose={closeReview} /></Suspense>}
   </>;
 }

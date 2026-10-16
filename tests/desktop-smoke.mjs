@@ -29,6 +29,16 @@ for (const sourceId of [1, 2, 3]) {
   db.prepare("INSERT INTO source_records (source_id, source_record_key, record_type, status, metadata_json) VALUES (?, 'game', 'game', 'extracted', '{}')")
     .run(sourceId);
 }
+// Mixed archives must expose only complete games in the browser.
+for (const kind of ['position', 'line', 'text']) {
+  db.prepare('INSERT INTO games (source_id, source_game_key, record_kind, pgn_zstd, pgn_sha256) VALUES (3, ?, ?, ?, ?)')
+    .run(kind, kind, compressed, createHash('sha256').update(pgn).digest('hex'));
+}
+for (let index = 0; index < 42; index++) {
+  db.prepare('INSERT INTO games (source_id, source_game_key, white, black, pgn_zstd, pgn_sha256) VALUES (3, ?, ?, ?, ?, ?)')
+    .run('page-' + index, 'Page White', 'Page Black', compressed, createHash('sha256').update(pgn).digest('hex'));
+}
+db.prepare("UPDATE games SET annotator = 'Test Analyst', year = 1972, event = 'Test Match', eco = 'C20', result = '1-0' WHERE id = 1").run();
 db.close();
 const archiveHash = () => createHash('sha256').update(readFileSync(path)).digest('hex');
 const originalHash = archiveHash();
@@ -50,16 +60,21 @@ async function checkWindow(window) {
     const games = await window.chessArchive.searchGames({ search: 'Smoke White' });
     const game = await window.chessArchive.getGame(games.rows[0].id);
     const deadline = Date.now() + 5000;
-    while (!document.querySelector('cg-board') && Date.now() < deadline) {
+    while (!document.querySelector('.result-item') && Date.now() < deadline) {
       await new Promise(resolve => setTimeout(resolve, 25));
     }
-    const next = document.querySelector('.lpv__controls__goto--next');
-    next?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    document.dispatchEvent(new MouseEvent('mouseup'));
+    if (document.querySelector('cg-board, .sidebar, .book-open, .details-panel')) throw new Error('Browser must show only the game list');
+    if (document.querySelectorAll('.result-item').length !== 40) throw new Error('Expected paginated games');
+    document.querySelector('.result-item').click();
+    while (!document.querySelector('.review-shell cg-board') && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    document.querySelector('[aria-label="Next move"]').click();
+    await new Promise(resolve => setTimeout(resolve, 50));
     return {
       books: catalog.totals.books, total: games.total, pgn: game.pgn,
       board: !!document.querySelector('cg-board'),
-      move: document.querySelector('.move.current')?.textContent,
+      move: document.querySelector('.review-move[aria-current="step"]')?.textContent,
       errors: [...document.querySelectorAll('.notice.error')].map(el => el.textContent),
     };
   })()`);
@@ -67,12 +82,10 @@ async function checkWindow(window) {
   assert.equal(state.total, 3);
   assert.equal(state.pgn, pgn);
   assert.equal(state.board, true);
-  assert.match(state.move, /^e4/);
+  assert.match(state.move, /e4/);
   assert.deepEqual(state.errors, []);
 
-  const previewWidth = await window.webContents.executeJavaScript('document.querySelector("cg-board").getBoundingClientRect().width');
   const windowCount = BrowserWindow.getAllWindows().length;
-  await window.webContents.executeJavaScript('document.querySelector(".review-open").click()');
   const reviewState = await window.webContents.executeJavaScript(`(async () => {
     const root = document.querySelector('.review-shell');
     const waitFor = async predicate => {
@@ -118,7 +131,7 @@ async function checkWindow(window) {
   assert.equal(reviewState.arrows.length, 2);
   assert.notEqual(reviewState.arrows[0], reviewState.arrows[1]);
   assert.equal(reviewState.squares, 1);
-  assert.ok(reviewState.width > previewWidth, 'Review board must be larger than the preview');
+  assert.ok(reviewState.width > 500, 'Review board must use the available screen');
   assert.equal(reviewState.flipped, true);
   assert.equal(reviewState.original, pgn);
   window.setSize(920, 650);
@@ -167,7 +180,7 @@ async function checkWindow(window) {
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
   const returned = await window.webContents.executeJavaScript(`(async () => {
     await new Promise(resolve => setTimeout(resolve, 60));
-    return !document.querySelector('.review-shell') && !!document.querySelector('.review-open');
+    return !document.querySelector('.review-shell') && document.activeElement?.classList.contains('result-item');
   })()`);
   assert.equal(returned, true, 'Escape must restore the existing library');
   assert.equal(window.isDestroyed(), false);
@@ -176,38 +189,67 @@ async function checkWindow(window) {
     const waitFor = async predicate => {
       const deadline = Date.now() + 5000;
       while (!predicate()) {
-        if (Date.now() > deadline) throw new Error('Book selection did not update');
+        if (Date.now() > deadline) throw new Error('Game browser did not update: ' + predicate);
         await new Promise(resolve => setTimeout(resolve, 25));
       }
     };
-    const buttons = [...document.querySelectorAll('.book-link')].filter(b => b.title === 'Smoke book');
-    if (buttons.length !== 1) throw new Error('Book title is repeated');
-    buttons[0].click();
-    await waitFor(() => document.querySelectorAll('.result-item').length === 2);
-    const select = document.querySelector('.book-sections select');
-    const sections = [...select.options].map(o => o.textContent);
-    const change = value => {
-      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, value);
-      select.dispatchEvent(new Event('change', { bubbles: true }));
+    const change = (element, value) => {
+      const prototype = element.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, value);
+      element.dispatchEvent(new Event(element.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
     };
-    change('2');
-    await waitFor(() => document.querySelectorAll('.result-item').length === 1 &&
-      document.querySelector('.eyebrow')?.textContent.includes('#2'));
-    [...document.querySelectorAll('.nav-link')].find(b => b.textContent === 'Source records').click();
-    await waitFor(() => document.querySelector('.details-content .eyebrow')?.textContent.includes('SOURCE RECORD'));
-    change('all');
+    const select = document.querySelector('[aria-label="Book"]');
+    const books = [...select.options].filter(option => option.textContent === 'Smoke book');
+    if (books.length !== 1) throw new Error('Book title is repeated');
+    change(select, books[0].value);
     await waitFor(() => document.querySelectorAll('.result-item').length === 2);
+    const section = document.querySelector('.book-sections select');
+    const sections = [...section.options].map(option => option.textContent);
+    change(section, '2');
+    await waitFor(() => document.querySelectorAll('.result-item').length === 1);
+    document.querySelector('.result-item').click();
+    await waitFor(() => document.querySelector('.review-shell'));
+    document.querySelector('.review-header button').click();
+    await waitFor(() => !document.querySelector('.review-shell'));
+    if (document.querySelector('.book-sections select').value !== '2') throw new Error('Section filter lost');
+    document.querySelector('.extra-game-filters .subtle-button').click();
+    await waitFor(() => document.querySelectorAll('.result-item').length === 40);
+    const input = label => [...document.querySelectorAll('label.field')].find(el => el.querySelector('span')?.textContent === label).querySelector('input');
+    for (const [label, value] of [['White player', 'Smoke'], ['Black player', 'Black'], ['Annotator', 'Analyst'], ['Event', 'Test'], ['Year from', '1970'], ['Year to', '1980']]) {
+      change(input(label), value);
+    }
+    await waitFor(() => document.querySelectorAll('.result-item').length === 1 && document.querySelector('.result-item').textContent.includes('Test Analyst'));
+    change(input('Year from'), '2000');
+    await waitFor(() => document.querySelector('.empty-results h3')?.textContent === 'No games found');
+    document.querySelector('.empty-results button').click();
+    await waitFor(() => document.querySelectorAll('.result-item').length === 40);
+    document.querySelector('[aria-label="Next page"]').click();
+    await waitFor(() => document.querySelectorAll('.result-item').length === 5);
+    const originalText = document.querySelector('.results-list').textContent;
+    window.scrollTo(0, document.body.scrollHeight);
+    const scrollY = window.scrollY;
+    document.querySelector('.result-item').click();
+    await waitFor(() => document.querySelector('.review-shell cg-board'));
+    document.querySelector('.review-header button').click();
+    await waitFor(() => !document.querySelector('.review-shell') && document.activeElement?.classList.contains('result-item'));
+    if (document.querySelector('.results-list').textContent !== originalText) throw new Error('Return changed the page');
+    if (Math.abs(window.scrollY - scrollY) > 1) throw new Error('Return lost list scroll');
+    if (document.querySelector('[aria-label="Previous page"]').disabled) throw new Error('Page was reset');
     const catalog = await window.chessArchive.getCatalog();
     const book = catalog.books.find(b => b.title === 'Smoke book');
     const games = await window.chessArchive.searchGames({ sourceIds: book.source_ids });
     const records = await window.chessArchive.searchRecords({ sourceIds: book.source_ids });
     const outside = await window.chessArchive.searchGames({ sourceIds: book.source_ids, sourceId: 3 });
-    return { sections, gameIds: games.rows.map(g => g.source_id).sort(), records: records.total, outside: outside.total };
+    const allGames = await window.chessArchive.searchGames({ kind: 'game' });
+    const allEntries = await window.chessArchive.searchGames({});
+    return { sections, gameIds: games.rows.map(g => g.source_id).sort(), records: records.total, outside: outside.total, gameCount: allGames.total, entryCount: allEntries.total };
   })()`);
   assert.deepEqual(grouping.sections, ['All sections (2)', 'Level 1', 'Level 2']);
   assert.deepEqual(grouping.gameIds, [1, 2]);
   assert.equal(grouping.records, 2);
   assert.equal(grouping.outside, 0);
+  assert.equal(grouping.gameCount, 45);
+  assert.equal(grouping.entryCount, 48, 'Hidden content must remain in the database');
 }
 
 async function smoke() {

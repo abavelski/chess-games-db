@@ -109,7 +109,7 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
         <h1>{title}</h1>
         <p>{[game.event, game.site, game.date, game.eco, game.result].filter(value => value && value !== '?').join(' · ')}</p>
       </div>
-      <button className="secondary-button" onClick={onClose} autoFocus><ArrowLeft size={16} /> Back to library</button>
+      <button className="secondary-button" onClick={onClose} autoFocus><ArrowLeft size={16} /> Back to games</button>
     </header>}
     <div className="review-workspace">
       <section className="review-board" aria-label="Game review board">
@@ -122,7 +122,7 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
           <button title="Last mainline position" aria-label="Last mainline position" disabled={!ready || !viewer.current?.game.mainline.length} onClick={() => go('last')}><ChevronsRight size={21} /></button>
           <button title="Flip board" aria-label="Flip board" disabled={!ready} onClick={() => viewer.current?.flip()}><ArrowLeftRight size={20} /></button>
         </div>
-        <p className="review-help">Select any move or variation to explore it. ← / → moves · Home / End first / last · F flips · Esc returns to library.</p>
+        <p className="review-help">Select any move or variation to explore it. ← / → moves · Home / End first / last · F flips · Esc returns to games.</p>
         {game.start_fen && <details className="review-position"><summary>Starting position</summary><code>{game.start_fen}</code></details>}
       </section>
       <section className="review-score" aria-labelledby="review-score-title">

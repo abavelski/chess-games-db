@@ -1,6 +1,6 @@
 # Chess Books Explorer
 
-A local, read-only **Electron + React + SQLite** desktop application for browsing chess book archives: complete games, annotated positions, variations, training exercises, text, and original extraction records.
+A local, read-only **Electron + React + SQLite** desktop game browser. Filter annotated games, open one in full-screen review, and return to the same list.
 
 Built on the schema and migration system in this repository, with the **[Lichess PGN Viewer](https://github.com/lichess-org/pgn-viewer)** (which uses Chessground) for the board, move navigation, comments, and variations.
 
@@ -21,29 +21,25 @@ npm start          # run the built desktop app without a development server
 npm run dist:dir   # unpacked desktop app
 npm run dist       # installer/DMG/AppImage (depends on platform)
 npm test           # SQL filter/query unit tests
-npm run test:desktop # library and book-reader desktop smoke tests (requires a graphical session)
+npm run test:desktop # games-only desktop smoke test (requires a graphical session)
 ```
 
 The app opens the previously selected database if present, and during development also looks for `data/chess-books.sqlite3`. Otherwise, click **Open database** to select an existing SQLite file. **The database is not included in Git or any installer.** The app never writes to the archive and does not create an empty replacement if a file is missing.
 
 ## Browse and study
 
-- Browse all entries or narrow to **games**, **setup positions**, **lines**, **text**, **training records**, or **original source records**.
-- Filter by **book**, player (White/Black), event, annotator, year range, ECO prefix, result, training flag, and source-deletion flag.
-- Books imported as multiple section databases appear once in the library, with a combined entry count. Select a book to browse all its sections or choose an individual **Book section**. Grouping uses the explicit catalog book identity (`book:catalog:…:db-…`), preserves every original source and record, and never rewrites the SQLite archive.
-- Entries and source records default to **Book order**: books grouped by title, sections in natural filename order (including named Russian learning stages), and records by their preserved original numeric sequence. Other sort options remain available.
-- Select a book and click **Read book** to enter **Book mode**: a contents sidebar, readable chapter prose, and interactive games/positions with commentary in one sequence. Previous/Next or **Page Up / Page Down** moves between entries; move keys still operate the board. **Esc** or **Back to library** restores the library view. Your last reading entry is saved locally; choosing a specific section starts at that section.
-- Book mode includes source-deleted entries with labels and preserves failed extractions as unavailable-content placeholders. It works with archives that have games without matching raw records. It ignores library search/category filters to keep the complete book sequence.
-- Multi-file section order is an approximation based on section names, rather than verified printed chapter order. Chapter prose preserves line breaks and basic HTML formatting; legacy control markers are hidden, and embedded images/links are not reconstructed. Original PGN remains available.
-- Search titles, source keys, players, events and metadata; inspect paginated results and choose an ordering.
-- Examine boards with move controls, comments and variations from the **Lichess PGN Viewer**, including FEN setups; switch to the authoritative **original PGN** or the record's raw headers and metadata.
-- Click **Open game review** to expand the preview in the same window. The board and scrollable commentary fill the available space; side lines use compact parenthesized notation with inline comments. **Back to library** or **Esc** returns to the existing selection, filters, and scroll position.
-- Review shortcuts work across the board, commentary, and controls: **← / →** previous/next move, **Home / End** (or **↑ / ↓**) first/last position, **Shift+← / Shift+→** first/last position, and **F** to flip the board. Text input and editing keys retain their normal behavior.
-- PGN colored arrows (`[%cal …]`) and square highlights (`[%csl …]`) follow the selected position. ChessBase `[%pre …]` / `[%post:ENG …]` comments appear as prose, and lossless UTF-8 text backups are restored for reading. The original PGN remains available unchanged in both views.
-- Inspect original source-record extraction status, source keys, JSON metadata, and a limited UTF-8 preview of raw move bytes when those bytes are text.
-- All compression happens on the local machine with `fzstd`; **SHA-256 is verified before PGNs are displayed**.
+- The front page contains **games only**, with search and filters for **book**, **White/Black players**, **annotator**, **event**, and **year range**. ECO and result are under **More filters**.
+- Each game shows its players, event, year, ECO, result, source book, and annotator when available.
+- Multi-file books appear once in the book filter. Select a **Book section** to narrow further. Games default to **Book order**, with year, player, title, and newest-added sorting also available.
+- Click a game to open **full-screen game review** in the same window. **Back to games** or **Esc** returns to the same filters, page, scroll position, and focused game.
+- Review shortcuts: **← / →** previous/next move, **Home / End** (or **↑ / ↓**) first/last position, **Shift+← / Shift+→** first/last position, and **F** to flip the board. Text input and editing keys retain their normal behavior.
+- The board supports annotated moves, variations, colored arrows, and square highlights. Commentary, all PGN headers, and the unchanged original PGN are available in review.
+- Positions, puzzles, training views, book texts, and original source records are hidden from the UI. Their database records and backend APIs remain intact. Source-deleted games are excluded.
+- PGNs are decompressed locally and **SHA-256 is verified before display**.
 
-The app uses a narrow, context-isolated Electron preload and parameterized, bounded SQL. The renderer does not receive arbitrary SQL execution, database handles, or access to Node.js. Large and invalid PGNs display an error instead of bypassing integrity checks. Deleted-in-source entries are excluded by default, but can be viewed with the filter.
+Book mode is retained but disabled by default. For development, explicitly enable it with `VITE_ENABLE_BOOK_MODE=true npm run dev` (or prefix `npm run build` with the same variable). This restores **Read book** for the selected book, including the preserved prose, positions, extraction placeholders, and reading progress. `npm run test:book-reader` builds this opt-in mode and tests it; run `npm run build` afterward to restore the games-only build.
+
+The app uses a narrow, context-isolated Electron preload and parameterized, bounded SQL. The renderer does not receive arbitrary SQL execution, database handles, or access to Node.js. Large and invalid PGNs display an error instead of bypassing integrity checks. Deleted-in-source games are excluded from the browser.
 
 ### Schema version
 
@@ -65,7 +61,7 @@ See [docs/database.md](docs/database.md) for the schema, stable identifiers, PGN
 | `electron/preload.cjs` | Context-isolated renderer API |
 | `electron/database.mjs` | Read-only SQLite access, Zstandard decoding, checksum validation |
 | `electron/queries.mjs` | Parameterized filtering, sort whitelists, safe paging |
-| `src/App.tsx` | React library browser, filters, metadata and source records |
+| `src/App.tsx` | Games-only browser, filters, and review navigation |
 | `src/BookReader.tsx`, `src/BookText.tsx` | Book navigation, reading progress, and chapter prose |
 | `src/PgnBoard.tsx` | Lichess viewer integration |
 | `db/migrations/` | Versioned schema migrations |
