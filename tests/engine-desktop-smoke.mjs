@@ -62,9 +62,60 @@ async function smoke() {
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
     await window.webContents.executeJavaScript(`(async () => { await window.smokeWait(() => !document.querySelector('dialog')); if (!document.querySelector('.review-shell')) throw new Error('Setup Escape closed review'); })()`);
+    await window.webContents.executeJavaScript(`(async () => {
+      const wait = window.smokeWait, button = window.smokeButton;
+      document.querySelector('[aria-label="First position"]').click();
+      button('Stockfish').click(); button('Maia').click();
+      await wait(() => document.querySelector('.engine-line button'));
+      document.querySelector('.engine-line button').click(); await wait(() => document.querySelector('.analysis-branch'));
+      document.querySelector('[aria-label="Flip board"]').click();
+      document.querySelector('.review-original').open = true;
+      document.querySelector('.review-transcript').scrollTop = 25;
+      window.beforePiece = { branch: document.querySelector('.analysis-branch').textContent, pgn: document.querySelector('.review-original pre').textContent, path: document.querySelector('[aria-current="step"]')?.dataset.reviewPath || '', scroll: document.querySelector('.review-transcript').scrollTop };
+      button('Piece mode').focus(); button('Piece mode').click(); await wait(() => document.querySelector('.piece-mode[open] cg-board'));
+      if (document.querySelector('.piece-mode').querySelector('svg, .evaluation-bar, .review-comment, .review-move, square.last-move, square.check')) throw new Error('Piece mode leaked annotations');
+      if (!document.querySelector('.piece-mode .orientation-black')) throw new Error('Piece mode lost orientation');
+      if (document.querySelectorAll('.piece-mode button').length !== 2) throw new Error('Piece mode must have only two minimal controls');
+      window.pieceStart = document.querySelector('.piece-board').dataset.fen;
+      await wait(() => document.querySelector('.stockfish-analysis .engine-status').textContent.includes('paused'));
+    })()`);
+    const clickSquare = async square => {
+      const point = await window.webContents.executeJavaScript(`(() => {
+        const rect = document.querySelector('.piece-mode cg-board').getBoundingClientRect();
+        const file = '${square}'.charCodeAt(0) - 97, rank = Number('${square}'[1]) - 1;
+        const black = !!document.querySelector('.piece-mode .orientation-black');
+        return { x: Math.round(rect.left + ((black ? 7 - file : file) + .5) * rect.width / 8), y: Math.round(rect.top + ((black ? rank : 7 - rank) + .5) * rect.height / 8) };
+      })()`);
+      window.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...point });
+      window.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...point });
+      await new Promise(resolve => setTimeout(resolve, 80));
+    };
+    await clickSquare('e4'); await clickSquare('e6'); // Illegal in normal chess, permitted here.
+    await window.webContents.executeJavaScript(`(async () => {
+      const wait = window.smokeWait, button = window.smokeButton;
+      await wait(() => document.querySelector('.piece-board').dataset.fen !== window.pieceStart);
+      button('Reset position').click(); await wait(() => document.querySelector('.piece-board').dataset.fen === window.pieceStart);
+      button('Return to review').click(); await wait(() => !document.querySelector('.piece-mode'));
+      if (document.querySelector('.analysis-branch').textContent !== window.beforePiece.branch || document.querySelector('.review-original pre').textContent !== window.beforePiece.pgn) throw new Error('Return lost review state');
+      if (!document.querySelector('.review-board .orientation-black')) throw new Error('Return lost orientation');
+      if (button('Stockfish').getAttribute('aria-pressed') !== 'true' || button('Maia').getAttribute('aria-pressed') !== 'true') throw new Error('Return changed enable states');
+      await wait(() => document.querySelector('.stockfish-analysis .engine-status').textContent.includes('complete'));
+      await new Promise(r => requestAnimationFrame(r));
+      if (document.querySelector('.review-transcript').scrollTop !== window.beforePiece.scroll) throw new Error('Return lost scroll');
+      button('Piece mode').focus(); button('Piece mode').click(); await wait(() => document.querySelector('.piece-mode[open]'));
+    })()`);
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+    await window.webContents.executeJavaScript(`(async () => {
+      await window.smokeWait(() => !document.querySelector('.piece-mode'));
+      if (!document.querySelector('.review-shell')) throw new Error('Piece mode Escape closed review');
+      await window.smokeWait(() => document.activeElement?.textContent === 'Piece mode');
+      window.smokeButton('Return to book position').click();
+      await window.smokeWait(() => !document.querySelector('.analysis-branch'));
+    })()`);
     assert.equal(hash(), original);
     assert.deepEqual(errors, []);
-    console.log('Engine desktop smoke passed: local subprocess IPC, independent controls, probabilities/rating, arrows, line exploration, setup, and archive preservation.');
+    console.log('Engine desktop smoke passed: local subprocess IPC, independent controls, probabilities/rating, arrows, line exploration, setup, free Piece mode/reset/exact restoration/Escape, and archive preservation.');
   } catch (error) { console.error(error); code = 1; }
   finally { clearTimeout(timeout); app.on('will-quit', () => { rmSync(temporary, { recursive: true, force: true }); app.exit(code); }); app.quit(); }
 }

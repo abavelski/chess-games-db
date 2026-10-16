@@ -5,6 +5,7 @@ import { chessgroundDests } from 'chessops/compat';
 import { makeSquare, parseSquare } from 'chessops/util';
 import { isMoveData } from '@lichess-org/pgn-viewer/game';
 import type { DrawShape } from '@lichess-org/chessground/draw';
+import { PieceMode } from './PieceMode';
 import { EnginePanel, EvaluationBar, readReviewPreferences } from './EnginePanel';
 import { appendMove, replayPosition, sourcePosition, type AnalysisPosition } from './analysis.mjs';
 import { useEngineAnalysis } from './useEngineAnalysis';
@@ -30,6 +31,15 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
   const [display, setDisplay] = useState(preferences.display);
   const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>({ stockfish: false, maia: false, lines: preferences.lines, rating: preferences.rating, revision: 0 });
   const [flipped, setFlipped] = useState(false);
+  const [pieceMode, setPieceMode] = useState<{ fen: string; orientation: 'white' | 'black'; scroll: number; focus: HTMLElement | null } | null>(null);
+  const returnFromPieceMode = useCallback(() => {
+    const saved = pieceMode;
+    setPieceMode(null);
+    requestAnimationFrame(() => {
+      if (saved?.focus?.isConnected) saved.focus.focus({ preventScroll: true });
+      if (transcript.current && saved) transcript.current.scrollTop = saved.scroll;
+    });
+  }, [pieceMode]);
   const [promotion, setPromotion] = useState<{ from: string; to: string; position: AnalysisPosition } | null>(null);
   const [ready, setReady] = useState(false);
   const model = useMemo(() => {
@@ -60,7 +70,7 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     try { return sourcePosition(viewer.current); } catch { return null; }
   }, [ready, path]);
   const position = temporary || source;
-  const engines = useEngineAnalysis(position, analysisOptions);
+  const engines = useEngineAnalysis(position, analysisOptions, !!pieceMode);
   const configureBoard = useCallback((board: Viewer) => {
     const current = temporary || (() => { try { return sourcePosition(board); } catch { return null; } })();
     if (!current || !board.ground) return;
@@ -85,6 +95,7 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     const previousTitle = document.title;
     document.title = `Game review · ${game.white || game.event || game.source_title}`;
     const keydown = (event: KeyboardEvent) => {
+      if (pieceMode) return; // Native Piece mode dialog owns Escape and focus.
       const target = event.target;
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey ||
         (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, dialog, [role="textbox"]')))) return;
@@ -106,7 +117,7 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
       window.removeEventListener('keydown', keydown, true);
       document.title = previousTitle;
     };
-  }, [game.white, game.event, game.source_title, onClose]);
+  }, [game.white, game.event, game.source_title, onClose, pieceMode]);
   useEffect(() => {
     const current = transcript.current?.querySelector('[aria-current="step"]');
     current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -169,6 +180,9 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
         {game.start_fen && <details className="review-position"><summary>Starting position</summary><code>{game.start_fen}</code></details>}
       </section>
       <section className="review-score" aria-labelledby="review-score-title">
+        <div className="piece-entry"><button disabled={!position || !!promotion} onClick={() => {
+          if (position && viewer.current) setPieceMode({ fen: position.fen, orientation: viewer.current.orientation(), scroll: transcript.current?.scrollTop || 0, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null });
+        }}>Piece mode</button></div>
         <EnginePanel options={analysisOptions} setOptions={setAnalysisOptions} display={display} setDisplay={setDisplay} states={engines} position={position} onPreview={moves => { if (position) setTemporary(replayPosition(position.initialFen, moves)); }} />
         {temporary && <div className="analysis-branch"><span>Temporary analysis · {temporary.sans.slice(source?.moves.length || 0).join(' ')}</span> <button onClick={() => { setTemporary(null); viewer.current?.toPath(new Path(path), false); }}>Return to book position</button></div>}
         {promotion && <div className="promotion-choice" role="group" aria-label="Choose promotion">Promote to {(['queen', 'rook', 'bishop', 'knight'] as const).map(role => <button key={role} onClick={() => { setTemporary(appendMove(promotion.position, promotion.from, promotion.to, role)); setPromotion(null); }}>{role}</button>)}</div>}
@@ -187,5 +201,6 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
         </div>
       </section>
     </div>
+    {pieceMode && <PieceMode fen={pieceMode.fen} orientation={pieceMode.orientation} onReturn={returnFromPieceMode} />}
   </Shell>;
 }
