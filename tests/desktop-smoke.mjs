@@ -254,7 +254,7 @@ async function checkWindow(window) {
     await waitFor(()=>document.querySelectorAll('.result-item').length===1);
     await choose('Source','Smoke section 2');
     await waitFor(()=>document.querySelectorAll('.result-item').length===2);
-    await choose('Completeness','unknown');
+    await choose('Source type','other');
     await waitFor(()=>document.querySelectorAll('.result-item').length===2);
     const source=property('Source');source.querySelector('.property-trigger').click();
     await waitFor(()=>source.querySelector('[role=combobox]'));

@@ -40,9 +40,9 @@ The app opens the previously selected database if present, and during developmen
 
 ## Browse and study
 
-- Searchable multiselects cover sources and source types, source sections, either player or White/Black roles, annotators, event, site, year, result, completeness, annotations, medals, critical positions, study markers, and original source ECO. Year ranges remain available.
+- Searchable multiselects cover sources, source types, event, year, result, and study markers. Year ranges remain available.
 - Values within a property use OR; different properties use AND. Empty selections impose no constraint. Missing/unknown values are explicit options. Selected chips remain available at zero matches; dropdown counts apply other filters.
-- Exact Unicode spellings and whole annotator credits are preserved. Known catalogue collections appear once under Source; Source section retains separate section identities. Source order uses collection, section and original record sequence.
+- Exact Unicode spellings and whole annotator credits are preserved. Known catalogue collections appear once under Source; their section identities remain stored. Source order uses collection, section and original record sequence.
 - A game can have several sources or none. Different annotated editions remain distinct even when their moves or hashes match. Completeness remains unknown without trusted source evidence; `*` alone does not mean partial.
 - The **Opening** section retains offline name search and the family → line → subline hierarchy, with descendant/transposition matching. Source ECO stays separate from derived Lichess ECO.
 - Click a game to open **full-screen game review** in the same window. **Back to games** or **Esc** returns to the same filters, page, scroll position, and focused game.

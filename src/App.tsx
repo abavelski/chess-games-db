@@ -6,7 +6,7 @@ import { OpeningFilter, type OpeningSelection } from './OpeningFilter';
 import type { Catalog, GameDetail, GameRow, Page, PropertyKey, SearchFilters } from './types';
 
 const defaultFilters = { yearFrom: '', yearTo: '', sort: 'book' };
-const propertyLabels: Array<[PropertyKey,string]> = [['source','Source'],['sourceSection','Source section'],['sourceType','Source type'],['players','Either player'],['white','White player'],['black','Black player'],['annotators','Annotator'],['event','Event'],['site','Site'],['year','Year'],['result','Result'],['completeness','Completeness'],['annotations','Annotations'],['medals','Medals'],['criticalPositions','Critical positions'],['studyMarkers','Study markers'],['eco','Source ECO']];
+const propertyLabels: Array<[PropertyKey,string]> = [['source','Source'],['sourceType','Source type'],['event','Event'],['year','Year'],['result','Result'],['studyMarkers','Study markers']];
 type Filters = typeof defaultFilters;
 const num = (value: number) => new Intl.NumberFormat().format(value);
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -167,7 +167,7 @@ export default function App() {
                 <span className="item-main"><strong>{gameTitle(game)}</strong>
                   {!!game.has_critical_positions && <span className="game-critical-badge">◆ {game.critical_position_count} critical {game.critical_position_count === 1 ? 'position' : 'positions'}</span>}
                   {!!game.has_medals && <span className="game-medal-badge"><Medal size={13} aria-hidden="true" /> {game.medal_count} {game.medal_count === 1 ? 'medal' : 'medals'}</span>}
-                  <span className="item-small">{[game.event, game.year, game.eco && game.opening?.eco && game.eco !== game.opening.eco ? `Source ECO ${game.eco}` : game.eco].filter(Boolean).join(' · ') || 'Event and date unavailable'}</span>
+                  <span className="item-small">{[game.event, game.year].filter(Boolean).join(' · ') || 'Event and date unavailable'}</span>
                   {(game.opening?.name || catalog.capabilities?.openings) && <span className="game-opening-name" title={game.opening?.name ?? undefined}>{game.opening?.name ? `${game.opening.name} · ${game.opening.eco}` : game.opening?.status === 'unenriched' ? 'Opening not enriched' : 'Unclassified opening'}</span>}
                   <small>{game.source_title} · {game.completeness === 'unknown' ? 'Completeness unknown' : game.completeness}{game.annotator ? ` · Annotated by ${game.annotator}` : ''}</small></span>
                 <span className="item-extra"><span className="result-val">{game.result || '—'}</span><ChevronRight size={17} /></span>
