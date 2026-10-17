@@ -30,34 +30,64 @@ async function smoke() {
       const wait = async predicate => { const end = Date.now() + 8000; while (!predicate()) { if (Date.now() > end) throw new Error('Timed out: ' + predicate); await new Promise(r => setTimeout(r, 25)); } };
       const button = text => [...document.querySelectorAll('button')].find(b => b.textContent === text);
       window.smokeWait = wait; window.smokeButton = button;
+      window.smokeSetting = async (label, value) => {
+        button('Engine settings').click(); await wait(() => document.querySelector('dialog[open]'));
+        const select = document.querySelector('dialog select[aria-label="' + label + '"]');
+        if (select) {
+          Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, String(value));
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          const input = [...document.querySelectorAll('dialog label')].find(el => el.textContent.trim() === label)?.querySelector('input');
+          if (!input) throw new Error('Missing setting: ' + label);
+          if (input.checked !== value) input.click();
+        }
+        button('Done').click(); await wait(() => !document.querySelector('dialog'));
+      };
+
       await wait(() => document.querySelector('.result-item'));
       document.querySelector('.result-item').click(); await wait(() => document.querySelector('.review-shell cg-board'));
       if (button('Stockfish').getAttribute('aria-pressed') !== 'false' || button('Maia').getAttribute('aria-pressed') !== 'false') throw new Error('Engines must default off');
+      if (document.querySelectorAll('.review-analysis > .analysis-toggles button').length !== 3) throw new Error('Only settings and two engine toggles should appear');
       button('Stockfish').click(); await wait(() => document.querySelectorAll('.engine-line').length === 3);
       await wait(() => document.querySelector('svg.cg-shapes line[stroke="#27854c"]'));
-      button('Evaluation bar').click(); await wait(() => document.querySelector('.evaluation-bar'));
-      button('Engine lines').click(); await wait(() => !document.querySelector('.engine-line'));
+      await window.smokeSetting('Evaluation bar', true); await wait(() => document.querySelector('.evaluation-bar'));
+      await window.smokeSetting('Stockfish lines', false); await wait(() => !document.querySelector('.engine-line'));
       if (button('Stockfish').getAttribute('aria-pressed') !== 'true') throw new Error('Hiding lines disabled Stockfish');
-      button('Engine lines').click(); await wait(() => document.querySelector('.engine-line'));
+      button('Stockfish').click(); await wait(() => !document.querySelector('.evaluation-bar'));
+      button('Stockfish').click(); await wait(() => document.querySelector('.stockfish-analysis .engine-status')?.textContent.includes('complete'));
+      if (document.querySelector('.engine-line') || !document.querySelector('.evaluation-bar')) throw new Error('Stockfish toggle forgot preferences');
+
+      await window.smokeSetting('Stockfish lines', true); await wait(() => document.querySelector('.engine-line'));
       button('Maia').click(); await wait(() => document.querySelector('.maia-candidates')?.textContent.includes('38.0%'));
       await wait(() => document.querySelector('svg.cg-shapes line[stroke="#9155c2"]'));
-      document.querySelector('.analysis-options').open = true;
-      button('Engine arrows').click(); await wait(() => !document.querySelector('svg.cg-shapes line[stroke="#27854c"]'));
+      await window.smokeSetting('Stockfish arrows', false); await wait(() => !document.querySelector('svg.cg-shapes line[stroke="#27854c"]'));
       if (!document.querySelector('svg.cg-shapes line[stroke="#9155c2"]')) throw new Error('Maia arrows must remain independent');
-      button('Engine arrows').click();
-      const rating = document.querySelector('[aria-label="Maia rating"]');
-      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(rating, '1800'); rating.dispatchEvent(new Event('change', { bubbles: true }));
+      await window.smokeSetting('Stockfish arrows', true);
+      await window.smokeSetting('Maia rating', 1800);
       await wait(() => document.querySelector('.maia-candidates')?.textContent.includes('42.0%'));
+      await window.smokeSetting('Stockfish line count', 1);
+      await window.smokeSetting('Maia line count', 1);
+      await wait(() => document.querySelectorAll('.engine-line').length === 1 && document.querySelectorAll('.maia-candidates button').length === 1);
+      await window.smokeSetting('Maia lines', false);
+      await wait(() => !document.querySelector('.maia-candidates button'));
+      if (!document.querySelector('svg.cg-shapes line[stroke="#9155c2"]')) throw new Error('Hiding Maia lines hid its arrows');
+      button('Maia').click(); await wait(() => !document.querySelector('.maia-analysis'));
+      button('Maia').click(); await wait(() => document.querySelector('.maia-analysis .engine-status')?.textContent.includes('complete'));
+      if (document.querySelector('.maia-candidates button')) throw new Error('Maia toggle forgot line visibility');
+      await window.smokeSetting('Maia lines', true);
+      await window.smokeSetting('Stockfish line count', 3);
+      await window.smokeSetting('Maia line count', 3);
+      await wait(() => document.querySelectorAll('.engine-line').length === 3 && document.querySelectorAll('.maia-candidates button').length === 3);
       document.querySelector('.engine-line button').click(); await wait(() => document.querySelector('.analysis-branch'));
       if (!document.querySelector('.analysis-branch').textContent.includes('e4')) throw new Error('Line preview missing');
       button('Return to book position').click(); await wait(() => !document.querySelector('.analysis-branch'));
       button('Stockfish').click(); button('Maia').click();
       document.querySelector('[aria-label="Next move"]').click(); await wait(() => document.querySelector('svg.cg-shapes circle'));
-      button('Book annotations').click(); await wait(() => !document.querySelector('svg.cg-shapes circle'));
-      button('Book annotations').click(); await wait(() => document.querySelector('svg.cg-shapes circle'));
-      button('Engine setup').click(); await wait(() => document.querySelector('dialog[open]'));
-      if (!document.querySelector('dialog input').value.includes('fake-uci')) throw new Error('Settings did not load');
-      document.querySelector('dialog button[type="button"]').focus();
+      await window.smokeSetting('Book annotations', false); await wait(() => !document.querySelector('svg.cg-shapes circle'));
+      await window.smokeSetting('Book annotations', true); await wait(() => document.querySelector('svg.cg-shapes circle'));
+      button('Engine settings').click(); await wait(() => document.querySelector('dialog[open]'));
+      if (document.querySelector('dialog input:not([type="checkbox"])')) throw new Error('Settings must not expose technical engine configuration');
+      button('Done').focus();
     })()`);
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
@@ -131,6 +161,10 @@ async function smoke() {
       document.querySelector('.review-header button').click(); await wait(() => !document.querySelector('.review-shell'));
       document.querySelectorAll('.result-item')[1].click(); await wait(() => document.querySelector('.review-shell cg-board'));
       if (button('Stockfish').getAttribute('aria-pressed') !== 'false') throw new Error('Enable state should default off for a new review');
+      button('Engine settings').click(); await wait(() => document.querySelector('dialog[open]'));
+      if (document.querySelector('[aria-label="Stockfish line count"]').value !== '3' || document.querySelector('[aria-label="Maia line count"]').value !== '3' || document.querySelector('[aria-label="Maia rating"]').value !== '1800') throw new Error('Settings did not persist across reviews');
+      button('Done').click(); await wait(() => !document.querySelector('dialog'));
+
       button('Piece mode').click(); await wait(() => document.querySelector('.piece-board'));
       if (document.querySelector('.piece-board').dataset.fen !== '7k/P7/8/8/8/8/8/7K') throw new Error('Custom starting FEN lost');
       button('Reset position').click(); button('Return to review').click(); await wait(() => !document.querySelector('.piece-mode'));

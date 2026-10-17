@@ -6,7 +6,7 @@ Built on the schema and migration system in this repository, with the **[Lichess
 
 ## Local analysis and Piece mode
 
-Game review supports local full Stockfish and Maia 3 79M analysis. Use **Engine setup** to choose installed engines/model files, then enable Stockfish or Maia independently. Engine lines, arrows, the evaluation bar, and book board annotations have separate controls; Maia includes a human-rating selector and move probabilities. Click a suggested move to explore a temporary branch, or move a piece legally on the review board; **Return to book position** restores the source position. Pawn promotion offers all four choices.
+Game review supports local full Stockfish and Maia 3 79M analysis. The toolbar has **Engine settings**, **Stockfish**, and **Maia**. The two engine buttons turn analysis on/off using your saved preferences. Open **Engine settings** for independent line visibility, line counts (1/3/5), arrows, the evaluation bar, book board annotations, and Maia’s human rating. Technical installation settings stay in the local engine configuration file. Maia shows move probabilities. Click a suggested move to explore a temporary branch, or move a piece legally on the review board; **Return to book position** restores the source position. Pawn promotion offers all four choices.
 
 **Piece mode** hides everything except a free board and two controls. Move either side's pieces without chess legality constraints; **Reset position** restores the entry position, and **Return to review** (or Escape) restores the previous review, including its variation, temporary branch, orientation, scroll, focus, and engine switches. Analysis pauses while Piece mode is open. No study action edits the source PGN or archive.
 

@@ -379,3 +379,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .piece-actions { display: flex; gap: 10px; }
 .piece-actions button { padding: 8px 14px; border: 1px solid #d0d9c8; border-radius: 5px; background: #fffefa; color: #38513d; font-size: 12px; }
 .piece-board.cg-wrap { padding-bottom: 0; box-sizing: border-box; }
+.engine-setup fieldset { margin: 16px 0; padding: 8px 14px; border: 1px solid #d7dfd1; border-radius: 6px; }
+.engine-setup legend { font-size: 14px; font-weight: 650; padding: 0 5px; }
+.engine-setup .engine-preference-check { flex-direction: row; align-items: center; gap: 8px; }
+.engine-setup .engine-preference-check input { width: auto; accent-color: #30563f; }
+
+.engine-preferences-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.engine-preferences-grid fieldset { min-width: 0; }

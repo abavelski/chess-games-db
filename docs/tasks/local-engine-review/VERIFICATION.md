@@ -31,3 +31,7 @@ Timings are observations on this machine, not performance guarantees. Numerical 
 ## Practical limits
 
 Engine/model installation is guided, not bundled into installers. Stockfish and Maia assets are configured locally. Runtime never downloads models. Windows/Linux native distributions and GPU combinations have not been tested on this macOS host. Maia currently shows next-move probabilities; multi-move human continuations and piece-add/remove tools remain optional future extensions, as planned. Existing upstream Sass import deprecation warnings remain; builds and checks pass.
+
+## Simplified controls (2026-10-17)
+
+The desktop suite additionally verifies the three-button toolbar, a preference-only settings dialog, independent Stockfish/Maia line counts passed to local processes, hidden lines with visible arrows, remembered choices when engines are toggled off/on, and preferences retained across reviews. The full unit/archive, desktop, book-reader, and real-engine offline checks were rerun for this change.

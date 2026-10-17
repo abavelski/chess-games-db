@@ -29,7 +29,7 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
   const [temporary, setTemporary] = useState<AnalysisPosition | null>(null);
   const [preferences] = useState(readReviewPreferences);
   const [display, setDisplay] = useState(preferences.display);
-  const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>({ stockfish: false, maia: false, lines: preferences.lines, rating: preferences.rating, revision: 0 });
+  const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>({ stockfish: false, maia: false, lines: preferences.lines, maiaLines: preferences.maiaLines, rating: preferences.rating, revision: 0 });
   const [flipped, setFlipped] = useState(false);
   const [pieceMode, setPieceMode] = useState<{ fen: string; orientation: 'white' | 'black'; scroll: number; focus: HTMLElement | null } | null>(null);
   const returnFromPieceMode = useCallback(() => {
@@ -166,7 +166,7 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     </header>}
     <div className="review-workspace">
       <section className="review-board" aria-label="Game review board">
-        <div className={"analysis-board-frame" + (display.bar ? " with-bar" : "")}><PgnBoard pgn={game.pgn} review initialPath={initialPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} />{display.bar && <EvaluationBar state={engines.stockfish} enabled={analysisOptions.stockfish} flipped={flipped} />}</div>
+        <div className={"analysis-board-frame" + (display.bar && analysisOptions.stockfish ? " with-bar" : "")}><PgnBoard pgn={game.pgn} review initialPath={initialPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} />{display.bar && analysisOptions.stockfish && <EvaluationBar state={engines.stockfish} enabled={analysisOptions.stockfish} flipped={flipped} />}</div>
 
         <div className="review-controls" role="group" aria-label="Move navigation">
           <button title="First position" aria-label="First position" disabled={!ready || !path} onClick={() => go('first')}><ChevronsLeft size={21} /></button>

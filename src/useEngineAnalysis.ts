@@ -52,6 +52,6 @@ function useOneEngine(position: AnalysisPosition | null, engine: EngineName, ena
 }
 export function useEngineAnalysis(position: AnalysisPosition | null, options: AnalysisOptions, paused = false) {
   const stockfish = useOneEngine(position, 'stockfish', options.stockfish, options.lines, 1500, options.revision, paused);
-  const maia = useOneEngine(position, 'maia', options.maia, 5, options.rating, options.revision, paused);
+  const maia = useOneEngine(position, 'maia', options.maia, options.maiaLines, options.rating, options.revision, paused);
   return { stockfish, maia };
 }

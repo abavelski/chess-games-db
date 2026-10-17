@@ -67,3 +67,7 @@ Setup: [local engines and model installation](SETUP.md). Results: [verification 
 - Document local installation, bundled assets and licensing, resource settings, controls, and recovery from missing engines/models.
 
 Delivery order: engine manager → analysis integration → review controls → Piece mode → end-to-end verification. Keep review usable at every stage; no database migration is required.
+
+## Follow-up: simplified controls (2026-10-17)
+
+The review toolbar now contains only Engine settings, Stockfish, and Maia. Engine settings holds line visibility, independent line counts (1/3/5), and arrows for each engine, plus Maia rating, evaluation bar, and book annotations. Engine buttons toggle analysis with those saved preferences. Technical paths and resource options remain in the local JSON profile, outside the review panel.

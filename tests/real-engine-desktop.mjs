@@ -36,11 +36,15 @@ async function smoke() {
       await wait(() => document.querySelector('.result-item'));
       document.querySelector('.result-item').click(); await wait(() => document.querySelector('.review-shell cg-board'));
       const start = performance.now();
-      button('Stockfish').click(); button('Maia').click(); button('Evaluation bar').click();
+      window.chessEngine.onUpdate(event => { if (event.device) window.realDevice = event.device; });
+      button('Engine settings').click(); await wait(() => document.querySelector('dialog[open]'));
+      [...document.querySelectorAll('dialog label')].find(label => label.textContent.trim() === 'Evaluation bar').querySelector('input').click();
+      button('Done').click(); await wait(() => !document.querySelector('dialog'));
+      button('Stockfish').click(); button('Maia').click();
       await wait(() => document.querySelector('.stockfish-analysis .engine-status')?.textContent.includes('complete') && document.querySelector('.maia-analysis .engine-status')?.textContent.includes('complete'));
       if (document.querySelectorAll('.engine-line').length !== 3 || !document.querySelector('.maia-candidates button')) throw new Error('Missing real engine output');
       if (!document.querySelector('svg.cg-shapes line[stroke="#27854c"]') || !document.querySelector('svg.cg-shapes line[stroke="#9155c2"]')) throw new Error('Missing real arrows');
-      const device = document.querySelector('.maia-analysis .engine-status').textContent;
+      const device = window.realDevice || '';
       if (!/mps|cpu|cuda/.test(device)) throw new Error('Device must be shown');
       const elapsedMs = Math.round(performance.now() - start);
       const evaluation = document.querySelector('.evaluation-bar').getAttribute('aria-label');

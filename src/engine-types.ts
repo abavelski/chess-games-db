@@ -9,7 +9,7 @@ export interface Candidate { move: string; probability: number }
 export interface EngineUpdate extends Partial<EngineLine> { id: string; engine: EngineName; status: 'loading' | 'analyzing' | 'complete' | 'error'; error?: string; candidates?: Candidate[]; device?: string }
 export interface EngineRequest { id: string; engine: EngineName; initialFen: string; moves: string[]; turn: 'white' | 'black'; lines: number; rating: number }
 export interface EngineState { status: string; lines: EngineLine[]; candidates: Candidate[]; error?: string; device?: string }
-export interface AnalysisOptions { stockfish: boolean; maia: boolean; lines: number; rating: number; revision: number }
+export interface AnalysisOptions { stockfish: boolean; maia: boolean; lines: number; maiaLines: number; rating: number; revision: number }
 declare global {
   interface Window { chessEngine: {
     settings(): Promise<EngineSettings>;

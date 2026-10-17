@@ -129,7 +129,7 @@ export class EngineManager {
     if (session && !session.dead) return session;
     const s = this.settings;
     const paths = engine === 'stockfish' ? [s.stockfishPath] : [s.pythonPath, s.checkpointPath];
-    if (paths.some(path => !path || !existsSync(path))) throw new Error(engine === 'stockfish' ? 'Select a local Stockfish executable in Engine setup.' : 'Select the Maia Python runtime and 79M checkpoint in Engine setup.');
+    if (paths.some(path => !path || !existsSync(path))) throw new Error(engine === 'stockfish' ? 'Stockfish is not configured. See the local engine installation instructions.' : 'Maia is not configured. See the local engine installation instructions.');
     session = this.processFactory(engine === 'stockfish' ? s.stockfishPath : s.pythonPath, engine === 'stockfish' ? [] : [fileURLToPath(new URL('./maia_bridge.py', import.meta.url)), '--checkpoint-path', s.checkpointPath, '--device', s.device]);
     session.on('failure', error => { const request = session.active; if (request && this.latest.get(engine) === request.id) this.emit({ id: request.id, engine, status: 'error', error: error.message }); });
     this.sessions.set(engine, session); return session;
@@ -153,7 +153,7 @@ export class EngineManager {
           session.send(`setoption name MultiPV value ${request.lines}`);
         } else {
           session.send(`setoption name Elo value ${request.rating}`);
-          session.send('setoption name MultiPV value 5');
+          session.send(`setoption name MultiPV value ${request.lines}`);
         }
         session.send(`position fen ${request.initialFen}${request.moves.length ? ' moves ' + request.moves.join(' ') : ''}`);
         const receive = line => {
