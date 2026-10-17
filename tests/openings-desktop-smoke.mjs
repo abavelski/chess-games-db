@@ -1,3 +1,4 @@
+import { upsertGame } from '../lib/game-writer.mjs';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { app, BrowserWindow, dialog } from 'electron';
@@ -13,13 +14,12 @@ app.setPath('userData', temporary);
 const path = join(temporary, 'enriched.sqlite3');
 const games = [...Array(41).fill('1.e4 e5 2.Nf3 Nc6 *'), '1.e4 e5 2.Nf3 *', '1.Nf3 Nf6 2.d4 d5 *', '1.h3 *', '1.e4 e5 2.Bh6 *'];
 const db = fixtureArchive(path, games);
-db.prepare("INSERT INTO sources(source_key,title) VALUES ('other','Other book')").run();
-db.prepare('UPDATE games SET source_id=2 WHERE id=41').run();
+upsertGame(db,{id:41,sources:[{source:{source_key:'other',title:'Other book'},source_game_key:'other',is_primary:true}]});
 await enrichOpenings(path, { catalogue: buildCatalogue({ ...catalogueFiles, c: catalogueFiles.c.replace('Two Knights', 'Two Knights with a long descriptive variation name that must fit in both the game list and review header without horizontal overflow') }), manifest: { commit: 'a'.repeat(40) }, checksum: 'desktop-fixture' });
 db.prepare('UPDATE games SET pgn_sha256=? WHERE id=40').run('b'.repeat(64));
 db.close();
 const legacy = join(temporary, 'legacy.sqlite3'), empty = join(temporary, 'empty.sqlite3');
-for (const [file, version] of [[legacy, 3], [empty, 4]]) {
+for (const [file, version] of [[legacy, 3], [empty, 7]]) {
   const archive = fixtureArchive(file); archive.pragma('user_version=' + version); archive.close();
 }
 const originals = [path, legacy, empty].map(file => hash(readFileSync(file)));
@@ -100,9 +100,11 @@ async function smoke() {
       await waitForOpening(() => document.querySelectorAll('.opening-search-results button').length === 1);
       document.querySelector('.opening-search-results button').click();
       await waitForOpening(() => gameCount(40));
-      const book = document.querySelector('[aria-label="Book"]');
-      changeField(book,[...book.options].find(option => option.textContent === 'Other book').value);
-      await waitForOpening(() => gameCount(1));
+      const source=[...document.querySelectorAll('.property-filter')].find(el=>el.querySelector(':scope > span')?.textContent==='Source');
+      source.querySelector('.property-trigger').click();await waitForOpening(()=>source.querySelector('[role=option]'));
+      [...source.querySelectorAll('[role=option]')].find(el=>el.textContent.includes('Other book')).click();
+      source.querySelector('[role=combobox]').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+      await waitForOpening(()=>gameCount(1));
       const year = [...document.querySelectorAll('label.field')].find(el => el.querySelector('span')?.textContent === 'Year from').querySelector('input');
       changeField(year,'2000');
       await waitForOpening(() => gameCount(0) && document.querySelector('.empty-results'));
@@ -153,8 +155,8 @@ async function smoke() {
       await waitForOpening(() => !document.querySelector('.review-shell'));
       window.scrollTo(0,0);
       document.querySelector('.browser-archive button').click();
-      await waitForOpening(() => document.querySelector('.opening-unavailable')?.textContent.includes('are unavailable'));
-      if (openingSelect('Opening family')) throw new Error('Legacy archive must not expose broken opening selectors');
+      await waitForOpening(() => document.querySelector('.browser-header + .notice.error')?.textContent.includes('schema 7'));
+
     })()`);
     nextPath = empty;
     await window.webContents.executeJavaScript(`(async () => {

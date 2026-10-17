@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Initialize the chess book schema without extracting or importing any games."""
+"""Initialize a fresh v7 games database; legacy archives require explicit conversion."""
 
 import argparse
 from pathlib import Path

@@ -57,7 +57,7 @@ function desktopWindow(title) {
 }
 
 function createWindow() {
-  const { desktop, load } = desktopWindow('Chess Books Explorer');
+  const { desktop, load } = desktopWindow('Annotated Games Explorer');
   window = desktop;
   desktop.on('closed', () => { if (window === desktop) window = null; });
   void load();
@@ -67,7 +67,7 @@ app.whenReady().then(() => {
   registerEngineIpc({ app, ipcMain, dialog });
   ipcMain.handle('archive:open', async () => {
     const answer = await dialog.showOpenDialog(window, {
-      title: 'Open Chess Books SQLite archive',
+      title: 'Open annotated games database',
       properties: ['openFile'],
       filters: [
         { name: 'SQLite databases', extensions: ['sqlite3', 'sqlite', 'db'] },
@@ -89,7 +89,7 @@ app.whenReady().then(() => {
     const previous = JSON.parse(readFileSync(preferencePath(), 'utf8'));
     if (typeof previous.path === 'string') candidates.push(previous.path);
   } catch { /* First launch. */ }
-  if (!app.isPackaged) candidates.push(join(here, '..', 'data', 'chess-books.sqlite3'));
+  if (!app.isPackaged) candidates.push(join(here, '..', 'data', 'annotated-games.sqlite3'));
   for (const candidate of candidates) {
     if (existsSync(candidate)) {
       try { attachArchive(candidate); break; }

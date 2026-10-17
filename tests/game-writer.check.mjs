@@ -11,6 +11,8 @@ test('writer preserves edition identity, atomic links, unknown state and equival
  const old=db.prepare('SELECT * FROM games').get();
  assert.equal(db.prepare('SELECT count(*) n FROM players').get().n,2);
  assert.equal(db.prepare('SELECT count(*) n FROM game_annotators').get().n,2);
+ upsertGame(db,{id,year:2000});
+ assert.equal(db.prepare('SELECT count(*) n FROM game_annotators').get().n,2);
  assert.equal(upsertGame(db,{...game('1. d4 *'),sources:[link]}, {derive:false}),id);
  assert.equal(db.prepare('SELECT created_at FROM games').get().created_at,old.created_at);
  assert.equal(db.prepare("SELECT game_count n FROM property_options WHERE property_key='annotations' AND value_key='unknown'").get().n,1);
@@ -24,4 +26,23 @@ test('writer preserves edition identity, atomic links, unknown state and equival
  deleteGame(db,id); deleteGame(db,other);
  assert.equal(db.prepare('SELECT count(*) n FROM property_options').get().n,0);
  assert.deepEqual(db.pragma('foreign_key_check'),[]); db.close();
+});
+test('source renames and type changes update every linked contribution',()=>{
+ const db=new Database(':memory:');initializeGames(db);
+ const link={source:{source_key:'shared',title:'Old',kind:'book'},source_game_key:'a'};
+ const id=upsertGame(db,{...game(),sources:[link]});
+ upsertGame(db,{...game(),sources:[{...link,source_game_key:'b'}]});
+ upsertGame(db,{id,sources:[{...link,source:{...link.source,title:'New',kind:'website'}}]});
+ assert.equal(db.prepare("SELECT game_count n FROM property_options WHERE property_key='sourceType' AND value_key='website'").get().n,2);
+ assert.equal(db.prepare("SELECT count(*) n FROM property_options WHERE property_key='sourceType' AND value_key='book'").get().n,0);
+ const before=db.prepare('SELECT * FROM property_options ORDER BY property_key,value_key').all();rebuildProperties(db);
+ assert.deepEqual(db.prepare('SELECT * FROM property_options ORDER BY property_key,value_key').all(),before);db.close();
+});
+test('multiple sections in a reliable collection contribute one source value per game',()=>{
+ const db=new Database(':memory:');initializeGames(db);
+ const sources=[1,2].map(i=>({source:{source_key:'section:'+i,title:'Collection',extras_json:JSON.stringify({collection_key:'book:catalog:stable'})},source_game_key:'one',section:'Section '+i}));
+ upsertGame(db,{...game(),sources});
+ assert.equal(db.prepare("SELECT game_count n FROM property_options WHERE property_key='source' AND value_key='book:catalog:stable'").get().n,1);
+ assert.equal(db.prepare("SELECT count(*) n FROM property_options WHERE property_key='sourceSection'").get().n,2);
+ const old=db.prepare('SELECT * FROM property_options ORDER BY property_key,value_key').all();rebuildProperties(db);assert.deepEqual(db.prepare('SELECT * FROM property_options ORDER BY property_key,value_key').all(),old);db.close();
 });

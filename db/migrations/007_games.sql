@@ -27,7 +27,8 @@ CREATE TABLE games (
  extras_json TEXT CHECK(extras_json IS NULL OR (json_valid(extras_json) AND json_type(extras_json)='object')),
  pgn_zstd BLOB NOT NULL CHECK(typeof(pgn_zstd)='blob' AND length(pgn_zstd)>0),
  pgn_sha256 TEXT NOT NULL CHECK(length(pgn_sha256)=64 AND pgn_sha256 NOT GLOB '*[^0-9a-f]*'),
- created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ CHECK(completeness='unknown' OR (completeness_evidence IS NOT NULL AND length(trim(completeness_evidence))>0))
 );
 CREATE TABLE game_players (
  game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
@@ -55,7 +56,7 @@ CREATE TABLE game_features (
  game_id INTEGER PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
  pgn_sha256 TEXT NOT NULL CHECK(length(pgn_sha256)=64 AND pgn_sha256 NOT GLOB '*[^0-9a-f]*'),
  extractor_version TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending','complete','error')),
- critical_position_count INTEGER CHECK(critical_position_count>=0), medal_count INTEGER CHECK(medal_count>=0),
+ critical_position_count INTEGER CHECK(critical_position_count IS NULL OR (typeof(critical_position_count)='integer' AND critical_position_count>=0)), medal_count INTEGER CHECK(medal_count IS NULL OR (typeof(medal_count)='integer' AND medal_count>=0)),
  comments INTEGER CHECK(comments IN (0,1)), variations INTEGER CHECK(variations IN (0,1)),
  nags INTEGER CHECK(nags IN (0,1)), board_annotations INTEGER CHECK(board_annotations IN (0,1)), annotated INTEGER CHECK(annotated IN (0,1)),
  diagnostic TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -64,7 +65,7 @@ CREATE TABLE game_features (
 );
 CREATE TABLE property_options (
  property_key TEXT NOT NULL, value_key TEXT NOT NULL, label TEXT NOT NULL, search_key TEXT NOT NULL, numeric_value INTEGER,
- game_count INTEGER NOT NULL CHECK(game_count>=0), PRIMARY KEY(property_key,value_key)
+ game_count INTEGER NOT NULL CHECK(typeof(game_count)='integer' AND game_count>=0), PRIMARY KEY(property_key,value_key)
 );
 CREATE INDEX property_options_search ON property_options(property_key,search_key,value_key);
 CREATE TABLE property_cache_state (
@@ -160,11 +161,15 @@ SELECT g.id game_id, 'annotators' property_key, CAST(d.id AS TEXT) value_key, d.
 UNION
 SELECT g.id game_id, 'annotators' property_key, CAST('missing' AS TEXT) value_key, 'Missing' label, NULL numeric_value FROM games g  WHERE g.hidden=0 AND NOT EXISTS(SELECT 1 FROM game_annotators l WHERE l.game_id=g.id)
 UNION
-SELECT g.id game_id, 'source' property_key, CAST(d.id AS TEXT) value_key, d.title label, NULL numeric_value FROM games g JOIN game_sources l ON l.game_id=g.id JOIN sources d ON d.id=l.source_id WHERE g.hidden=0 AND 1
+SELECT g.id game_id, 'source' property_key, coalesce(json_extract(d.extras_json,'$.collection_key'),CAST(d.id AS TEXT)) value_key, d.title label, NULL numeric_value FROM games g JOIN game_sources l ON l.game_id=g.id JOIN sources d ON d.id=l.source_id WHERE g.hidden=0 AND 1
 UNION
 SELECT g.id game_id, 'source' property_key, CAST('missing' AS TEXT) value_key, 'Missing' label, NULL numeric_value FROM games g  WHERE g.hidden=0 AND NOT EXISTS(SELECT 1 FROM game_sources l WHERE l.game_id=g.id)
 UNION
-SELECT g.id game_id, 'sourceType' property_key, CAST(s.kind AS TEXT) value_key, s.kind label, NULL numeric_value FROM games g JOIN game_sources l ON l.game_id=g.id JOIN sources s ON s.id=l.source_id WHERE g.hidden=0 AND 1
+SELECT g.id game_id, 'sourceSection' property_key, CAST(d.id AS TEXT) value_key, coalesce(l.section,d.title) label, NULL numeric_value FROM games g JOIN game_sources l ON l.game_id=g.id JOIN sources d ON d.id=l.source_id WHERE g.hidden=0
+UNION
+SELECT g.id game_id, 'sourceSection' property_key, 'missing' value_key, 'Missing' label, NULL numeric_value FROM games g WHERE g.hidden=0 AND NOT EXISTS(SELECT 1 FROM game_sources l WHERE l.game_id=g.id)
+UNION
+SELECT g.id game_id, 'sourceType' property_key, CAST(s.kind AS TEXT) value_key, CASE s.kind WHEN 'pgn_collection' THEN 'PGN collection' ELSE s.kind END label, NULL numeric_value FROM games g JOIN game_sources l ON l.game_id=g.id JOIN sources s ON s.id=l.source_id WHERE g.hidden=0 AND 1
 UNION
 SELECT g.id game_id, 'sourceType' property_key, CAST('missing' AS TEXT) value_key, 'Missing' label, NULL numeric_value FROM games g  WHERE g.hidden=0 AND NOT EXISTS(SELECT 1 FROM game_sources l WHERE l.game_id=g.id)
 UNION
@@ -178,7 +183,7 @@ SELECT g.id game_id, 'site' property_key, CAST('missing' AS TEXT) value_key, 'Mi
 UNION
 SELECT g.id game_id, 'year' property_key, CAST(coalesce(g.year,'missing') AS TEXT) value_key, coalesce(CAST(g.year AS TEXT),'Missing') label, g.year numeric_value FROM games g  WHERE g.hidden=0 AND 1
 UNION
-SELECT g.id game_id, 'result' property_key, CAST(coalesce(g.result_code,'missing') AS TEXT) value_key, coalesce(CAST(g.result_code AS TEXT),'Missing') label, NULL numeric_value FROM games g  WHERE g.hidden=0 AND 1
+SELECT g.id game_id, 'result' property_key, CAST(coalesce(g.result_code,'missing') AS TEXT) value_key, CASE g.result_code WHEN 'white_win' THEN 'White wins' WHEN 'black_win' THEN 'Black wins' WHEN 'draw' THEN 'Draw' WHEN 'unfinished' THEN 'Unfinished' ELSE 'Unknown' END label, NULL numeric_value FROM games g  WHERE g.hidden=0 AND 1
 UNION
 SELECT g.id game_id, 'completeness' property_key, CAST(coalesce(g.completeness,'missing') AS TEXT) value_key, coalesce(CAST(g.completeness AS TEXT),'Missing') label, NULL numeric_value FROM games g  WHERE g.hidden=0 AND 1
 UNION

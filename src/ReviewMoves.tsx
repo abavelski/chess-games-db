@@ -1,15 +1,20 @@
-import { memo, useMemo } from 'react';
-import { Compass } from 'lucide-react';
+import { Fragment, memo, useMemo } from 'react';
+import { Compass, Eye, Medal } from 'lucide-react';
 import { glyphs } from '@lichess-org/pgn-viewer/view/glyph';
 import { reviewLayout, type ScoreToken, type ScoreVariation } from './review-layout.mjs';
+import { nagDescription } from './nag-descriptions.mjs';
 import type { ReviewToken } from './pgn.mjs';
 
 const annotationGlyphs: Record<number, { symbol: string; name: string }> = {
   ...glyphs,
   11: { symbol: '=', name: 'Equal chances, quiet position' },
   12: { symbol: '=', name: 'Equal chances, active position' },
+  20: { symbol: '+−', name: '' },
+  21: { symbol: '−+', name: '' },
 };
-export const ReviewMoves = memo(function ReviewMoves({ tokens, path, ready, onSelect }: {
+export const ReviewMoves = memo(function ReviewMoves({ tokens, path, ready, onSelect, revealPath, revealToEnd, onReveal, showGlyphDescriptions = false }: {
+  showGlyphDescriptions?: boolean;
+  revealPath?: string; revealToEnd?: boolean; onReveal?: () => void;
   tokens: ReviewToken[]; path: string; ready: boolean; onSelect: (path: string) => void;
 }) {
   const layout = useMemo(() => reviewLayout(tokens), [tokens]);
@@ -22,22 +27,28 @@ export const ReviewMoves = memo(function ReviewMoves({ tokens, path, ready, onSe
     const number = `${Math.ceil(ply / 2)}${ply % 2 ? '.' : '…'}`;
     const previous = tokens[index - 1];
     const showNumber = !mainline && (ply % 2 === 1 || previous?.type !== 'move' || previous.depth !== token.depth);
+    const description = (nag: number) => nagDescription(nag) ?? annotationGlyphs[nag]?.name ?? `Annotation $${nag} (not defined in the PGN specification)`;
     const evaluationNags = (token.nags || []).filter(nag => nag >= 10 && nag <= 21);
     const evaluations = [
-      ...evaluationNags.map(nag => ({ value: annotationGlyphs[nag]?.symbol || (nag === 20 ? '+−' : '−+'), title: annotationGlyphs[nag]?.name || 'Decisive advantage' })),
-      ...(token.evaluations || []).map(evaluation => ({ value: evaluation.value, title: evaluation.depth === undefined ? 'Position evaluation' : `Position evaluation · depth ${evaluation.depth}` })),
+      ...evaluationNags.map(nag => ({ value: annotationGlyphs[nag]?.symbol || (nag === 20 ? '+−' : '−+'), title: description(nag), description: description(nag) })),
+      ...(token.evaluations || []).map(evaluation => ({ value: evaluation.value, title: evaluation.depth === undefined ? 'Position evaluation' : `Position evaluation · depth ${evaluation.depth}`, description: undefined })),
     ];
-    return <button key={index} className={'review-move' + (token.depth ? ' in-variation' : '')}
+    const moveButton = <button key={index} className={'review-move' + (token.depth ? ' in-variation' : '')}
       data-review-path={token.path} aria-current={token.path === path ? 'step' : undefined}
       title={token.path === null ? 'The source contains an illegal move; its text is preserved.' : `Go to ${number} ${token.san}`}
       disabled={!ready || token.path === null} onClick={() => onSelect(token.path!)}>
       {showNumber && <span className="review-move-number">{number} </span>}{token.san}
-      {token.nags?.filter(nag => !evaluationNags.includes(nag)).map((nag, i) => <span className="review-glyph" title={annotationGlyphs[nag]?.name || `Annotation $${nag}`} key={i}>{annotationGlyphs[nag]?.symbol || `$${nag}`}</span>)}
-      {evaluations.length > 0 && <small className="review-evaluation"> ({evaluations.map((evaluation, i) => <span title={evaluation.title} key={i}>{i > 0 ? ', ' : ''}{evaluation.value}</span>)})</small>}
+      {token.nags?.filter(nag => !evaluationNags.includes(nag)).map((nag, i) => <Fragment key={i}><span className="review-glyph" title={description(nag)} aria-label={description(nag)}>{annotationGlyphs[nag]?.symbol || `$${nag}`}</span>{showGlyphDescriptions && <small className="review-glyph-description"> ({description(nag)})</small>}</Fragment>)}
+      {evaluations.length > 0 && <small className="review-evaluation"> ({evaluations.map((evaluation, i) => <span title={evaluation.title} aria-label={evaluation.title} key={i}>{i > 0 ? ', ' : ''}{evaluation.value}{showGlyphDescriptions && evaluation.description && <span className="review-glyph-description"> ({evaluation.description})</span>}</span>)})</small>}
+      {token.annotated && <Compass size={12} aria-label="Board annotation" />}
       {token.critical?.map(phase => <span key={phase} className={`review-critical review-critical-${phase}`}
         role="img" aria-label={`Critical ${phase} position`} title={`Critical ${phase} position`}>◆</span>)}
-      {token.annotated && <Compass size={12} aria-label="Board annotation" />}
+      {!!token.medals?.length && <span className="review-medal" role="img" aria-label={`Medals: ${token.medals.join(', ')}`} title={`Medals: ${token.medals.join(', ')}`}><Medal size={13} aria-hidden="true" /><span>{token.medals.join(', ')}</span></span>}
     </button>;
+    if (token.path !== revealPath || !onReveal) return moveButton;
+    const explanation = `Reveal ${revealToEnd ? 'the rest of the game' : 'up to the next critical position or medal'} without moving the board. Use the arrows to navigate moves.`;
+    return <span className="review-move-with-reveal" key={index}>{moveButton}<button type="button" className="review-reveal-button"
+      aria-label="Reveal next section" title={explanation} disabled={!ready} onClick={onReveal}><Eye size={14} aria-hidden="true" /></button></span>;
   };
   const renderVariation = (item: ScoreVariation): React.ReactNode => <div className="review-variation-line" data-depth={item.depth} role="group" aria-label="Variation" key={item.index}>
     <span className="review-variation" aria-hidden="true">(</span>
@@ -51,7 +62,7 @@ export const ReviewMoves = memo(function ReviewMoves({ tokens, path, ready, onSe
     })}
     <span className="review-variation-end" aria-hidden="true">)</span>
   </div>;
-  return <div className="review-moves">
+  return <div className={"review-moves" + (showGlyphDescriptions ? " show-glyph-descriptions" : "")}>
     {layout.map(item => item.type === 'variation' ? renderVariation(item) : item.type === 'token' ? renderToken(item.token, item.index) : <div className="review-mainline-row review-move-pair" key={item.index}>
       <span className="review-row-number">{item.number}.</span>
       {item.white ? renderToken(item.white.token, item.white.index, true) : <span className="review-empty-move" aria-hidden="true">…</span>}

@@ -50,14 +50,14 @@ async function smoke() {
       if (markers.map(el => el.title).join('|') !== 'Critical opening position|Critical middlegame position|Critical endgame position') throw new Error('Missing critical markers or tooltips');
       if (new Set(markers.map(el => getComputedStyle(el).color)).size !== 3) throw new Error('Critical phases need distinct colors');
       if ([...document.querySelectorAll('.review-comment')].some(el => el.textContent.includes('Critical position'))) throw new Error('Critical prose duplicated marker');
-      if (!button('Previous critical position').disabled) throw new Error('Previous critical enabled at start');
-      await wait(() => !button('Next critical position').disabled);
+      if (!button('Previous study stop').disabled) throw new Error('Previous critical enabled at start');
+      await wait(() => !button('Next study stop').disabled);
       for (const phase of ['opening', 'middlegame', 'endgame']) {
-        button('Next critical position').click();
+        button('Next study stop').click();
         await wait(() => document.querySelector('.review-move[aria-current="step"] .review-critical-' + phase));
       }
-      if (!button('Next critical position').disabled) throw new Error('Next critical enabled at end');
-      button('Previous critical position').click();
+      if (!button('Next study stop').disabled) throw new Error('Next critical enabled at end');
+      button('Previous study stop').click();
       await wait(() => document.querySelector('.review-move[aria-current="step"] .review-critical-middlegame'));
       const criticalPath = document.querySelector('.review-move[aria-current="step"]').dataset.reviewPath;
       button('Piece mode').click(); await wait(() => document.querySelector('.piece-mode[open]'));
@@ -99,11 +99,11 @@ async function smoke() {
       await wait(() => document.querySelectorAll('.engine-line').length === 3 && document.querySelectorAll('.maia-candidates button').length === 3);
       document.querySelector('.engine-line button').click(); await wait(() => document.querySelector('.analysis-branch'));
       if (!document.querySelector('.analysis-branch').textContent.includes('e4')) throw new Error('Line preview missing');
-      button('Return to book position').click(); await wait(() => !document.querySelector('.analysis-branch'));
+      button('Return to game position').click(); await wait(() => !document.querySelector('.analysis-branch'));
       button('Stockfish').click(); button('Maia').click();
       document.querySelector('[aria-label="Next move"]').click(); await wait(() => document.querySelector('svg.cg-shapes circle'));
-      await window.smokeSetting('Book annotations', false); await wait(() => !document.querySelector('svg.cg-shapes circle'));
-      await window.smokeSetting('Book annotations', true); await wait(() => document.querySelector('svg.cg-shapes circle'));
+      await window.smokeSetting('Game annotations', false); await wait(() => !document.querySelector('svg.cg-shapes circle'));
+      await window.smokeSetting('Game annotations', true); await wait(() => document.querySelector('svg.cg-shapes circle'));
       button('Game review settings').click(); await wait(() => document.querySelector('dialog[open]'));
       if (document.querySelector('dialog input:not([type="checkbox"])')) throw new Error('Settings must not expose technical engine configuration');
       button('Done').focus();
@@ -160,7 +160,7 @@ async function smoke() {
       await window.smokeWait(() => !document.querySelector('.piece-mode'));
       if (!document.querySelector('.review-shell')) throw new Error('Piece mode Escape closed review');
       await window.smokeWait(() => document.activeElement?.textContent === 'Piece mode');
-      window.smokeButton('Return to book position').click();
+      window.smokeButton('Return to game position').click();
       await window.smokeWait(() => !document.querySelector('.analysis-branch'));
     })()`);
     await window.webContents.executeJavaScript(`(async () => {

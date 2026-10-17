@@ -2,7 +2,7 @@
   "name": "chess-books-explorer",
   "private": true,
   "version": "0.1.0",
-  "description": "Desktop browser for annotated chess-book SQLite archives",
+  "description": "Local desktop browser for annotated chess games",
   "type": "module",
   "main": "electron/main.mjs",
   "license": "GPL-3.0-or-later",
@@ -15,8 +15,10 @@
     "test": "node --test tests/*.test.mjs && npm run test:archive",
     "test:archive": "node scripts/run-archive-tool.mjs --test tests/*.check.mjs",
     "migrate:games": "node scripts/run-archive-tool.mjs scripts/migrate-games.mjs",
+    "study-markers": "node scripts/run-archive-tool.mjs scripts/critical-positions.mjs",
+    "critical-positions": "node scripts/run-archive-tool.mjs scripts/critical-positions.mjs",
     "openings": "node scripts/run-archive-tool.mjs scripts/openings.mjs",
-    "test:desktop": "npm run build && node scripts/start-electron.mjs tests/desktop-smoke.mjs && node scripts/start-electron.mjs tests/openings-desktop-smoke.mjs && node scripts/start-electron.mjs tests/engine-desktop-smoke.mjs",
+    "test:desktop": "npm run build && node scripts/start-electron.mjs tests/desktop-smoke.mjs && node scripts/start-electron.mjs tests/openings-desktop-smoke.mjs && node scripts/start-electron.mjs tests/engine-desktop-smoke.mjs && node scripts/start-electron.mjs tests/critical-positions-desktop-smoke.mjs",
     "postinstall": "electron-builder install-app-deps",
     "engines:verify": "node scripts/verify-local-engines.mjs",
     "test:engines:local": "npm run build && node scripts/start-electron.mjs tests/real-engine-desktop.mjs"
@@ -46,7 +48,7 @@
   },
   "build": {
     "appId": "org.chessbooks.explorer",
-    "productName": "Chess Books Explorer",
+    "productName": "Annotated Games Explorer",
     "files": [
       "dist/**/*",
       "electron/**/*",

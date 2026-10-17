@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Settings } from 'lucide-react';
+import { Eye, Settings } from 'lucide-react';
 import { LichessFlipIcon } from './icons/LichessFlipIcon';
 import { linePreview, type AnalysisPosition } from './analysis.mjs';
 import type { AnalysisOptions, EngineState, EngineLine } from './engine-types';
 
-export interface ReviewDisplay { lines: boolean; maiaLines: boolean; bar: boolean; arrows: boolean; maiaArrows: boolean; book: boolean }
+export interface ReviewDisplay { glyphDescriptions: boolean; criticalStudy: boolean; lines: boolean; maiaLines: boolean; bar: boolean; arrows: boolean; maiaArrows: boolean; book: boolean }
 export function readReviewPreferences() {
   try {
     const stored = JSON.parse(localStorage.getItem('review-analysis-v1') || '{}');
-    return { display: { lines: stored.lines !== false, maiaLines: stored.maiaLines !== false, bar: stored.bar === true, arrows: stored.arrows !== false, maiaArrows: stored.maiaArrows !== false, book: stored.book !== false }, lines: [1, 3, 5].includes(stored.lineCount) ? stored.lineCount as number : 3, maiaLines: [1, 3, 5].includes(stored.maiaLineCount) ? stored.maiaLineCount as number : 5, rating: Number.isInteger(stored.rating) && stored.rating >= 600 && stored.rating <= 2600 ? stored.rating as number : 1500 };
-  } catch { return { display: { lines: true, maiaLines: true, bar: false, arrows: true, maiaArrows: true, book: true }, lines: 3, maiaLines: 5, rating: 1500 }; }
+    return { display: { glyphDescriptions: stored.glyphDescriptions === true, criticalStudy: stored.criticalStudy === true, lines: stored.lines !== false, maiaLines: stored.maiaLines !== false, bar: stored.bar === true, arrows: stored.arrows !== false, maiaArrows: stored.maiaArrows !== false, book: stored.book !== false }, lines: [1, 3, 5].includes(stored.lineCount) ? stored.lineCount as number : 3, maiaLines: [1, 3, 5].includes(stored.maiaLineCount) ? stored.maiaLineCount as number : 5, rating: Number.isInteger(stored.rating) && stored.rating >= 600 && stored.rating <= 2600 ? stored.rating as number : 1500 };
+  } catch { return { display: { glyphDescriptions: false, criticalStudy: false, lines: true, maiaLines: true, bar: false, arrows: true, maiaArrows: true, book: true }, lines: 3, maiaLines: 5, rating: 1500 }; }
 }
 export function formatScore(score?: EngineLine['score']) {
   if (!score) return '—';
@@ -79,7 +79,12 @@ function ReviewPreferences({ options, setOptions, display, setDisplay, onClose, 
   </select></label>;
   return <dialog ref={dialog} className="engine-setup" aria-labelledby="review-settings-title" onCancel={onClose}>
     <h2 id="review-settings-title">Game review settings</h2>
-    <button className="review-flip-button" onClick={onFlip} disabled={!canFlip} aria-label="Flip board" title="Flip board (F)"><LichessFlipIcon />Flip board</button>
+    <div className="review-settings-actions analysis-toggles">
+      <button className="review-flip-button" onClick={onFlip} disabled={!canFlip} aria-label="Flip board" title="Flip board (F)"><LichessFlipIcon />Flip board</button>
+      <button className="review-study-button" aria-pressed={display.criticalStudy}
+        title="Reveal the score through one critical position or medal at a time. Use the eye beside a marker to reveal more without moving the board."
+        onClick={() => setDisplay(current => ({ ...current, criticalStudy: !current.criticalStudy }))}><Eye size={16} aria-hidden="true" />Study stops</button>
+    </div>
     <div className="engine-preferences-grid"><fieldset><legend>Stockfish</legend>
       {checkbox('lines', 'Stockfish lines')}
       {lineCount('lines', 'Stockfish line count')}
@@ -95,7 +100,8 @@ function ReviewPreferences({ options, setOptions, display, setDisplay, onClose, 
       </select></label>
     </fieldset>
     </div>
-    {checkbox('book', 'Book annotations')}
+    {checkbox('book', 'Game annotations')}
+    {checkbox('glyphDescriptions', 'Show glyph descriptions')}
     <p className="analysis-legend"><span>Green: Stockfish</span> · <span>Purple: Maia</span>. Arrows show candidate first moves. Positive evaluation favors White.</p>
     <div className="engine-setup-actions"><button autoFocus onClick={onClose}>Done</button></div>
   </dialog>;

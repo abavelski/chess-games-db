@@ -1,4 +1,12 @@
-# Opening enrichment tasks
+# Implementation tasks
+
+The implemented current release is the [annotated games database](annotated-games-db/README.md):
+source-neutral schema, explicit legacy conversion, cached property options,
+searchable multiselect filters, and unchanged game review. Its release-specific
+rules supersede the older archive-preservation and compatibility rules below when
+implementing that release. The six implementation tasks are complete; see its [verification](annotated-games-db/verification.md). Historical rules below apply only to their earlier releases.
+
+## Opening enrichment tasks
 
 **Option 2 is implemented and verified. Option 3 remains planned.** Implement **option 2 first** in a fresh checkout if using these task descriptions as implementation guidance. Its four tasks deliver a complete offline app with named openings, line/subline filters, and game-list labels. Option 3 is a separate, optional release for reference-game move statistics. “First option” here means the first implementation below: option 2 from the investigation.
 

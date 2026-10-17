@@ -65,12 +65,39 @@ export class ChessArchive {
   const more=options.length>limit;options.length=Math.min(options.length,limit);
   for(const id of own) if(!options.some(o=>o.id===id)) {
    const cached=this.db.prepare('SELECT value_key id,label,game_count count FROM property_options WHERE property_key=? AND value_key=?').get(property,id);
-   const table={source:'sources',players:'players',white:'players',black:'players',annotators:'annotators',event:'events',site:'sites'}[property];
-   const label=cached?.label??(table&&id!=='missing'?this.db.prepare(`SELECT ${property==='source'?'title':'display_name'} label FROM ${table} WHERE id=?`).get(id)?.label:id);
+   const table={source:'sources',sourceSection:'sources',players:'players',white:'players',black:'players',annotators:'annotators',event:'events',site:'sites'}[property];
+   const groupedLabel=property==='source'?this.db.prepare("SELECT title label FROM sources WHERE json_extract(extras_json,'$.collection_key')=? ORDER BY id LIMIT 1").get(id)?.label:null;
+   const label=cached?.label??groupedLabel??(table&&id!=='missing'?this.db.prepare(`SELECT ${['source','sourceSection'].includes(property)?'title':'display_name'} label FROM ${table} WHERE id=?`).get(id)?.label:id);
    options.push(cached??{id,label:label??id,count:0});
   }
   const contextual=q.where!==' WHERE g.hidden=0';
-  if(contextual) for(const option of options) option.count=this.db.prepare('SELECT count(*) n'+GAME_FROM+q.where+' AND '+propertyClause(property,'option')).get({...q.params,option:JSON.stringify([option.id])}).n;
+  if(contextual) {
+   const dimensions={players:['game_players','player_id'],white:['game_players','player_id'],black:['game_players','player_id'],annotators:['game_annotators','annotator_id'],sourceSection:['game_sources','source_id']};
+   const relation=dimensions[property];
+   let expression,from=GAME_FROM,extra='',params={...q.params};
+   if(relation) {
+    const [table,column]=relation;
+    expression='CAST(candidate.'+column+' AS TEXT)';
+    // Candidate relation drives indexed primary-key lookups, avoiding one full scan per value.
+    from=' FROM '+table+' candidate CROSS JOIN games g ON g.id=candidate.game_id'+GAME_FROM.slice(GAME_FROM.indexOf('\n LEFT JOIN'));
+    params.candidates=JSON.stringify(options.filter(o=>o.id!=='missing').map(o=>Number(o.id)));
+    extra=' AND candidate.'+column+' IN (SELECT value FROM json_each(@candidates))';
+    if(property==='white'||property==='black')extra+=" AND candidate.role='"+property+"'";
+   } else {
+    const scalars={event:'g.event_id',site:'g.site_id',year:'g.year',result:'g.result_code',completeness:'g.completeness',eco:'g.eco'};
+    if(scalars[property])expression="coalesce(CAST("+scalars[property]+" AS TEXT),'missing')";
+    else if(property==='sourceType'||property==='source'){from=GAME_FROM+' JOIN game_sources candidate ON candidate.game_id=g.id JOIN sources cs ON cs.id=candidate.source_id';expression=property==='sourceType'?'cs.kind':"coalesce(json_extract(cs.extras_json,'$.collection_key'),CAST(cs.id AS TEXT))";}
+    else {
+     const facts={annotations:'f.annotated',medals:'f.medal_count>0',criticalPositions:'f.critical_position_count>0',studyMarkers:'(f.medal_count>0 OR f.critical_position_count>0)'};
+     expression="CASE WHEN f.status='complete' THEN CASE WHEN "+facts[property]+" THEN 'yes' ELSE 'no' END ELSE 'unknown' END";
+    }
+    params.candidates=JSON.stringify(options.map(o=>o.id));extra=' AND ('+expression+') IN (SELECT value FROM json_each(@candidates))';
+   }
+   const counts=new Map(this.db.prepare('SELECT '+expression+' id,count(DISTINCT g.id) n'+from+q.where+extra+' GROUP BY '+expression).all(params).map(r=>[r.id,r.n]));
+   for(const option of options)option.count=counts.get(option.id)??0;
+   const missing=options.find(o=>o.id==='missing');
+   if(missing && (relation||property==='sourceType'||property==='source'))missing.count=this.db.prepare('SELECT count(*) n'+GAME_FROM+q.where+' AND '+propertyClause(property,'option')).get({...q.params,option:'["missing"]'}).n;
+  }
   const result={options,cursor:more?String(Number(cursor)+limit):null};
   if(this.optionCache.size>=100)this.optionCache.clear();this.optionCache.set(key,result);return result;
  }

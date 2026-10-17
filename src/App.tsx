@@ -6,7 +6,7 @@ import { OpeningFilter, type OpeningSelection } from './OpeningFilter';
 import type { Catalog, GameDetail, GameRow, Page, PropertyKey, SearchFilters } from './types';
 
 const defaultFilters = { yearFrom: '', yearTo: '', sort: 'book' };
-const propertyLabels: Array<[PropertyKey,string]> = [['source','Source'],['sourceType','Source type'],['players','Either player'],['white','White player'],['black','Black player'],['annotators','Annotator'],['event','Event'],['site','Site'],['year','Year'],['result','Result'],['completeness','Completeness'],['annotations','Annotations'],['medals','Medals'],['criticalPositions','Critical positions'],['studyMarkers','Study markers'],['eco','Source ECO']];
+const propertyLabels: Array<[PropertyKey,string]> = [['source','Source'],['sourceSection','Source section'],['sourceType','Source type'],['players','Either player'],['white','White player'],['black','Black player'],['annotators','Annotator'],['event','Event'],['site','Site'],['year','Year'],['result','Result'],['completeness','Completeness'],['annotations','Annotations'],['medals','Medals'],['criticalPositions','Critical positions'],['studyMarkers','Study markers'],['eco','Source ECO']];
 type Filters = typeof defaultFilters;
 const num = (value: number) => new Intl.NumberFormat().format(value);
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);

@@ -96,6 +96,7 @@ export function reviewPgn(pgn) {
       san = makeSanAndPlay(nextPosition, move);
     }
     const critical = [];
+    const medals = [];
     const extractCritical = comment => restoreComment(comment).replace(
       /\[%crit\s+(opening|middlegame|endgame)\s*\]/gi,
       (_tag, phase) => {
@@ -104,9 +105,15 @@ export function reviewPgn(pgn) {
         return '';
       },
     );
-    comments(node.data.startingComments?.map(extractCritical), depth);
+    const extractMarkers = comment => extractCritical(comment).replace(/\[%medal\s+([^\]]+)\]/gi, (tag, value) => {
+      const labels = value.split(',').map(label => label.trim().toLowerCase()).filter(Boolean);
+      if (!labels.length) return tag;
+      for (const label of labels) if (!medals.includes(label)) medals.push(label);
+      return '';
+    });
+    comments(node.data.startingComments?.map(extractMarkers), depth);
     const evaluations = [];
-    const after = (node.data.comments || []).map(comment => extractCritical(comment).replace(
+    const after = (node.data.comments || []).map(comment => extractMarkers(comment).replace(
       /\[%eval\s+([+-]?(?:\d+(?:\.\d+)?|#-?\d+))(?:\s*[,/]\s*(\d+))?\s*\]/gi,
       (_tag, value, searchDepth) => {
         const number = Number(value);
@@ -116,7 +123,7 @@ export function reviewPgn(pgn) {
       },
     ));
     tokens.push({ type: 'move', san, path: nextPath, ply: ply + 1, nags: node.data.nags || [], depth,
-      evaluations, critical,
+      evaluations, critical, medals,
       annotated: /\[%(?:cal|csl)\s/.test([...(node.data.startingComments || []), ...(node.data.comments || [])].join(' ')) });
     comments(after, depth);
     if (node.children.length) tasks.push({ type: 'line', node: node.children[0], alternatives: node.children.slice(1),

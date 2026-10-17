@@ -17,10 +17,6 @@ export function sequenceSql(alias, metadata, key) {
     CASE WHEN ${alias}.${key} GLOB 'cb:record:[0-9]*' THEN CAST(substr(${alias}.${key}, 11) AS INTEGER)
          WHEN ${alias}.${key} GLOB 'ordinal:[0-9]*' THEN CAST(substr(${alias}.${key}, 9) AS INTEGER) END, ${alias}.id)`;
 }
-export function bookOrderSql(alias, metadata, key) {
-  return `s.title COLLATE NOCASE ASC, book_section_rank(s.id) ASC, s.id ASC, ${sequenceSql(alias, metadata, key)} ASC, ${alias}.id ASC`;
-}
-
 // Presentation only: catalog imports may store each section as its own source.
 // Group only explicit catalog book identities, never unrelated matching titles.
 export function groupBooks(sources) {

@@ -40,6 +40,7 @@ export async function migrateGames({input,output,dryRun=false,report:reportPath,
  const started=performance.now(); input=realpathSync(input); output=resolve(output);
  if(exists(output)) throw new Error('Output already exists (including aliases/symlinks); choose a new path');
  if(join(realpathSync(dirname(output)),output.split(/[\\/]/).at(-1))===input) throw new Error('Input/output alias');
+ if(reportPath && (exists(reportPath)||resolve(reportPath)===output||resolve(reportPath)===input)) throw new Error('Report must use a new separate path');
  const scratch=mkdtempSync(join(tmpdir(),'games-snapshot-'));
  const destination=join(dirname(output),`.games-${process.pid}-${Date.now()}.tmp`);
  let src,dst,source;
@@ -50,7 +51,7 @@ export async function migrateGames({input,output,dryRun=false,report:reportPath,
   src=new Database(join(scratch,'snapshot.sqlite3'),{readonly:true,fileMustExist:true});
   if(src.pragma('integrity_check',{simple:true})!=='ok' || src.pragma('foreign_key_check').length) throw new Error('Input integrity/foreign-key check failed');
   report.inventory=src.transaction(()=>inventory(src))();
-  if(report.inventory.corrupt.length) throw new Error('Corrupt retained PGN bytes/checksum; see inventory');
+  if(report.inventory.corrupt.length) throw new Error('Corrupt input PGN bytes/checksum; see inventory');
   if(dryRun) { report.status='dry-run'; return report; }
   dst=new Database(destination); initializeGames(dst);
   dst.transaction(()=>{
@@ -67,6 +68,7 @@ export async function migrateGames({input,output,dryRun=false,report:reportPath,
     const extras=JSON.parse(row.extras_json??'{}');
     // Keep game provenance, discard text-reader payloads and raw extraction bytes.
     delete extras.chapterText; delete raw.chapterText;
+    if(!extras.completeness && raw.completeness) extras.completeness=raw.completeness;
     Object.assign(extras,{legacy:{source_key:sourceRow.source_key,source_game_key:row.source_game_key,is_deleted:row.is_deleted,is_training:row.is_training,metadata:raw}});
     const sourceExtras={...JSON.parse(sourceRow.extras_json??'{}'),collection_key:section.collection_key,section_rank:section.rank};
     delete sourceExtras.chapterText;

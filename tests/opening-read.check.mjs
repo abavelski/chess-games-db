@@ -33,8 +33,8 @@ test('opening APIs include descendants/transpositions with unique counts and cur
     assert.equal(archive.getGame(1).opening.matchedPly, 4);
     assert.equal(archive.searchGames({ openingNodeId: 'unclassified' }).total, 2);
     assert.equal(archive.openingFacets({ openingNodeId: subline.id }).classified, 3, 'Facet counts exclude the current opening filter');
-    assert.equal(archive.openingFacets({ white: 'White 0' }).classified, 1);
-    assert.equal(archive.searchGames({ openingNodeId: family.id, white: 'White 0', sourceId: 1, eco: 'A00' }).total, 1);
+    assert.equal(archive.openingFacets({ properties:{white:['1']} }).classified, 1);
+    assert.equal(archive.searchGames({ openingNodeId: family.id, properties:{white:['1'],source:['1'],eco:['A00']} }).total, 1);
     assert.equal(archive.searchGames({ openingNodeId: family.id, yearFrom: '2000' }).total, 0);
     assert.throws(() => archive.searchGames({ openingNodeId: "' OR 1=1 --" }), /Invalid or stale/);
     assert.throws(() => archive.searchGames({ openingNodeId: {} }), /Invalid or stale/);
@@ -44,13 +44,10 @@ test('opening APIs include descendants/transpositions with unique counts and cur
     db.prepare('UPDATE games SET pgn_sha256=? WHERE id=1').run('b'.repeat(64));
     assert.equal(archive.searchGames({ openingNodeId: subline.id }).total, 0);
     assert.equal(archive.searchGames({ openingNodeId: 'unclassified' }).total, 3);
-    assert.equal(archive.searchGames({ white: 'White 0' }).rows[0].opening.status, 'unenriched');
+    assert.equal(archive.searchGames({ properties:{white:['1']} }).rows[0].opening.status, 'unenriched');
     // List labels must not decode the stale/corrupt PGN.
     assert.throws(() => archive.getGame(1), /SHA-256/);
     archive.close(); archive = null;
-    db.pragma('user_version=3');
-    archive = new ChessArchive(path);
-    assert.equal(archive.openingFacets().supported, false);
-    assert.equal(archive.searchGames({}).rows[0].opening.status, 'unenriched');
+    for(const version of [3,4,5,6,99]) {db.pragma('user_version='+version);assert.throws(()=>new ChessArchive(path),/schema 7/);}
   } finally { archive?.close(); db?.close(); rmSync(directory, { recursive: true, force: true }); }
 });

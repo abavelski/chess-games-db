@@ -3,7 +3,7 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePgn } from '../electron/database.mjs';
-import { extractFeatures } from '../lib/game-policy.mjs';
+import { extractFeatures, FEATURE_VERSION } from '../lib/game-policy.mjs';
 import { assertGames, writeFeatures } from '../lib/game-writer.mjs';
 
 export function backfillCriticalPositions(path, { rebuild = false, progress = () => {} } = {}) {
@@ -11,10 +11,10 @@ export function backfillCriticalPositions(path, { rebuild = false, progress = ()
  try {
   assertGames(db);
   return db.transaction(()=>{
-   const rows=db.prepare("SELECT g.* FROM games g LEFT JOIN game_features f ON f.game_id=g.id WHERE "+(rebuild?'1':"f.game_id IS NULL OR f.status!='complete' OR f.pgn_sha256!=g.pgn_sha256")).all();
+   const rows=db.prepare("SELECT g.* FROM games g LEFT JOIN game_features f ON f.game_id=g.id WHERE "+(rebuild?'1':"f.game_id IS NULL OR f.status!='complete' OR f.pgn_sha256!=g.pgn_sha256 OR f.extractor_version!=?")).all(...(rebuild?[]:[FEATURE_VERSION]));
    let marked=0,positions=0,medals=0,errors=0;
    for(const [i,row] of rows.entries()) {
-    const facts=extractFeatures(decodePgn(row));writeFeatures(db,row.id,facts);
+    const facts=extractFeatures(decodePgn(row));writeFeatures(db,row.id,{...facts,pgn_sha256:row.pgn_sha256});
     if(facts.status==='error')errors++;
     if(facts.critical_position_count||facts.medal_count)marked++;
     positions+=facts.critical_position_count??0;medals+=facts.medal_count??0;

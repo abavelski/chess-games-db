@@ -5,7 +5,7 @@ function savedSize() {
   try { const value = Number(localStorage.getItem(preferenceKey)); return Number.isFinite(value) && value >= 120 && value <= 4000 ? value : null; }
   catch { return null; }
 }
-export function useBoardResize(embedded: boolean) {
+export function useBoardResize() {
   const workspace = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLElement>(null);
   const footer = useRef<HTMLDivElement>(null);
@@ -18,9 +18,9 @@ export function useBoardResize(embedded: boolean) {
     const host = workspace.current;
     if (!host) return;
     const gap = parseFloat(getComputedStyle(host).columnGap) || 10;
-    const max = Math.max(120, Math.floor(Math.min(host.clientWidth - (embedded ? 240 : 280) - gap, host.clientHeight - (footer.current?.offsetHeight || 65) - 8)));
-    const min = Math.min(embedded ? 220 : 320, max);
-    const value = Math.round(Math.min(max, Math.max(min, desired.current ?? Math.min(max, host.clientWidth * (embedded ? .52 : .64)))));
+    const max = Math.max(120, Math.floor(Math.min(host.clientWidth - 280 - gap, host.clientHeight - (footer.current?.offsetHeight || 65) - 8)));
+    const min = Math.min(320, max);
+    const value = Math.round(Math.min(max, Math.max(min, desired.current ?? Math.min(max, host.clientWidth * .64))));
     host.style.setProperty('--review-board-size', `${value}px`);
     setBounds(current => current.min === min && current.max === max && current.value === value ? current : { min, max, value });
     return value;
@@ -32,7 +32,7 @@ export function useBoardResize(embedded: boolean) {
     if (footer.current) observer.observe(footer.current);
     measure();
     return () => { cancelAnimationFrame(frame); observer.disconnect(); };
-  }, [embedded]);
+  }, []);
   const save = () => { try { if (desired.current === null) localStorage.removeItem(preferenceKey); else localStorage.setItem(preferenceKey, String(desired.current)); } catch { /* Storage may be unavailable. */ } };
   return {
     workspace, board, footer, resizing,

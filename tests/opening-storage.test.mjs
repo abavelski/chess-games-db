@@ -14,7 +14,10 @@ with tempfile.TemporaryDirectory() as folder:
  c.execute('pragma user_version=3'); c.execute("insert into sources(source_key,title) values ('s','Book')")
  c.execute("insert into games(source_id,source_game_key,pgn_zstd,pgn_sha256) values (1,'g',X'010203',?)", ('a'*64,))
  c.commit(); before=c.execute('select * from games').fetchall(); c.close()
- m.initialize(p); m.initialize(p)
+ try: m.initialize(p)
+ except RuntimeError as error: assert 'migrate:games' in str(error)
+ else: raise AssertionError('Legacy initialization must refuse')
+ c=sqlite3.connect(p); c.executescript(Path('db/migrations/004_openings.sql').read_text()); c.execute('pragma user_version=4'); c.commit(); c.close()
  c=sqlite3.connect(p); c.execute('pragma foreign_keys=on')
  assert c.execute('pragma user_version').fetchone()[0]==4
  assert c.execute('select * from games').fetchall()==before
@@ -30,11 +33,13 @@ with tempfile.TemporaryDirectory() as folder:
   else: raise AssertionError(query)
  assert not c.execute('pragma foreign_key_check').fetchall()
  c.close()
+ fresh=Path(folder)/'fresh.db'; m.initialize(fresh); m.initialize(fresh)
+ assert sqlite3.connect(fresh).execute('pragma user_version').fetchone()[0]==7
  # Failed migrations roll back both schema and user_version.
  bad=Path(folder)/'bad'; bad.mkdir(); (bad/'005_bad.sql').write_text('CREATE TABLE temporary_table (id);\\nTHIS IS INVALID;\\n')
- m.MIGRATIONS=bad; m.SCHEMA_VERSION=5
+ m.MIGRATIONS=bad; m.SCHEMA_VERSION=7
  try: m.initialize(p)
- except sqlite3.Error: pass
+ except RuntimeError: pass
  else: raise AssertionError('Must fail')
  c=sqlite3.connect(p)
  assert c.execute('pragma user_version').fetchone()[0]==4

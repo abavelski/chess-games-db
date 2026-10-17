@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { app, BrowserWindow } from 'electron';
 import Database from 'better-sqlite3';
+import { initializeGames, upsertGame } from '../lib/game-writer.mjs';
 import { ChessArchive } from '../electron/database.mjs';
 
 // Run with Electron so this exercises its native SQLite ABI and sandboxed preload.
@@ -13,45 +14,18 @@ const temporary = mkdtempSync(join(tmpdir(), 'chess-desktop-'));
 app.setPath('userData', temporary);
 const path = join(temporary, 'archive.sqlite3');
 const db = new Database(path);
-for (const migration of ['001_initial', '002_source_records', '003_record_classification']) {
-  db.exec(readFileSync(new URL(`../db/migrations/${migration}.sql`, import.meta.url), 'utf8'));
-}
-db.pragma('user_version = 3');
-const insertSource = db.prepare('INSERT INTO sources (source_key, title, original_file) VALUES (?, ?, ?)');
-insertSource.run('book:catalog:smoke:db-001', 'Smoke book', '/books/Smoke book/Level 1.cbh');
-insertSource.run('book:catalog:smoke:db-002', 'Smoke book', '/books/Smoke book/Level 2.cbh');
-insertSource.run('other', 'Other book', null);
+initializeGames(db);
 const pgn = "[White \"Smoke White\"]\n[Black \"Smoke Black\"]\n\n{ [%pre:ENG Opening introduction.] }\n1. e4 $14 { [%post Space in the center.] [%cal Gb6a4,Yc3a4] [%csl Ra4] }\n({ [%pre Another plan:] } 1. d4 d5 { A queen-pawn approach. } (1... Nf6 { Nested note. }))\ne5 { [%eval -0.80/10] } 2. Nf3 (2. Bc4 { Final variation. }) Nc6 { Closing text. } *";
 // Zstandard-compressed fixture; no compression tool is required at test time.
 const compressed = Buffer.from('KLUv/WBKABUIAIZQNiYQzTYHUotIpSOIR86QpbvDGhWXWH8dHwjAFq9e2X8jEhEAAAIAAS0AKgApAOqseUn7Ncky04uy2x+6NcOEW6CDCUe4iL5ZS1Jg2LpKtCTFGfMgLoqzbNRCFJR8TTlHxpoKd9WzEcYg8KykwXK3bBFd0siymZ0p+W5ntvByWb0/DsAffhPLiqFvLnGArqoO4/NKsX0Rwn1LLHQ0cybilG9OMP2Zrs7npUmvg48cAZ9XOcGyes6AQW/Mb4urudtuCKxyhTAegTycgUeBPhx3q+FFxKvRmFeWrx8OAAMb5IooZDtPNMZVjeWCVcurxSH0cFlkNqWMVLegrZxPBmEqAQ==', 'base64');
-for (const sourceId of [1, 2, 3]) {
-  db.prepare('INSERT INTO games (source_id, source_game_key, white, black, pgn_zstd, pgn_sha256) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(sourceId, 'game', 'Smoke White', 'Smoke Black', compressed, createHash('sha256').update(pgn).digest('hex'));
-  db.prepare("INSERT INTO source_records (source_id, source_record_key, record_type, status, metadata_json) VALUES (?, 'game', 'game', 'extracted', '{}')")
-    .run(sourceId);
-}
-// Mixed archives must expose only complete games in the browser.
-for (const kind of ['position', 'line', 'text']) {
-  db.prepare('INSERT INTO games (source_id, source_game_key, record_kind, pgn_zstd, pgn_sha256) VALUES (3, ?, ?, ?, ?)')
-    .run(kind, kind, compressed, createHash('sha256').update(pgn).digest('hex'));
-}
-for (let index = 0; index < 42; index++) {
-  db.prepare('INSERT INTO games (source_id, source_game_key, white, black, pgn_zstd, pgn_sha256) VALUES (3, ?, ?, ?, ?, ?)')
-    .run('page-' + index, 'Page White', 'Page Black', compressed, createHash('sha256').update(pgn).digest('hex'));
-}
-db.prepare("UPDATE games SET annotator = 'Test Analyst', year = 1972, event = 'Test Match', eco = 'C20', result = '1-0' WHERE id = 1").run();
+for (const sourceId of [1,2,3]) upsertGame(db,{white:'Smoke White',black:'Smoke Black',pgn_zstd:compressed,pgn_sha256:createHash('sha256').update(pgn).digest('hex'),
+ sources:[{source:{id:sourceId,source_key:'source:'+sourceId,title:sourceId===3?'Other source':'Smoke section '+sourceId},source_game_key:'game',sequence:sourceId}]});
+for(let index=0;index<42;index++)upsertGame(db,{white:'Page White',black:'Page Black',pgn_zstd:compressed,pgn_sha256:createHash('sha256').update(pgn).digest('hex'),sources:[{source:{source_key:'source:3',title:'Other source'},source_game_key:'page-'+index,sequence:10+index}]});
+upsertGame(db,{id:1,annotator:'Test Analyst',year:1972,event:'Test Match',eco:'C20',result:'1-0'});
 db.close();
-const compatibilityPath = join(temporary, 'compatibility.sqlite3');
-copyFileSync(path, compatibilityPath);
-const compatibility = new Database(compatibilityPath);
-compatibility.exec(readFileSync(new URL('../db/migrations/004_openings.sql', import.meta.url), 'utf8'));
-compatibility.pragma('user_version = 4');
-const compatibleArchive = new ChessArchive(compatibilityPath);
-assert.equal(compatibleArchive.catalog().capabilities.openings, true);
-assert.equal(compatibleArchive.searchGames({ kind: 'game' }).total, 45);
-compatibleArchive.close();
-compatibility.pragma('user_version = 99');
-assert.throws(() => new ChessArchive(compatibilityPath), /supports database schema/);
+const compatibilityPath=join(temporary,'compatibility.sqlite3');copyFileSync(path,compatibilityPath);
+const compatibility=new Database(compatibilityPath);
+for(const version of [3,4,5,6,99]) {compatibility.pragma('user_version='+version);assert.throws(()=>new ChessArchive(compatibilityPath),/supports database schema/);}
 compatibility.close();
 const archiveHash = () => createHash('sha256').update(readFileSync(path)).digest('hex');
 const originalHash = archiveHash();
@@ -71,7 +45,7 @@ async function checkWindow(window) {
   const state = await window.webContents.executeJavaScript(`(async () => {
     const catalog = await window.chessArchive.getCatalog();
     const openingFacets = await window.chessArchive.openingFacets({});
-    if (openingFacets.supported || openingFacets.revision) throw new Error('Legacy archive must have no opening capability');
+    if (!openingFacets.supported || openingFacets.revision) throw new Error('Fresh v7 has an empty opening catalogue');
     const games = await window.chessArchive.searchGames({ search: 'Smoke White' });
     const game = await window.chessArchive.getGame(games.rows[0].id);
     const deadline = Date.now() + 5000;
@@ -87,13 +61,13 @@ async function checkWindow(window) {
     document.querySelector('[aria-label="Next move"]').click();
     await new Promise(resolve => setTimeout(resolve, 50));
     return {
-      books: catalog.totals.books, total: games.total, pgn: game.pgn,
+      games: catalog.totals.games, total: games.total, pgn: game.pgn,
       board: !!document.querySelector('cg-board'),
       move: document.querySelector('.review-move[aria-current="step"]')?.textContent,
       errors: [...document.querySelectorAll('.notice.error')].map(el => el.textContent),
     };
   })()`);
-  assert.equal(state.books, 2);
+  assert.equal(state.games, 45);
   assert.equal(state.total, 3);
   assert.equal(state.pgn, pgn);
   assert.equal(state.board, true);
@@ -268,33 +242,33 @@ async function checkWindow(window) {
       Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, value);
       element.dispatchEvent(new Event(element.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
     };
-    const select = document.querySelector('[aria-label="Book"]');
-    const books = [...select.options].filter(option => option.textContent === 'Smoke book');
-    if (books.length !== 1) throw new Error('Book title is repeated');
-    change(select, books[0].value);
-    await waitFor(() => document.querySelectorAll('.result-item').length === 2);
-    const section = document.querySelector('.book-sections select');
-    const sections = [...section.options].map(option => option.textContent);
-    change(section, '2');
-    await waitFor(() => document.querySelectorAll('.result-item').length === 1);
-    document.querySelector('.result-item').click();
-    await waitFor(() => document.querySelector('.review-shell'));
-    document.querySelector('.review-header button').click();
-    await waitFor(() => !document.querySelector('.review-shell'));
-    if (document.querySelector('.book-sections select').value !== '2') throw new Error('Section filter lost');
-    document.querySelector('.extra-game-filters .subtle-button').click();
-    await waitFor(() => document.querySelectorAll('.result-item').length === 40);
-    const input = label => [...document.querySelectorAll('label.field')].find(el => el.querySelector('span')?.textContent === label).querySelector('input');
-    for (const [label, value] of [['White player', 'Smoke'], ['Black player', 'Black'], ['Annotator', 'Analyst'], ['Event', 'Test'], ['Year from', '1970'], ['Year to', '1980']]) {
-      change(input(label), value);
-    }
-    await waitFor(() => document.querySelectorAll('.result-item').length === 1 && document.querySelector('.result-item').textContent.includes('Test Analyst'));
-    change(input('Year from'), '2000');
-    await waitFor(() => document.querySelector('.empty-results h3')?.textContent === 'No games found');
-    document.querySelector('.empty-results button').click();
-    await waitFor(() => document.querySelectorAll('.result-item').length === 40);
-    document.querySelector('[aria-label="Next page"]').click();
-    await waitFor(() => document.querySelectorAll('.result-item').length === 5);
+    const property = label => [...document.querySelectorAll('.property-filter')].find(el=>el.querySelector(':scope > span')?.textContent===label);
+    const choose = async (label, text) => {
+      const root=property(label);root.querySelector('.property-trigger').click();
+      await waitFor(()=>root.querySelector('[role=option]')&&!root.querySelector('[role=status]'));
+      const option=[...root.querySelectorAll('[role=option]')].find(el=>el.querySelector('span')?.textContent.replace('✓ ','')===text);
+      if(!option)throw new Error('Missing option '+text);option.click();
+      root.querySelector('[role=combobox]').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    };
+    await choose('Source','Smoke section 1');
+    await waitFor(()=>document.querySelectorAll('.result-item').length===1);
+    await choose('Source','Smoke section 2');
+    await waitFor(()=>document.querySelectorAll('.result-item').length===2);
+    await choose('Completeness','unknown');
+    await waitFor(()=>document.querySelectorAll('.result-item').length===2);
+    const source=property('Source');source.querySelector('.property-trigger').click();
+    await waitFor(()=>source.querySelector('[role=combobox]'));
+    source.querySelector('[role=combobox]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));
+    if(!source.querySelector('[role=combobox]').getAttribute('aria-activedescendant'))throw new Error('Missing keyboard active option');
+    source.querySelector('[role=combobox]').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    document.querySelector('.result-item').click();await waitFor(()=>document.querySelector('.review-shell'));
+    document.querySelector('.review-header button').click();await waitFor(()=>!document.querySelector('.review-shell'));
+    if(property('Source').querySelectorAll('.property-chips button').length!==2)throw new Error('Selections lost');
+    const year=[...document.querySelectorAll('label.field')].find(el=>el.querySelector('span')?.textContent==='Year from').querySelector('input');
+    change(year,'2000');await waitFor(()=>document.querySelector('.empty-results h3')?.textContent==='No games found');
+    if(property('Source').querySelectorAll('.property-chips button').length!==2)throw new Error('Zero result lost selected options');
+    document.querySelector('.empty-results button').click();await waitFor(()=>document.querySelectorAll('.result-item').length===40);
+    document.querySelector('[aria-label="Next page"]').click();await waitFor(()=>document.querySelectorAll('.result-item').length===5);
     const originalText = document.querySelector('.results-list').textContent;
     window.scrollTo(0, document.body.scrollHeight);
     const scrollY = window.scrollY;
@@ -305,21 +279,10 @@ async function checkWindow(window) {
     if (document.querySelector('.results-list').textContent !== originalText) throw new Error('Return changed the page');
     if (Math.abs(window.scrollY - scrollY) > 1) throw new Error('Return lost list scroll');
     if (document.querySelector('[aria-label="Previous page"]').disabled) throw new Error('Page was reset');
-    const catalog = await window.chessArchive.getCatalog();
-    const book = catalog.books.find(b => b.title === 'Smoke book');
-    const games = await window.chessArchive.searchGames({ sourceIds: book.source_ids });
-    const records = await window.chessArchive.searchRecords({ sourceIds: book.source_ids });
-    const outside = await window.chessArchive.searchGames({ sourceIds: book.source_ids, sourceId: 3 });
-    const allGames = await window.chessArchive.searchGames({ kind: 'game' });
-    const allEntries = await window.chessArchive.searchGames({});
-    return { sections, gameIds: games.rows.map(g => g.source_id).sort(), records: records.total, outside: outside.total, gameCount: allGames.total, entryCount: allEntries.total };
+    return true;
   })()`);
-  assert.deepEqual(grouping.sections, ['All sections (2)', 'Level 1', 'Level 2']);
-  assert.deepEqual(grouping.gameIds, [1, 2]);
-  assert.equal(grouping.records, 2);
-  assert.equal(grouping.outside, 0);
-  assert.equal(grouping.gameCount, 45);
-  assert.equal(grouping.entryCount, 48, 'Hidden content must remain in the database');
+  assert.equal(grouping,true);
+
 }
 
 async function smoke() {
@@ -340,7 +303,7 @@ async function smoke() {
     }
     assert.deepEqual(errors, []);
     assert.equal(archiveHash(), originalHash, 'Browsing must preserve every byte of the archive');
-    console.log('Desktop smoke passed: library, book grouping, same-window review and keyboard shortcuts, all commentary, colored arrows, variations, navigation, and archive preservation.');
+    console.log('Desktop smoke passed: library, property multiselects, same-window review and keyboard shortcuts, all commentary, colored arrows, variations, navigation, and archive preservation.');
   } catch (error) {
     console.error(error);
     exitCode = 1;

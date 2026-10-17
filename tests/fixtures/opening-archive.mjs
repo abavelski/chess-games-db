@@ -1,3 +1,4 @@
+import { initializeGames, upsertGame } from '../../lib/game-writer.mjs';
 import Database from 'better-sqlite3';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -11,7 +12,7 @@ export function frame(text) {
   return Buffer.concat([header, block, bytes]);
 }
 export function hash(text) { return createHash('sha256').update(text).digest('hex'); }
-export function fixtureArchive(path, games = ['1.e4 e5 2.Nf3 Nc6 *', '1. Nf3 Nf6 2.d4 d5 *', '1.h3 *', '1.e4 e5 2.Bh6 *']) {
+export function legacyFixtureArchive(path, games = ['1.e4 e5 2.Nf3 Nc6 *', '1. Nf3 Nf6 2.d4 d5 *', '1.h3 *', '1.e4 e5 2.Bh6 *']) {
   const db = new Database(path);
   for (const name of ['001_initial', '002_source_records', '003_record_classification', '004_openings']) db.exec(readFileSync(new URL(`../../db/migrations/${name}.sql`, import.meta.url), 'utf8'));
   db.pragma('user_version=4'); db.pragma('foreign_keys=ON');
@@ -24,3 +25,9 @@ export const catalogueFiles = {
   c: 'eco\tname\tpgn\nC20\tOpen Game\t1. e4 e5\nC40\tOpen Game: Knight Line\t1. e4 e5 2. Nf3\nC44\tOpen Game: Knight Line, Two Knights\t1. e4 e5 2. Nf3 Nc6\n',
   d: 'eco\tname\tpgn\nD00\tQueen Pawn: Main Line, Setup\t1. d4 d5 2. Nf3 Nf6\n', e: 'eco\tname\tpgn\nE00\tAnother Family: Main Line\t1. d4 Nf6\n',
 };
+
+export function fixtureArchive(path, games = ['1.e4 e5 2.Nf3 Nc6 *', '1. Nf3 Nf6 2.d4 d5 *', '1.h3 *', '1.e4 e5 2.Bh6 *']) {
+ const db=new Database(path);initializeGames(db);
+ for(const [i,pgn] of games.entries())upsertGame(db,{white:'White '+i,black:'Black',eco:'A00',pgn_zstd:frame(pgn),pgn_sha256:hash(pgn),sources:[{source:{source_key:'fixture',title:'Fixture book'},source_game_key:String(i),sequence:i}]});
+ return db;
+}

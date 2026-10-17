@@ -32,3 +32,11 @@ playwright-report/
 *.db
 *-wal
 *-shm
+
+# Local game exports, compressed archives and SQLite rollback journals.
+*.pgn
+*.zst
+*.sqlite-journal
+*.sqlite3-journal
+*.db-journal
+.games-*.tmp

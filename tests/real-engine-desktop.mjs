@@ -67,7 +67,7 @@ async function smoke() {
     await clickSquare('e7'); await clickSquare('e5');
     await window.webContents.executeJavaScript(`(async () => {
       await window.realWait(() => document.querySelector('.analysis-branch')?.textContent.includes('e4 e5'));
-      window.realButton('Return to book position').click(); await window.realWait(() => !document.querySelector('.analysis-branch'));
+      window.realButton('Return to game position').click(); await window.realWait(() => !document.querySelector('.analysis-branch'));
       document.querySelector('.review-header button').click(); await window.realWait(() => !document.querySelector('.review-shell'));
     })()`);
     await window.webContents.executeJavaScript(`(async () => {

@@ -5,13 +5,16 @@ import { prepareDisplayPgn } from './pgn.mjs';
 
 export type Viewer = ReturnType<typeof LichessPgnViewer>;
 
-export function PgnBoard({ pgn, review = false, initialPath = '', onReady, onPathChange, configureBoard }: {
+export function PgnBoard({ pgn, review = false, initialPath = '', onReady, onPathChange, configureBoard, canSelectPath }: {
   pgn: string; review?: boolean; initialPath?: string;
   onReady?: (viewer: Viewer | null) => void;
   onPathChange?: (path: string) => void;
+  canSelectPath?: (path: string) => boolean;
   configureBoard?: (viewer: Viewer) => void;
 }) {
   const activeViewer = useRef<Viewer | null>(null);
+  const allowed = useRef(canSelectPath);
+  allowed.current = canSelectPath;
   const configure = useRef(configureBoard);
   configure.current = configureBoard;
   useEffect(() => { if (activeViewer.current) configure.current?.(activeViewer.current); }, [configureBoard]);
@@ -44,6 +47,7 @@ export function PgnBoard({ pgn, review = false, initialPath = '', onReady, onPat
       viewer.opts.pgn = pgn; // Keep the viewer's PGN export authoritative too.
       const go = viewer.toPath;
       viewer.toPath = (path, focus) => {
+        if (allowed.current && !allowed.current(path.path)) return;
         go(path, focus);
         onPathChange?.(path.path);
         configure.current?.(viewer!);

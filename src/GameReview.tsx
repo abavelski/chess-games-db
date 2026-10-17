@@ -6,7 +6,7 @@ import { makeSquare, parseSquare } from 'chessops/util';
 import { isMoveData } from '@lichess-org/pgn-viewer/game';
 import type { DrawShape } from '@lichess-org/chessground/draw';
 import { PieceMode } from './PieceMode';
-import { EnginePanel, EvaluationBar, readReviewPreferences } from './EnginePanel';
+import { EnginePanel, EvaluationBar, readReviewPreferences, type ReviewDisplay } from './EnginePanel';
 import { appendMove, replayPosition, sourcePosition, type AnalysisPosition } from './analysis.mjs';
 import { useEngineAnalysis } from './useEngineAnalysis';
 import type { AnalysisOptions } from './engine-types';
@@ -15,11 +15,11 @@ import { annotationShapes } from '@lichess-org/pgn-viewer/view/glyph';
 import { PgnBoard, type Viewer } from './PgnBoard';
 import { ReviewMoves } from './ReviewMoves';
 import { useBoardResize } from './useBoardResize';
-import { criticalNavigation } from './critical-positions.mjs';
+import { criticalNavigation, criticalReveal, criticalRevealStage } from './critical-positions.mjs';
 import { reviewPgn } from './pgn.mjs';
 import type { GameDetail } from './types';
 
-export function GameReview({ game, initialPath, onClose, embedded = false }: { game: GameDetail; initialPath: string; onClose: () => void; embedded?: boolean }) {
+export function GameReview({ game, initialPath, onClose }: { game: GameDetail; initialPath: string; onClose: () => void }) {
   const viewer = useRef<Viewer | null>(null);
   const transcript = useRef<HTMLDivElement>(null);
   const [path, setPath] = useState(initialPath);
@@ -43,8 +43,21 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     try { return { data: reviewPgn(game.pgn), error: null }; }
     catch (error) { return { data: null, error: error instanceof Error ? error.message : String(error) }; }
   }, [game.pgn]);
-  const critical = useMemo(() => criticalNavigation(model.data?.tokens || [], path), [model.data, path]);
-  const resize = useBoardResize(embedded);
+  const [revealStage, setRevealStage] = useState(() => criticalRevealStage(model.data?.tokens || [], initialPath));
+  const updateDisplay = useCallback((action: React.SetStateAction<ReviewDisplay>) => {
+    const next = typeof action === 'function' ? action(display) : action;
+    if (next.criticalStudy && !display.criticalStudy) {
+      setRevealStage(criticalRevealStage(model.data?.tokens || [], path));
+    }
+    setDisplay(next);
+  }, [display, model.data, path]);
+  const revealed = useMemo(() => criticalReveal(model.data?.tokens || [], revealStage, display.criticalStudy), [model.data, revealStage, display.criticalStudy]);
+  const revealRef = useRef(revealed);
+  revealRef.current = revealed;
+  const canSelectPath = useCallback((value: string) => !revealRef.current.paused || revealRef.current.allowedPaths.has(value), []);
+  const nextReveal = useMemo(() => revealed.paused ? criticalReveal(model.data?.tokens || [], revealStage + 1) : null, [model.data, revealStage, revealed.paused]);
+  const critical = useMemo(() => criticalNavigation(revealed.tokens, path), [revealed.tokens, path]);
+  const resize = useBoardResize();
   const selectReviewPath = useCallback((value: string) => viewer.current?.toPath(new Path(value), false), []);
   const onReady = useCallback((value: Viewer | null) => {
     viewer.current = value; setReady(!!value);
@@ -114,27 +127,26 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
   const title = game.white || game.black ? `${game.white || 'Unknown'} vs ${game.black || 'Unknown'}` : game.event || 'Study position';
   const go = (direction: 'first' | 'prev' | 'next' | 'last') => viewer.current?.goTo(direction, false);
   const currentNode = viewer.current?.game.nodeAt(new Path(path));
-  const Shell = embedded ? 'div' : 'main';
-  return <Shell className={"review-shell" + (game.opening?.name && !embedded ? " has-opening" : "") + (embedded ? " book-game-review" : "")}>
-    {!embedded && <header className="review-header">
+  return <main className={"review-shell" + (game.opening?.name ? " has-opening" : "")}>
+    <header className="review-header">
       <div>
         <div className="eyebrow">GAME REVIEW · {game.source_title}</div>
         <h1>{title}</h1>
         {game.opening?.name && <p className="review-opening-name" title={game.opening.name}>{game.opening.name} · {game.opening.eco}{game.eco && game.eco !== game.opening.eco ? ` · Source ECO ${game.eco}` : ''}</p>}
-        <p>{[game.event, game.site, game.date, game.opening?.name ? null : game.eco, game.result].filter(value => value && value !== '?').join(' · ')}</p>
+        <p>{[game.event, game.site, game.date, game.opening?.name ? null : game.eco, revealed.paused ? null : game.result].filter(value => value && value !== '?').join(' · ')}</p>
       </div>
       <button className="secondary-button" onClick={onClose} autoFocus><ArrowLeft size={16} /> Back to games</button>
-    </header>}
+    </header>
     <div className={"review-workspace" + (resize.resizing ? " resizing-board" : "")} ref={resize.workspace}>
       <section ref={resize.board} className="review-board" aria-label="Game review board">
-        <div className={"analysis-board-frame" + (display.bar && analysisOptions.stockfish ? " with-bar" : "")}><div className="review-board-surface"><PgnBoard pgn={game.pgn} review initialPath={initialPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} /><button {...resize.handle} data-board-resize className="board-resize-handle" title="Drag to resize board. Double-click to reset." /></div>{display.bar && analysisOptions.stockfish && <EvaluationBar state={engines.stockfish} enabled={analysisOptions.stockfish} flipped={flipped} />}</div>
+        <div className={"analysis-board-frame" + (display.bar && analysisOptions.stockfish ? " with-bar" : "")}><div className="review-board-surface"><PgnBoard pgn={game.pgn} review initialPath={initialPath} canSelectPath={canSelectPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} /><button {...resize.handle} data-board-resize className="board-resize-handle" title="Drag to resize board. Double-click to reset." /></div>{display.bar && analysisOptions.stockfish && <EvaluationBar state={engines.stockfish} enabled={analysisOptions.stockfish} flipped={flipped} />}</div>
 
         <div className="review-board-footer" ref={resize.footer}><div className="review-controls" role="group" aria-label="Move navigation">
           <button title="First position" aria-label="First position" disabled={!ready || !path} onClick={() => go('first')}><ChevronsLeft size={21} /></button>
           <button title="Previous move" aria-label="Previous move" disabled={!ready || !path} onClick={() => go('prev')}><ChevronLeft size={24} /></button>
           <span aria-live="polite">{move ? `${Math.ceil((move.ply || 1) / 2)}${(move.ply || 1) % 2 ? '.' : '…'} ${move.san}` : 'Starting position'}</span>
-          <button title="Next move" aria-label="Next move" disabled={!ready || !currentNode?.children.length} onClick={() => go('next')}><ChevronRight size={24} /></button>
-          <button title="Last mainline position" aria-label="Last mainline position" disabled={!ready || !viewer.current?.game.mainline.length} onClick={() => go('last')}><ChevronsRight size={21} /></button>
+          <button title="Next move" aria-label="Next move" disabled={!ready || !currentNode?.children.some(node => canSelectPath(node.data.path.path))} onClick={() => go('next')}><ChevronRight size={24} /></button>
+          <button title="Last mainline position" aria-label="Last mainline position" disabled={!ready || revealed.paused || !viewer.current?.game.mainline.length} onClick={() => go('last')}><ChevronsRight size={21} /></button>
         </div>
         <p className="review-help">Select any move or variation to explore it. ← / → moves · Home / End first / last · F flips · Esc returns to games.</p>
         {game.start_fen && <details className="review-position"><summary>Starting position</summary><code>{game.start_fen}</code></details>}
@@ -144,29 +156,31 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
         <div className="piece-entry"><button disabled={!position || !!promotion} onClick={() => {
           if (position && viewer.current) setPieceMode({ fen: position.fen, orientation: viewer.current.orientation(), scroll: transcript.current?.scrollTop || 0, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null });
         }}>Piece mode</button>
-          {critical.total > 0 && <div className="review-critical-navigation" role="group" aria-label="Critical positions">
-            <button aria-label="Previous critical position" title="Previous critical position (including variations)"
+          {critical.total > 0 && <div className="review-critical-navigation" role="group" aria-label="Study stops">
+            <button aria-label="Previous study stop" title="Previous study stop (critical positions and medals, including variations)"
               disabled={!ready || !!promotion || !critical.previous} onClick={() => selectReviewPath(critical.previous!)}><ChevronLeft size={16} /></button>
-            <span aria-live="polite">{critical.current ? `${critical.current} / ${critical.total}` : `${critical.total} critical`}</span>
-            <button aria-label="Next critical position" title="Next critical position (including variations)"
+            <span aria-live="polite">{critical.current ? `${critical.current} / ${critical.total}` : `${critical.total} stops`}</span>
+            <button aria-label="Next study stop" title="Next study stop (critical positions and medals, including variations)"
               disabled={!ready || !!promotion || !critical.next} onClick={() => selectReviewPath(critical.next!)}><ChevronRight size={16} /></button>
           </div>}
         </div>
-        <EnginePanel onFlip={() => viewer.current?.flip()} canFlip={ready} options={analysisOptions} setOptions={setAnalysisOptions} display={display} setDisplay={setDisplay} states={engines} position={position} onPreview={moves => { if (position) setTemporary(replayPosition(position.initialFen, moves)); }} />
-        {temporary && <div className="analysis-branch"><span>Temporary analysis · {temporary.sans.slice(source?.moves.length || 0).join(' ')}</span> <button onClick={() => { setTemporary(null); viewer.current?.toPath(new Path(path), false); }}>Return to book position</button></div>}
+        <EnginePanel onFlip={() => viewer.current?.flip()} canFlip={ready} options={analysisOptions} setOptions={setAnalysisOptions} display={display} setDisplay={updateDisplay} states={engines} position={position} onPreview={moves => { if (position) setTemporary(replayPosition(position.initialFen, moves)); }} />
+        {temporary && <div className="analysis-branch"><span>Temporary analysis · {temporary.sans.slice(source?.moves.length || 0).join(' ')}</span> <button onClick={() => { setTemporary(null); viewer.current?.toPath(new Path(path), false); }}>Return to game position</button></div>}
         {promotion && <div className="promotion-choice" role="group" aria-label="Choose promotion">Promote to {(['queen', 'rook', 'bishop', 'knight'] as const).map(role => <button key={role} onClick={() => { setTemporary(appendMove(promotion.position, promotion.from, promotion.to, role)); setPromotion(null); }}>{role}</button>)}</div>}
         <div className="review-transcript" ref={transcript}>
           {model.error && <div className="notice error">{model.error}</div>}
           {model.data?.positionError && <div className="notice error">{model.data.positionError}</div>}
-          {model.data && <ReviewMoves tokens={model.data.tokens} path={path} ready={ready} onSelect={selectReviewPath} />}
-          {game.result && game.result !== '*' && <p className="review-result">{game.result}</p>}
-          <details className="review-headers"><summary>Game information · all PGN headers</summary><dl>
+          {model.data && <ReviewMoves showGlyphDescriptions={display.glyphDescriptions} tokens={revealed.tokens} path={path} ready={ready} onSelect={selectReviewPath}
+            revealPath={revealed.paused ? revealed.path : undefined} revealToEnd={!nextReveal?.paused}
+            onReveal={() => setRevealStage(stage => stage + 1)} />}
+          {!revealed.paused && game.result && game.result !== '*' && <p className="review-result">{game.result}</p>}
+          {!revealed.paused && <><details className="review-headers"><summary>Game information · all PGN headers</summary><dl>
             {model.data?.headers.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}
           </dl></details>
-          <details className="review-original"><summary>Original PGN</summary><pre>{game.pgn}</pre></details>
+          <details className="review-original"><summary>Original PGN</summary><pre>{game.pgn}</pre></details></>}
         </div>
       </section>
     </div>
     {pieceMode && <PieceMode fen={pieceMode.fen} orientation={pieceMode.orientation} onReturn={returnFromPieceMode} />}
-  </Shell>;
+  </main>;
 }

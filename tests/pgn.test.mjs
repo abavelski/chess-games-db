@@ -77,3 +77,11 @@ test('critical markers belong to moves, including variations and restored commen
   assert.ok(review.displayPgn.includes('Critical position · opening.'));
   assert.ok(reviewPgn('{[%crit opening]} *').tokens[0].text.includes('Critical position'));
 });
+
+test('medals become deduplicated move markers with readable labels and restored comments', () => {
+  const backup = Buffer.from('[%medal strategy,custom lesson] Plan here.').toString('base64');
+  const { tokens } = reviewPgn(`1.e4 {[%medal tactics, attack,sacrifice] [%medal TACTICS] Find it.} ({[%medal defense]} 1.d4) e5 {[%cbtext ${backup}]} *`);
+  assert.deepEqual(tokens.filter(t => t.type === 'move').map(t => t.medals), [['tactics', 'attack', 'sacrifice'], ['defense'], ['strategy', 'custom lesson']]);
+  assert.deepEqual(tokens.filter(t => t.type === 'comment').map(t => t.text), ['Find it.', 'Plan here.']);
+  assert.ok(!tokens.some(t => t.text?.includes('Award')));
+});

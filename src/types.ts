@@ -94,5 +94,5 @@ declare global {
   }
 }
 
-export type PropertyKey = 'source' | 'sourceType' | 'players' | 'white' | 'black' | 'annotators' | 'event' | 'site' | 'year' | 'result' | 'completeness' | 'annotations' | 'medals' | 'criticalPositions' | 'studyMarkers' | 'eco';
+export type PropertyKey = 'source' | 'sourceSection' | 'sourceType' | 'players' | 'white' | 'black' | 'annotators' | 'event' | 'site' | 'year' | 'result' | 'completeness' | 'annotations' | 'medals' | 'criticalPositions' | 'studyMarkers' | 'eco';
 export interface PropertyOption {id: string; label: string; count: number}

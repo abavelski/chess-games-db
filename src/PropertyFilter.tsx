@@ -24,6 +24,7 @@ export function PropertyFilter({property,label,selected,filters,onChange}: {
   const close=(event:MouseEvent)=>{if(!root.current?.contains(event.target as Node))setOpen(false);};
   document.addEventListener('mousedown',close);return()=>document.removeEventListener('mousedown',close);
  },[]);
+ useEffect(()=>{if(open)document.getElementById(id+'-'+active)?.scrollIntoView({block:'nearest'});},[open,id,active]);
  const toggle=(value:string)=>onChange(selected.includes(value)?selected.filter(v=>v!==value):[...selected,value]);
  const loadMore=async()=>{
   if(!cursor||loading)return;
