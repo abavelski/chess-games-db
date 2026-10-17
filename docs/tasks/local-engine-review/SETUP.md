@@ -32,7 +32,7 @@ Missing executable/checkpoint errors direct you to the local installation instru
 
 ## Review preferences
 
-The review toolbar has three controls: **Engine settings**, **Stockfish**, and **Maia**. Engine settings contains independent line visibility, line counts (1/3/5) and arrows for each engine, plus the evaluation bar, book annotations, and Maia rating. These preferences are remembered locally. Turning either engine off/on preserves them; the evaluation bar disappears with Stockfish when it is off. Technical paths, memory, threads, device, and time budget are intentionally outside this panel.
+The review toolbar has three controls: **Game review settings** (gear icon), **Stockfish**, and **Maia**. Game review settings contains Flip board (using the Lichess icon), independent line visibility, line counts (1/3/5) and arrows for each engine, plus the evaluation bar, book annotations, and Maia rating. These preferences are remembered locally. Turning either engine off/on preserves them; the evaluation bar disappears with Stockfish when it is off. Technical paths, memory, threads, device, and time budget are intentionally outside this panel.
 
 ## Development profile and verification
 

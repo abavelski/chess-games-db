@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { Settings } from 'lucide-react';
+import { LichessFlipIcon } from './icons/LichessFlipIcon';
 import { linePreview, type AnalysisPosition } from './analysis.mjs';
 import type { AnalysisOptions, EngineState, EngineLine } from './engine-types';
 
@@ -25,11 +27,11 @@ export function EvaluationBar({ state, enabled, flipped }: { state: EngineState;
 function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: () => void }) {
   return <button type="button" aria-pressed={value} onClick={onChange}>{label}</button>;
 }
-export function EnginePanel({ options, setOptions, display, setDisplay, states, position, onPreview }: {
+export function EnginePanel({ options, setOptions, display, setDisplay, states, position, onPreview, onFlip, canFlip }: {
   options: AnalysisOptions; setOptions: React.Dispatch<React.SetStateAction<AnalysisOptions>>;
   display: ReviewDisplay; setDisplay: React.Dispatch<React.SetStateAction<ReviewDisplay>>;
   states: { stockfish: EngineState; maia: EngineState }; position: AnalysisPosition | null;
-  onPreview: (moves: string[]) => void;
+  onPreview: (moves: string[]) => void; onFlip: () => void; canFlip: boolean;
 }) {
   const [setup, setSetup] = useState(false);
   useEffect(() => {
@@ -37,7 +39,7 @@ export function EnginePanel({ options, setOptions, display, setDisplay, states, 
   }, [display, options.lines, options.maiaLines, options.rating]);
   return <div className="review-analysis" aria-label="Position analysis">
     <div className="analysis-toggles">
-      <button onClick={() => setSetup(true)} aria-haspopup="dialog">Engine settings</button>
+      <button className="review-settings-button" onClick={() => setSetup(true)} aria-label="Game review settings" title="Game review settings" aria-haspopup="dialog"><Settings size={17} aria-hidden="true" /></button>
       <Toggle label="Stockfish" value={options.stockfish} onChange={() => setOptions(current => ({ ...current, stockfish: !current.stockfish }))} />
       <Toggle label="Maia" value={options.maia} onChange={() => setOptions(current => ({ ...current, maia: !current.maia }))} />
     </div>
@@ -55,15 +57,14 @@ export function EnginePanel({ options, setOptions, display, setDisplay, states, 
       <div className="maia-candidates">{display.maiaLines && position && states.maia.candidates.slice(0, options.maiaLines).map(candidate => <button key={candidate.move} onClick={() => onPreview([...position.moves, candidate.move])}>
         {linePreview(position, [candidate.move])[0]?.san || candidate.move} <strong>{(candidate.probability * 100).toFixed(1)}%</strong>
       </button>)}</div>
-      {display.maiaLines && <p className="analysis-legend">Predicted next moves at this Lichess rating. Percentages show human move probability.</p>}
     </section>}
-    {setup && <EnginePreferences options={options} setOptions={setOptions} display={display} setDisplay={setDisplay} onClose={() => setSetup(false)} />}
+    {setup && <ReviewPreferences options={options} setOptions={setOptions} display={display} setDisplay={setDisplay} onClose={() => setSetup(false)} onFlip={onFlip} canFlip={canFlip} />}
   </div>;
 }
-function EnginePreferences({ options, setOptions, display, setDisplay, onClose }: {
+function ReviewPreferences({ options, setOptions, display, setDisplay, onClose, onFlip, canFlip }: {
   options: AnalysisOptions; setOptions: React.Dispatch<React.SetStateAction<AnalysisOptions>>;
   display: ReviewDisplay; setDisplay: React.Dispatch<React.SetStateAction<ReviewDisplay>>;
-  onClose: () => void;
+  onClose: () => void; onFlip: () => void; canFlip: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -76,9 +77,9 @@ function EnginePreferences({ options, setOptions, display, setDisplay, onClose }
   const lineCount = (key: 'lines' | 'maiaLines', label: string) => <label>{label}<select aria-label={label} value={options[key]} onChange={event => setOptions(current => ({ ...current, [key]: Number(event.target.value) }))}>
     {[1, 3, 5].map(value => <option key={value}>{value}</option>)}
   </select></label>;
-  return <dialog ref={dialog} className="engine-setup" aria-labelledby="engine-setup-title" onCancel={onClose}>
-    <h2 id="engine-setup-title">Engine settings</h2>
-    <p>Choose what each engine shows. The Stockfish and Maia buttons turn them on or off using these preferences.</p>
+  return <dialog ref={dialog} className="engine-setup" aria-labelledby="review-settings-title" onCancel={onClose}>
+    <h2 id="review-settings-title">Game review settings</h2>
+    <button className="review-flip-button" onClick={onFlip} disabled={!canFlip} aria-label="Flip board" title="Flip board (F)"><LichessFlipIcon />Flip board</button>
     <div className="engine-preferences-grid"><fieldset><legend>Stockfish</legend>
       {checkbox('lines', 'Stockfish lines')}
       {lineCount('lines', 'Stockfish line count')}

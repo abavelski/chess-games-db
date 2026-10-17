@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowLeftRight, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Compass } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Compass } from 'lucide-react';
 import type { Key } from '@lichess-org/chessground/types';
 import { chessgroundDests } from 'chessops/compat';
 import { makeSquare, parseSquare } from 'chessops/util';
@@ -174,7 +174,6 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
           <span aria-live="polite">{move ? `${Math.ceil((move.ply || 1) / 2)}${(move.ply || 1) % 2 ? '.' : '…'} ${move.san}` : 'Starting position'}</span>
           <button title="Next move" aria-label="Next move" disabled={!ready || !currentNode?.children.length} onClick={() => go('next')}><ChevronRight size={24} /></button>
           <button title="Last mainline position" aria-label="Last mainline position" disabled={!ready || !viewer.current?.game.mainline.length} onClick={() => go('last')}><ChevronsRight size={21} /></button>
-          <button title="Flip board" aria-label="Flip board" disabled={!ready} onClick={() => viewer.current?.flip()}><ArrowLeftRight size={20} /></button>
         </div>
         <p className="review-help">Select any move or variation to explore it. ← / → moves · Home / End first / last · F flips · Esc returns to games.</p>
         {game.start_fen && <details className="review-position"><summary>Starting position</summary><code>{game.start_fen}</code></details>}
@@ -183,7 +182,7 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
         <div className="piece-entry"><button disabled={!position || !!promotion} onClick={() => {
           if (position && viewer.current) setPieceMode({ fen: position.fen, orientation: viewer.current.orientation(), scroll: transcript.current?.scrollTop || 0, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null });
         }}>Piece mode</button></div>
-        <EnginePanel options={analysisOptions} setOptions={setAnalysisOptions} display={display} setDisplay={setDisplay} states={engines} position={position} onPreview={moves => { if (position) setTemporary(replayPosition(position.initialFen, moves)); }} />
+        <EnginePanel onFlip={() => viewer.current?.flip()} canFlip={ready} options={analysisOptions} setOptions={setAnalysisOptions} display={display} setDisplay={setDisplay} states={engines} position={position} onPreview={moves => { if (position) setTemporary(replayPosition(position.initialFen, moves)); }} />
         {temporary && <div className="analysis-branch"><span>Temporary analysis · {temporary.sans.slice(source?.moves.length || 0).join(' ')}</span> <button onClick={() => { setTemporary(null); viewer.current?.toPath(new Path(path), false); }}>Return to book position</button></div>}
         {promotion && <div className="promotion-choice" role="group" aria-label="Choose promotion">Promote to {(['queen', 'rook', 'bishop', 'knight'] as const).map(role => <button key={role} onClick={() => { setTemporary(appendMove(promotion.position, promotion.from, promotion.to, role)); setPromotion(null); }}>{role}</button>)}</div>}
         <div className="review-score-heading"><div className="eyebrow">THE ANNOTATED SCORE</div><h2 id="review-score-title">Moves & commentary</h2></div>

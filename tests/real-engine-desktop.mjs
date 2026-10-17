@@ -31,13 +31,13 @@ async function smoke() {
     await once(window.webContents, 'did-finish-load');
     const result = await window.webContents.executeJavaScript(`(async () => {
       const wait = async predicate => { const end = Date.now() + 180000; while (!predicate()) { const error = document.querySelector('.engine-error'); if (error) throw new Error(error.textContent); if (Date.now() > end) throw new Error('Timed out: ' + predicate); await new Promise(r => setTimeout(r, 30)); } };
-      const button = text => [...document.querySelectorAll('button')].find(b => b.textContent === text);
+      const button = text => [...document.querySelectorAll('button')].find(b => b.textContent === text || b.getAttribute('aria-label') === text);
       window.realWait = wait; window.realButton = button;
       await wait(() => document.querySelector('.result-item'));
       document.querySelector('.result-item').click(); await wait(() => document.querySelector('.review-shell cg-board'));
       const start = performance.now();
       window.chessEngine.onUpdate(event => { if (event.device) window.realDevice = event.device; });
-      button('Engine settings').click(); await wait(() => document.querySelector('dialog[open]'));
+      button('Game review settings').click(); await wait(() => document.querySelector('dialog[open]'));
       [...document.querySelectorAll('dialog label')].find(label => label.textContent.trim() === 'Evaluation bar').querySelector('input').click();
       button('Done').click(); await wait(() => !document.querySelector('dialog'));
       button('Stockfish').click(); button('Maia').click();

@@ -28,10 +28,10 @@ async function smoke() {
     await once(window.webContents, 'did-finish-load');
     await window.webContents.executeJavaScript(`(async () => {
       const wait = async predicate => { const end = Date.now() + 8000; while (!predicate()) { if (Date.now() > end) throw new Error('Timed out: ' + predicate); await new Promise(r => setTimeout(r, 25)); } };
-      const button = text => [...document.querySelectorAll('button')].find(b => b.textContent === text);
+      const button = text => [...document.querySelectorAll('button')].find(b => b.textContent === text || b.getAttribute('aria-label') === text);
       window.smokeWait = wait; window.smokeButton = button;
       window.smokeSetting = async (label, value) => {
-        button('Engine settings').click(); await wait(() => document.querySelector('dialog[open]'));
+        button('Game review settings').click(); await wait(() => document.querySelector('dialog[open]'));
         const select = document.querySelector('dialog select[aria-label="' + label + '"]');
         if (select) {
           Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, String(value));
@@ -85,7 +85,7 @@ async function smoke() {
       document.querySelector('[aria-label="Next move"]').click(); await wait(() => document.querySelector('svg.cg-shapes circle'));
       await window.smokeSetting('Book annotations', false); await wait(() => !document.querySelector('svg.cg-shapes circle'));
       await window.smokeSetting('Book annotations', true); await wait(() => document.querySelector('svg.cg-shapes circle'));
-      button('Engine settings').click(); await wait(() => document.querySelector('dialog[open]'));
+      button('Game review settings').click(); await wait(() => document.querySelector('dialog[open]'));
       if (document.querySelector('dialog input:not([type="checkbox"])')) throw new Error('Settings must not expose technical engine configuration');
       button('Done').focus();
     })()`);
@@ -98,7 +98,8 @@ async function smoke() {
       button('Stockfish').click(); button('Maia').click();
       await wait(() => document.querySelector('.engine-line button'));
       document.querySelector('.engine-line button').click(); await wait(() => document.querySelector('.analysis-branch'));
-      document.querySelector('[aria-label="Flip board"]').click();
+      button('Game review settings').click(); await wait(() => document.querySelector('dialog[open]'));
+      document.querySelector('[aria-label="Flip board"]').click(); button('Done').click(); await wait(() => !document.querySelector('dialog'));
       document.querySelector('.review-original').open = true;
       document.querySelector('.review-transcript').scrollTop = 25;
       window.beforePiece = { branch: document.querySelector('.analysis-branch').textContent, pgn: document.querySelector('.review-original pre').textContent, path: document.querySelector('[aria-current="step"]')?.dataset.reviewPath || '', scroll: document.querySelector('.review-transcript').scrollTop };
@@ -161,7 +162,7 @@ async function smoke() {
       document.querySelector('.review-header button').click(); await wait(() => !document.querySelector('.review-shell'));
       document.querySelectorAll('.result-item')[1].click(); await wait(() => document.querySelector('.review-shell cg-board'));
       if (button('Stockfish').getAttribute('aria-pressed') !== 'false') throw new Error('Enable state should default off for a new review');
-      button('Engine settings').click(); await wait(() => document.querySelector('dialog[open]'));
+      button('Game review settings').click(); await wait(() => document.querySelector('dialog[open]'));
       if (document.querySelector('[aria-label="Stockfish line count"]').value !== '3' || document.querySelector('[aria-label="Maia line count"]').value !== '3' || document.querySelector('[aria-label="Maia rating"]').value !== '1800') throw new Error('Settings did not persist across reviews');
       button('Done').click(); await wait(() => !document.querySelector('dialog'));
 

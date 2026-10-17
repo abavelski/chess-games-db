@@ -127,7 +127,12 @@ async function checkWindow(window) {
     await waitFor(() => current()?.includes('Nc6'));
     root.querySelector('[aria-label="First position"]').click();
     await waitFor(() => !current());
+    if (root.querySelector('.review-controls [aria-label="Flip board"]')) throw new Error('Flip board must be in settings');
+    root.querySelector('[aria-label="Game review settings"]').click();
+    await waitFor(() => root.querySelector('dialog[open]'));
     root.querySelector('[aria-label="Flip board"]').click();
+    [...root.querySelectorAll('dialog button')].find(button => button.textContent === 'Done').click();
+    await waitFor(() => !root.querySelector('dialog'));
     const flipped = !!root.querySelector('.orientation-black');
     const original = root.querySelector('.review-original pre').textContent;
     const pair = [...root.querySelectorAll('.review-move-pair')].find(p => p.textContent.includes('d4'));
