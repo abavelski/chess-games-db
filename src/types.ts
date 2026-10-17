@@ -11,7 +11,7 @@ export interface Source {
   record_count: number;
 }
 export interface Catalog {
-  capabilities?: { openings: boolean };
+  capabilities?: { openings: boolean; criticalPositions?: boolean; studyMarkers?: boolean };
   path: string;
   sources: Source[];
   books: Array<{
@@ -47,6 +47,13 @@ export interface OpeningFacets {
   unclassified: number; nodes: OpeningNode[];
 }
 export interface GameRow {
+  game_key: string;
+  completeness: string;
+  medal_count?: number | null;
+  has_medals?: number | null;
+  has_study_markers?: number | null;
+  critical_position_count?: number | null;
+  has_critical_positions?: number | null;
   opening?: OpeningInfo;
   id: number;
   source_id: number;
@@ -103,6 +110,9 @@ export interface Page<T> {
   pageSize: number;
 }
 export interface SearchFilters {
+  properties?: Partial<Record<PropertyKey, string[]>>;
+  studyMarkers?: string;
+  criticalPositions?: string;
   openingNodeId?: string;
   search?: string;
   sourceId?: number | null;
@@ -127,12 +137,12 @@ export interface SearchFilters {
 export interface ChessArchiveAPI {
   openDatabase(): Promise<{ canceled: boolean; catalog?: Catalog }>;
   bookContents(bookId: string): Promise<BookContents>;
+  propertyOptions(request: {property: PropertyKey; query?: string; filters?: SearchFilters; cursor?: string | number; limit?: number}): Promise<{options: PropertyOption[]; cursor: string | null}>;
   getCatalog(): Promise<Catalog | null>;
   searchGames(f: SearchFilters): Promise<Page<GameRow>>;
   openingFacets(f: SearchFilters): Promise<OpeningFacets>;
   getGame(id: number): Promise<GameDetail | null>;
-  searchRecords(f: SearchFilters): Promise<Page<RecordRow>>;
-  getRecord(id: number): Promise<RecordDetail | null>;
+
 }
 declare global {
   interface Window {
@@ -155,3 +165,6 @@ export interface BookEntry {
   sequence: number;
 }
 export interface BookContents extends Book { entries: BookEntry[] }
+
+export type PropertyKey = 'source' | 'sourceType' | 'players' | 'white' | 'black' | 'annotators' | 'event' | 'site' | 'year' | 'result' | 'completeness' | 'annotations' | 'medals' | 'criticalPositions' | 'studyMarkers' | 'eco';
+export interface PropertyOption {id: string; label: string; count: number}

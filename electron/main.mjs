@@ -78,13 +78,11 @@ app.whenReady().then(() => {
     const catalog = attachArchive(answer.filePaths[0]);
     return { canceled: false, catalog };
   });
-  ipcMain.handle('archive:book', (_event, bookId) => currentArchive().bookContents(bookId));
   ipcMain.handle('archive:catalog', () => archive ? archive.catalog() : null);
   ipcMain.handle('archive:games', (_event, filters) => currentArchive().searchGames(filters));
   ipcMain.handle('archive:opening-facets', (_event, filters) => currentArchive().openingFacets(filters));
+  ipcMain.handle('archive:property-options', (_event, request) => currentArchive().propertyOptions(request));
   ipcMain.handle('archive:game', (_event, id) => currentArchive().getGame(id));
-  ipcMain.handle('archive:records', (_event, filters) => currentArchive().searchRecords(filters));
-  ipcMain.handle('archive:record', (_event, id) => currentArchive().getRecord(id));
 
   const candidates = [];
   try {

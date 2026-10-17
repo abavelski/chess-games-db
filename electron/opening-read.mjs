@@ -1,4 +1,4 @@
-import { gameQuery } from './queries.mjs';
+import { gameQuery, GAME_FROM } from './queries.mjs';
 
 export function activeOpeningRevision(db, supported) {
   return supported ? db.prepare("SELECT r.id FROM opening_state s JOIN opening_revisions r ON r.id=s.revision_id WHERE r.status='complete'").get()?.id ?? null : null;
@@ -40,8 +40,8 @@ export function openingLabels(db, revision, rows) {
 
 export function openingFacets(db, supported, filters = {}) {
   const revision = activeOpeningRevision(db, supported);
-  const q = gameQuery({ ...filters, kind: 'game', deleted: 'active' });
-  const from = ' FROM games g JOIN sources s ON s.id=g.source_id';
+  const q = gameQuery({ ...filters, openingNodeId: undefined });
+  const from = GAME_FROM;
   const total = db.prepare('SELECT count(*) n' + from + q.where).get(q.params).n;
   if (!revision) return { supported, revision: null, total, classified: 0, unclassified: total, nodes: [] };
   const params = { ...q.params, facetRevision: revision };

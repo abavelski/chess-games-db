@@ -1,19 +1,19 @@
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { setImmediate } from 'node:timers/promises';
-import { decodePgn } from './database.mjs';
+import { decodePgn } from '../lib/game-policy.mjs';
 import { OPENING_ALGORITHM, digest, classifyOpening } from './openings.mjs';
 
 export async function enrichOpenings(path, input, { dryRun = false, rebuild = false, maxGames = Infinity, batchSize = 100, signal, progress = () => {} } = {}) {
   const db = new Database(path, { readonly: dryRun, fileMustExist: true });
   try {
     db.pragma('foreign_keys = ON'); db.pragma('busy_timeout = 30000');
-    if (db.pragma('user_version', { simple: true }) !== 4) throw new Error('Run python3 scripts/init-db.py on a backup to migrate this archive to schema v4 first.');
+    if (db.pragma('user_version', { simple: true }) !== 7) throw new Error('Schema 7 required. Use npm run migrate:games to convert a legacy archive.');
     const { catalogue, manifest, checksum } = input;
     const active = db.prepare('SELECT r.* FROM opening_state s JOIN opening_revisions r ON r.id=s.revision_id WHERE r.status=\'complete\'').get();
     const sameDataset = active?.content_sha256 === checksum && active?.algorithm_version === OPENING_ALGORITHM && active?.upstream_commit === manifest.commit;
-    const total = db.prepare("SELECT count(*) n FROM games WHERE record_kind='game'").get().n;
-    const currentCount = sameDataset ? db.prepare("SELECT count(*) n FROM game_openings o JOIN games g ON g.id=o.game_id AND g.pgn_sha256=o.pgn_sha256 WHERE o.revision_id=? AND g.record_kind='game'").get(active.id).n : 0;
+    const total = db.prepare("SELECT count(*) n FROM games").get().n;
+    const currentCount = sameDataset ? db.prepare("SELECT count(*) n FROM game_openings o JOIN games g ON g.id=o.game_id AND g.pgn_sha256=o.pgn_sha256 WHERE o.revision_id=?").get(active.id).n : 0;
     if (dryRun) return { dryRun: true, total, pending: rebuild ? total : total - currentCount, catalogueEntries: catalogue.entries.length };
     if (sameDataset && currentCount === total && !rebuild) return report(db, active.id, 0, true);
     let revision = !rebuild && db.prepare("SELECT * FROM opening_revisions WHERE content_sha256=? AND algorithm_version=? AND upstream_commit=? AND status='staging' ORDER BY created_at DESC LIMIT 1").get(checksum, OPENING_ALGORITHM, manifest.commit);
@@ -26,12 +26,12 @@ export async function enrichOpenings(path, input, { dryRun = false, rebuild = fa
         const entryInsert = db.prepare('INSERT INTO opening_entries VALUES (?,?,?,?,?,?,?,?)');
         for (const entry of catalogue.entries) entryInsert.run(revision.id, entry.id, entry.node_id, entry.eco, entry.name, entry.pgn, entry.uci, entry.position_key);
         if (sameDataset && !rebuild) {
-          db.prepare(`INSERT INTO game_openings SELECT ?, o.game_id, o.pgn_sha256, o.status, o.primary_entry_id, o.matched_ply, o.diagnostic FROM game_openings o JOIN games g ON g.id=o.game_id AND g.pgn_sha256=o.pgn_sha256 WHERE o.revision_id=? AND g.record_kind='game'`).run(revision.id, active.id);
+          db.prepare(`INSERT INTO game_openings SELECT ?, o.game_id, o.pgn_sha256, o.status, o.primary_entry_id, o.matched_ply, o.diagnostic FROM game_openings o JOIN games g ON g.id=o.game_id AND g.pgn_sha256=o.pgn_sha256 WHERE o.revision_id=?`).run(revision.id, active.id);
           db.prepare('INSERT INTO game_opening_matches SELECT ?, m.game_id, m.entry_id, m.ply FROM game_opening_matches m JOIN game_openings o ON o.game_id=m.game_id AND o.revision_id=? WHERE m.revision_id=?').run(revision.id, revision.id, active.id);
         }
       })();
     }
-    const pending = db.prepare(`SELECT g.* FROM games g WHERE g.record_kind='game' AND NOT EXISTS (SELECT 1 FROM game_openings o WHERE o.revision_id=? AND o.game_id=g.id AND o.pgn_sha256=g.pgn_sha256) ORDER BY g.id LIMIT ?`);
+    const pending = db.prepare(`SELECT g.* FROM games g WHERE NOT EXISTS (SELECT 1 FROM game_openings o WHERE o.revision_id=? AND o.game_id=g.id AND o.pgn_sha256=g.pgn_sha256) ORDER BY g.id LIMIT ?`);
     const remove = db.prepare('DELETE FROM game_openings WHERE revision_id=? AND game_id=?');
     const insert = db.prepare('INSERT INTO game_openings VALUES (?,?,?,?,?,?,?)');
     const matchInsert = db.prepare('INSERT INTO game_opening_matches VALUES (?,?,?,?)');
@@ -55,7 +55,7 @@ export async function enrichOpenings(path, input, { dryRun = false, rebuild = fa
     let published = false;
     db.transaction(() => {
       if (signal?.aborted || pending.get(revision.id, 1)) return;
-      db.prepare("DELETE FROM game_openings WHERE revision_id=? AND game_id NOT IN (SELECT id FROM games WHERE record_kind='game')").run(revision.id);
+      db.prepare("DELETE FROM game_openings WHERE revision_id=? AND game_id NOT IN (SELECT id FROM games)").run(revision.id);
       db.prepare("UPDATE opening_revisions SET status='complete', completed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?").run(revision.id);
       db.prepare('INSERT INTO opening_state VALUES (1,?) ON CONFLICT(singleton) DO UPDATE SET revision_id=excluded.revision_id').run(revision.id);
       published = true;
