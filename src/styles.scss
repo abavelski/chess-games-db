@@ -367,7 +367,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .engine-file { display: flex; gap: 5px; }
 .engine-setup-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 
-.piece-entry { padding: 6px 10px 0; }
+.piece-entry { padding: 6px 10px 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .piece-entry button { border: 1px solid #d7dfd1; border-radius: 4px; padding: 5px 10px; background: #f6f7ef; color: #38513d; font-size: 12px; }
 .piece-mode { position: fixed; inset: 0; margin: 0; border: 0; padding: 12px; width: 100vw; height: 100dvh; max-width: none; max-height: none; background: #f6f3ec; color: #304633; overflow: hidden; }
 .piece-mode[open] { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; }
@@ -414,3 +414,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 .review-variation-line .review-variation, .review-variation-line .review-variation-end { display: none; }
 .review-controls span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.review-critical { margin-left: 4px; font-size: 10px; vertical-align: middle; }
+.review-critical-opening { color: #226cc5; }
+.review-critical-middlegame { color: #c43535; }
+.review-critical-endgame { color: #258447; }
+.review-move[aria-current="step"] .review-critical { filter: brightness(1.6); text-shadow: 0 0 1px white; }
+.review-critical-navigation { display: flex; align-items: center; gap: 5px; color: #52604e; font-size: 12px; }
+.piece-entry .review-critical-navigation button { display: flex; padding: 4px; }
+.piece-entry button:disabled { opacity: .4; cursor: default; }

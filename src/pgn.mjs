@@ -95,9 +95,18 @@ export function reviewPgn(pgn) {
       nextPath = path + scalachessCharPair(move);
       san = makeSanAndPlay(nextPosition, move);
     }
-    comments(node.data.startingComments, depth);
+    const critical = [];
+    const extractCritical = comment => restoreComment(comment).replace(
+      /\[%crit\s+(opening|middlegame|endgame)\s*\]/gi,
+      (_tag, phase) => {
+        phase = phase.toLowerCase();
+        if (!critical.includes(phase)) critical.push(phase);
+        return '';
+      },
+    );
+    comments(node.data.startingComments?.map(extractCritical), depth);
     const evaluations = [];
-    const after = (node.data.comments || []).map(comment => restoreComment(comment).replace(
+    const after = (node.data.comments || []).map(comment => extractCritical(comment).replace(
       /\[%eval\s+([+-]?(?:\d+(?:\.\d+)?|#-?\d+))(?:\s*[,/]\s*(\d+))?\s*\]/gi,
       (_tag, value, searchDepth) => {
         const number = Number(value);
@@ -107,7 +116,7 @@ export function reviewPgn(pgn) {
       },
     ));
     tokens.push({ type: 'move', san, path: nextPath, ply: ply + 1, nags: node.data.nags || [], depth,
-      evaluations,
+      evaluations, critical,
       annotated: /\[%(?:cal|csl)\s/.test([...(node.data.startingComments || []), ...(node.data.comments || [])].join(' ')) });
     comments(after, depth);
     if (node.children.length) tasks.push({ type: 'line', node: node.children[0], alternatives: node.children.slice(1),

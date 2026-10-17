@@ -34,6 +34,8 @@ export const ReviewMoves = memo(function ReviewMoves({ tokens, path, ready, onSe
       {showNumber && <span className="review-move-number">{number} </span>}{token.san}
       {token.nags?.filter(nag => !evaluationNags.includes(nag)).map((nag, i) => <span className="review-glyph" title={annotationGlyphs[nag]?.name || `Annotation $${nag}`} key={i}>{annotationGlyphs[nag]?.symbol || `$${nag}`}</span>)}
       {evaluations.length > 0 && <small className="review-evaluation"> ({evaluations.map((evaluation, i) => <span title={evaluation.title} key={i}>{i > 0 ? ', ' : ''}{evaluation.value}</span>)})</small>}
+      {token.critical?.map(phase => <span key={phase} className={`review-critical review-critical-${phase}`}
+        role="img" aria-label={`Critical ${phase} position`} title={`Critical ${phase} position`}>◆</span>)}
       {token.annotated && <Compass size={12} aria-label="Board annotation" />}
     </button>;
   };

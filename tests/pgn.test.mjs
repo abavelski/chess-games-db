@@ -65,3 +65,15 @@ test('numeric and mate evaluations belong to their move without replacing commen
   assert.deepEqual(review.tokens.filter(t => t.type === 'comment').map(t => t.text), ['Keep the center.']);
   assert.equal(commentText('[%eval unknown]'), 'Evaluation: unknown');
 });
+
+
+test('critical markers belong to moves, including variations and restored comments', () => {
+  const backup = Buffer.from('[%crit endgame] Find a plan.').toString('base64');
+  const review = reviewPgn(`1. e4 {[%crit opening] Center.} ({[%crit middlegame]} 1. d4 {[%crit MIDDLEGAME] [%train AQAB]}) e5 {Fallback [%cbtext ${backup}]} 2. Nf3 {[%crit unknown]} *`);
+  const moves = review.tokens.filter(t => t.type === 'move');
+  assert.deepEqual(moves.map(t => t.critical), [['opening'], ['middlegame'], ['endgame'], []]);
+  assert.deepEqual(review.tokens.filter(t => t.type === 'comment').map(t => t.text),
+    ['Center.', 'Training exercise.', 'Find a plan.', 'Critical position · unknown.']);
+  assert.ok(review.displayPgn.includes('Critical position · opening.'));
+  assert.ok(reviewPgn('{[%crit opening]} *').tokens[0].text.includes('Critical position'));
+});

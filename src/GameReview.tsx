@@ -15,6 +15,7 @@ import { annotationShapes } from '@lichess-org/pgn-viewer/view/glyph';
 import { PgnBoard, type Viewer } from './PgnBoard';
 import { ReviewMoves } from './ReviewMoves';
 import { useBoardResize } from './useBoardResize';
+import { criticalNavigation } from './critical-positions.mjs';
 import { reviewPgn } from './pgn.mjs';
 import type { GameDetail } from './types';
 
@@ -42,6 +43,7 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
     try { return { data: reviewPgn(game.pgn), error: null }; }
     catch (error) { return { data: null, error: error instanceof Error ? error.message : String(error) }; }
   }, [game.pgn]);
+  const critical = useMemo(() => criticalNavigation(model.data?.tokens || [], path), [model.data, path]);
   const resize = useBoardResize(embedded);
   const selectReviewPath = useCallback((value: string) => viewer.current?.toPath(new Path(value), false), []);
   const onReady = useCallback((value: Viewer | null) => {
@@ -141,7 +143,15 @@ export function GameReview({ game, initialPath, onClose, embedded = false }: { g
       <section className="review-score" aria-label="Game score and annotations">
         <div className="piece-entry"><button disabled={!position || !!promotion} onClick={() => {
           if (position && viewer.current) setPieceMode({ fen: position.fen, orientation: viewer.current.orientation(), scroll: transcript.current?.scrollTop || 0, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null });
-        }}>Piece mode</button></div>
+        }}>Piece mode</button>
+          {critical.total > 0 && <div className="review-critical-navigation" role="group" aria-label="Critical positions">
+            <button aria-label="Previous critical position" title="Previous critical position (including variations)"
+              disabled={!ready || !!promotion || !critical.previous} onClick={() => selectReviewPath(critical.previous!)}><ChevronLeft size={16} /></button>
+            <span aria-live="polite">{critical.current ? `${critical.current} / ${critical.total}` : `${critical.total} critical`}</span>
+            <button aria-label="Next critical position" title="Next critical position (including variations)"
+              disabled={!ready || !!promotion || !critical.next} onClick={() => selectReviewPath(critical.next!)}><ChevronRight size={16} /></button>
+          </div>}
+        </div>
         <EnginePanel onFlip={() => viewer.current?.flip()} canFlip={ready} options={analysisOptions} setOptions={setAnalysisOptions} display={display} setDisplay={setDisplay} states={engines} position={position} onPreview={moves => { if (position) setTemporary(replayPosition(position.initialFen, moves)); }} />
         {temporary && <div className="analysis-branch"><span>Temporary analysis · {temporary.sans.slice(source?.moves.length || 0).join(' ')}</span> <button onClick={() => { setTemporary(null); viewer.current?.toPath(new Path(path), false); }}>Return to book position</button></div>}
         {promotion && <div className="promotion-choice" role="group" aria-label="Choose promotion">Promote to {(['queen', 'rook', 'bishop', 'knight'] as const).map(role => <button key={role} onClick={() => { setTemporary(appendMove(promotion.position, promotion.from, promotion.to, role)); setPromotion(null); }}>{role}</button>)}</div>}

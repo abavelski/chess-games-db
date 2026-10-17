@@ -10,6 +10,8 @@ Game review supports local full Stockfish and Maia 3 79M analysis. The toolbar h
 
 The score uses numbered White/Black columns, full-width comments, and smaller nested variations. Drag the board’s lower-right corner to resize it; double-click to reset. The preferred size is remembered locally and adjusts to the available window. See [layout and component reuse](docs/tasks/review-layout/README.md).
 
+ChessBase critical-position tags appear as small colored diamonds beside moves: blue for opening, red for middlegame, and green for endgame. Hover for the phase. The previous/next critical-position buttons beside **Piece mode** follow score order, including variations, and stop at either end. These are study bookmarks; select one and open Piece mode to explore it. Unrecognized critical tags remain readable in the commentary.
+
 **Piece mode** hides everything except a free board and two controls. Move either side's pieces without chess legality constraints; **Reset position** restores the entry position, and **Return to review** (or Escape) restores the previous review, including its variation, temporary branch, orientation, scroll, focus, and engine switches. Analysis pauses while Piece mode is open. No study action edits the source PGN or archive.
 
 See [local engine installation](docs/tasks/local-engine-review/SETUP.md), [implementation tasks](docs/tasks/local-engine-review/README.md), and [verification results](docs/tasks/local-engine-review/VERIFICATION.md). Engines default off when opening a review. Display preferences, line count, and human rating are remembered locally.

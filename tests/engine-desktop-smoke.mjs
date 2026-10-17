@@ -10,7 +10,7 @@ import { fixtureArchive } from './fixtures/opening-archive.mjs';
 const temporary = mkdtempSync(join(tmpdir(), 'chess-engines-'));
 app.setPath('userData', temporary);
 const path = join(temporary, 'archive.sqlite3');
-const db = fixtureArchive(path, ['1.e4 {Book note [%cal Ge2e4] [%csl Yd4]} (1.d4 {Variation [%cal Rd2d4]} d5) e5 2.Nf3 Nc6 *', '[SetUp "1"]\n[FEN "7k/P7/8/8/8/8/8/7K w - - 0 25"]\n\n25.a8=Q+ *']); db.close();
+const db = fixtureArchive(path, ['1.e4 {Book note [%crit opening] [%cal Ge2e4] [%csl Yd4]} (1.d4 {Variation [%crit middlegame] [%cal Rd2d4]} d5) e5 2.Nf3 Nc6 {[%crit endgame]} *', '[SetUp "1"]\n[FEN "7k/P7/8/8/8/8/8/7K w - - 0 25"]\n\n25.a8=Q+ *']); db.close();
 const hash = () => createHash('sha256').update(readFileSync(path)).digest('hex');
 const original = hash();
 writeFileSync(join(temporary, 'archive.json'), JSON.stringify({ path }));
@@ -46,6 +46,25 @@ async function smoke() {
 
       await wait(() => document.querySelector('.result-item'));
       document.querySelector('.result-item').click(); await wait(() => document.querySelector('.review-shell cg-board'));
+      const markers = [...document.querySelectorAll('.review-critical')];
+      if (markers.map(el => el.title).join('|') !== 'Critical opening position|Critical middlegame position|Critical endgame position') throw new Error('Missing critical markers or tooltips');
+      if (new Set(markers.map(el => getComputedStyle(el).color)).size !== 3) throw new Error('Critical phases need distinct colors');
+      if ([...document.querySelectorAll('.review-comment')].some(el => el.textContent.includes('Critical position'))) throw new Error('Critical prose duplicated marker');
+      if (!button('Previous critical position').disabled) throw new Error('Previous critical enabled at start');
+      await wait(() => !button('Next critical position').disabled);
+      for (const phase of ['opening', 'middlegame', 'endgame']) {
+        button('Next critical position').click();
+        await wait(() => document.querySelector('.review-move[aria-current="step"] .review-critical-' + phase));
+      }
+      if (!button('Next critical position').disabled) throw new Error('Next critical enabled at end');
+      button('Previous critical position').click();
+      await wait(() => document.querySelector('.review-move[aria-current="step"] .review-critical-middlegame'));
+      const criticalPath = document.querySelector('.review-move[aria-current="step"]').dataset.reviewPath;
+      button('Piece mode').click(); await wait(() => document.querySelector('.piece-mode[open]'));
+      if (document.querySelector('.piece-mode .review-critical')) throw new Error('Critical markers leaked into Piece mode');
+      button('Return to review').click(); await wait(() => !document.querySelector('.piece-mode'));
+      if (document.querySelector('.review-move[aria-current="step"]').dataset.reviewPath !== criticalPath) throw new Error('Piece mode lost critical position');
+      button('First position').click(); await wait(() => !document.querySelector('.review-move[aria-current="step"]'));
       if (button('Stockfish').getAttribute('aria-pressed') !== 'false' || button('Maia').getAttribute('aria-pressed') !== 'false') throw new Error('Engines must default off');
       if (document.querySelectorAll('.review-analysis > .analysis-toggles button').length !== 3) throw new Error('Only settings and two engine toggles should appear');
       button('Stockfish').click(); await wait(() => document.querySelectorAll('.engine-line').length === 3);
@@ -161,6 +180,7 @@ async function smoke() {
       button('Stockfish').click(); await window.chessEngine.configure(settings);
       document.querySelector('.review-header button').click(); await wait(() => !document.querySelector('.review-shell'));
       document.querySelectorAll('.result-item')[1].click(); await wait(() => document.querySelector('.review-shell cg-board'));
+      if (document.querySelector('.review-critical-navigation')) throw new Error('Critical navigation shown in unmarked game');
       if (button('Stockfish').getAttribute('aria-pressed') !== 'false') throw new Error('Enable state should default off for a new review');
       button('Game review settings').click(); await wait(() => document.querySelector('dialog[open]'));
       if (document.querySelector('[aria-label="Stockfish line count"]').value !== '3' || document.querySelector('[aria-label="Maia line count"]').value !== '3' || document.querySelector('[aria-label="Maia rating"]').value !== '1800') throw new Error('Settings did not persist across reviews');
@@ -173,7 +193,7 @@ async function smoke() {
     })()`);
     assert.equal(hash(), original);
     assert.deepEqual(errors, []);
-    console.log('Engine desktop smoke passed: local subprocess IPC, independent controls, probabilities/rating, arrows, line exploration, setup, free Piece mode/reset/exact restoration/Escape, and archive preservation.');
+    console.log('Engine desktop smoke passed: critical markers/navigation/variation study, local subprocess IPC, independent controls, probabilities/rating, arrows, line exploration, setup, free Piece mode/reset/exact restoration/Escape, and archive preservation.');
   } catch (error) { console.error(error); code = 1; }
   finally { clearTimeout(timeout); app.on('will-quit', () => { rmSync(temporary, { recursive: true, force: true }); app.exit(code); }); app.quit(); }
 }

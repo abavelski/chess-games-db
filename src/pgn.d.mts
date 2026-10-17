@@ -8,6 +8,7 @@ export interface ReviewToken {
   nags?: number[];
   evaluations?: Array<{ value: string; depth?: number }>;
   annotated?: boolean;
+  critical?: Array<'opening' | 'middlegame' | 'endgame'>;
 }
 export function commentText(comment: string, keepBoardAnnotations?: boolean): string;
 export function prepareDisplayPgn(pgn: string): string;
