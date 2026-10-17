@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+import { engineFailureLogger } from './engine-log.mjs';
 import { EngineManager, engineDefaults, validateSettings } from './engines.mjs';
 
 export function registerEngineIpc({ app, ipcMain, dialog }) {
@@ -12,10 +13,11 @@ export function registerEngineIpc({ app, ipcMain, dialog }) {
     try { settings = validateSettings(JSON.parse(readFileSync(candidate, 'utf8'))); break; }
     catch { /* First launch or invalid settings; try the local development profile. */ }
   }
+  const logFailure = engineFailureLogger(join(app.getPath('userData'), 'logs', 'engines.log'));
   const managers = new Map();
   const manager = sender => {
     if (!managers.has(sender.id)) {
-      const instance = new EngineManager(settings, event => { if (!sender.isDestroyed()) sender.send('engine:update', event); });
+      const instance = new EngineManager(settings, event => { if (!sender.isDestroyed()) sender.send('engine:update', event); }, undefined, logFailure);
       managers.set(sender.id, instance);
       sender.once('destroyed', () => { instance.close(); managers.delete(sender.id); });
       sender.on('did-start-loading', () => instance.close());

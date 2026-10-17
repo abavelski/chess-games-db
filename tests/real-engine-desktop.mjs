@@ -12,7 +12,7 @@ const settings = JSON.parse(readFileSync(resolve(process.env.CHESS_ENGINE_CONFIG
 const temporary = mkdtempSync(join(tmpdir(), 'chess-real-engines-'));
 app.setPath('userData', temporary);
 const path = join(temporary, 'archive.sqlite3');
-const db = fixtureArchive(path, ['1.e4 {Book note [%cal Ge2e4]} e5 2.Nf3 Nc6 *']); db.close();
+const db = fixtureArchive(path, ['1.e4 {Book note [%cal Ge2e4]} e5 2.Nf3 Nc6 *', '1.e4 e5 2.Nf3 Nc6 3.Bb5 a6 4.Ba4 Nf6 5.O-O Be7 6.Re1 b5 7.Bb3 O-O *', '[SetUp "1"]\n[FEN "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"]\n\n1.O-O-O O-O *', '[SetUp "1"]\n[FEN "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"]\n\n1.O-O O-O-O *']); db.close();
 const hash = () => createHash('sha256').update(readFileSync(path)).digest('hex');
 const original = hash();
 writeFileSync(join(temporary, 'archive.json'), JSON.stringify({ path }));
@@ -70,8 +70,20 @@ async function smoke() {
       window.realButton('Return to book position').click(); await window.realWait(() => !document.querySelector('.analysis-branch'));
       document.querySelector('.review-header button').click(); await window.realWait(() => !document.querySelector('.review-shell'));
     })()`);
+    await window.webContents.executeJavaScript(`(async () => {
+      const wait = window.realWait, button = window.realButton;
+      for (const index of [1, 2, 3]) {
+        document.querySelectorAll('.result-item')[index].click(); await wait(() => document.querySelector('.review-shell cg-board'));
+        document.querySelector('[aria-label="Last mainline position"]').click();
+        await wait(() => document.querySelector('.review-move[aria-current="step"]')?.textContent.includes('O-O'));
+        button('Stockfish').click(); button('Maia').click();
+        await wait(() => document.querySelector('.stockfish-analysis .engine-status')?.textContent.includes('complete') && document.querySelector('.maia-analysis .engine-status')?.textContent.includes('complete'));
+        if (!document.querySelector('.engine-line') || !document.querySelector('.maia-candidates button')) throw new Error('Missing post-castling evaluation');
+        document.querySelector('.review-header button').click(); await wait(() => !document.querySelector('.review-shell'));
+      }
+    })()`);
     assert.deepEqual(errors, []); assert.equal(hash(), original);
-    console.log('Real engine desktop passed (HTTP blocked):', JSON.stringify(result));
+    console.log('Real engine desktop passed (HTTP blocked; both colors and castling wings):', JSON.stringify(result));
   } catch (error) { console.error(error); code = 1; }
   finally { clearTimeout(timeout); app.on('will-quit', () => { rmSync(temporary, { recursive: true, force: true }); app.exit(code); }); app.quit(); }
 }

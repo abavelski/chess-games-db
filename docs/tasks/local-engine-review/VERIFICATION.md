@@ -35,3 +35,25 @@ Engine/model installation is guided, not bundled into installers. Stockfish and 
 ## Simplified controls (2026-10-17)
 
 The desktop suite additionally verifies the three-button toolbar, a preference-only settings dialog, independent Stockfish/Maia line counts passed to local processes, hidden lines with visible arrows, remembered choices when engines are toggled off/on, and preferences retained across reviews. The full unit/archive, desktop, book-reader, and real-engine offline checks were rerun for this change.
+
+## Stockfish exits after castling (2026-10-17)
+
+Reproduced the reported blank `Engine exited.` message with the installed native
+Stockfish 19. PGN Viewer/chessops represents castling as a king move onto its rook
+(e.g. `e1h1`); standard UCI expects the king's destination (`e1g1`). Sending the
+unconverted history made Stockfish print `CRITICAL ERROR ... Illegal move: e1h1`
+to stdout and exit with code 1. The app previously retained stderr only, hiding
+the actual explanation; no historical engine failure log had been persisted.
+
+The engine boundary now translates both colors and castling wings into standard
+UCI while preserving the complete move history and original PGN. This also fixes
+Maia silently rejecting the same history. Failure handling drains both output
+streams, includes exit code/signal and stdout diagnostics, and writes a bounded
+local JSON-lines log at `<Electron userData>/logs/engines.log` (one rotated file).
+Normal shutdown does not create a failure entry. Logs contain the requested
+position/history and recent engine commands so later failures can be diagnosed.
+
+Regression coverage includes castling conversion from real-game history and
+custom FENs, startup stdout errors/exit codes, log rotation, and real Stockfish
+and Maia analysis after castling on both sides of the board. Unit/archive,
+build, desktop, opt-in book-reader, and real-engine offline checks pass.

@@ -60,3 +60,12 @@ CHESS_ENGINE_CONFIG=.local-engines/engines.json npm run test:engines:local
 ```
 
 The first command verifies policy legality/probabilities, records cold/warm latency and checkpoint checksum, and confirms child-process cleanup. The second uses the built Electron app with real engines, blocks all HTTP requests, and exercises analysis, arrows, the evaluation bar, Piece mode pause/resume, legal free exploration, and archive integrity. Its archive and preferences are isolated temporary fixtures. Neither command downloads anything. The standard desktop suite uses deterministic fixture engines; their executable shebang launch is verified on macOS/Linux. Windows packaging and executable selection require a Windows validation pass.
+
+## Engine failure logs
+
+Engine failures are written locally to `<Electron userData>/logs/engines.log`,
+with one rotated file (`engines.log.1`). On macOS the default app path is
+`~/Library/Application Support/chess-books-explorer/logs/engines.log`.
+Entries include exit code/signal, stdout/stderr diagnostics, recent commands,
+and the position/move history. Logs are bounded and never uploaded. Restart the
+app after installing code updates so its engine manager loads the fixes.

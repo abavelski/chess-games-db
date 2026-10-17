@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { engineFailureLogger } from '../electron/engine-log.mjs';
 import { fileURLToPath } from 'node:url';
-import { EngineManager, UciProcess, engineDefaults, parseEngineInfo, validateSettings, validateRequest } from '../electron/engines.mjs';
+import { EngineManager, UciProcess, enginePosition, engineDefaults, parseEngineInfo, validateSettings, validateRequest } from '../electron/engines.mjs';
 const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const request = id => ({ id, engine: 'stockfish', initialFen: fen, moves: [], turn: 'white', lines: 3, rating: 1500 });
 const fake = () => new UciProcess(process.execPath, [fileURLToPath(new URL('./fixtures/fake-uci.mjs', import.meta.url))], { startupTimeout: 2000 });
@@ -88,4 +92,40 @@ test('terminal mate and drawn positions retain evaluation without a principal va
   assert.deepEqual(matedWhite.moves, []);
   assert.equal(parseEngineInfo('info depth 0 score mate 0', 'black').score.winner, 'white');
   assert.equal(parseEngineInfo('info depth 0 score cp 0', 'black').score.value, -0);
+});
+
+test('engine history converts castling for both colors and wings without changing book moves', () => {
+  const start = 'r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1';
+  for (const [moves, expected] of [
+    [['e1h1', 'e8a8'], 'e1g1 e8c8'],
+    [['e1a1', 'e8h8'], 'e1c1 e8g8'],
+    [['e1g1', 'e8c8'], 'e1g1 e8c8'],
+  ]) {
+    const input = { ...request('castle'), initialFen: start, moves };
+    validateRequest(input);
+    assert.equal(enginePosition(input), `position fen ${start} moves ${expected}`);
+    assert.deepEqual(input.moves, moves);
+  }
+  const history = ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5', 'a7a6', 'b5a4', 'g8f6', 'e1h1'];
+  const input = { ...request('ruy-lopez'), moves: history, turn: 'black' };
+  validateRequest(input);
+  assert.ok(enginePosition(input).endsWith('g8f6 e1g1'));
+});
+test('startup failures preserve stdout diagnostics, exit code and local rotated logs', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'chess-engine-log-'));
+  const path = join(directory, 'logs', 'engines.log');
+  const failures = [];
+  const logger = engineFailureLogger(path, 200);
+  const manager = new EngineManager({ stockfishPath: process.execPath }, () => {}, () => new UciProcess(process.execPath, ['-e', "console.log('info string CRITICAL ERROR: Illegal move: e1h1'); process.exitCode = 7"]), failure => { failures.push(failure); logger(failure); });
+  try {
+    manager.analyze(request('failed-position')); await manager.queues.get('stockfish');
+    assert.equal(failures.length, 1);
+    assert.equal(failures[0].exitCode, 7);
+    assert.match(failures[0].message, /CRITICAL ERROR: Illegal move: e1h1/);
+    assert.equal(failures[0].request.id, 'failed-position');
+    assert.ok(failures[0].trace.some(entry => entry.stream === 'stdout' && entry.text.includes('Illegal move')));
+    logger({ engine: 'stockfish', message: 'next failure' });
+    assert.match(readFileSync(path + '.1', 'utf8'), /Illegal move/);
+    assert.equal(JSON.parse(readFileSync(path, 'utf8')).message, 'next failure');
+  } finally { manager.close(); rmSync(directory, { recursive: true, force: true }); }
 });
