@@ -7,7 +7,7 @@ import sqlite3
 
 
 MIGRATIONS = Path(__file__).resolve().parents[1] / "db" / "migrations"
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 7
 
 
 def initialize(path: Path) -> None:
@@ -21,7 +21,11 @@ def initialize(path: Path) -> None:
         version = connection.execute("PRAGMA user_version").fetchone()[0]
         if version > SCHEMA_VERSION:
             raise RuntimeError(f"Database schema {version} is newer than supported {SCHEMA_VERSION}")
-        for target in range(version + 1, SCHEMA_VERSION + 1):
+        if 0 < version < SCHEMA_VERSION:
+            raise RuntimeError("Legacy database: use npm run migrate:games -- --input OLD --output NEW; initialization never converts existing archives")
+        if version == 0 and connection.execute("SELECT 1 FROM sqlite_master WHERE type='table'").fetchone():
+            raise RuntimeError("Refusing to initialize a nonempty unversioned database")
+        for target in ([7] if version == 0 else []):
             # Execute complete statements individually: executescript() would
             # implicitly commit the transaction before running the migration.
             statement = ""

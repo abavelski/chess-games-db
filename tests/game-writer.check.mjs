@@ -1,0 +1,27 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import Database from 'better-sqlite3';
+import { initializeGames, upsertGame, deleteGame, rebuildProperties } from '../lib/game-writer.mjs';
+import { frame, hash } from './fixtures/opening-archive.mjs';
+const game=(pgn='1. e4 {hello} *')=>({white:'École',black:'E\u0301cole',annotators:['Doe, Jane','Team'],pgn_zstd:frame(pgn),pgn_sha256:hash(pgn)});
+test('writer preserves edition identity, atomic links, unknown state and equivalent caches',()=>{
+ const db=new Database(':memory:'); initializeGames(db);
+ const link={source:{source_key:'s',title:'Source'},source_game_key:'1',is_primary:true};
+ const id=upsertGame(db,{...game(),sources:[link]});
+ const old=db.prepare('SELECT * FROM games').get();
+ assert.equal(db.prepare('SELECT count(*) n FROM players').get().n,2);
+ assert.equal(db.prepare('SELECT count(*) n FROM game_annotators').get().n,2);
+ assert.equal(upsertGame(db,{...game('1. d4 *'),sources:[link]}, {derive:false}),id);
+ assert.equal(db.prepare('SELECT created_at FROM games').get().created_at,old.created_at);
+ assert.equal(db.prepare("SELECT game_count n FROM property_options WHERE property_key='annotations' AND value_key='unknown'").get().n,1);
+ const other=upsertGame(db,game());
+ assert.throws(()=>upsertGame(db,{...game(),id:other,sources:[link]}),/Contradictory/);
+ assert.equal(db.prepare('SELECT count(*) n FROM games').get().n,2);
+ upsertGame(db,{...game(),game_key:old.game_key,sources:[{source:{source_key:'second',title:'Other'},source_game_key:'x'}]});
+ assert.equal(db.prepare('SELECT count(*) n FROM game_sources WHERE game_id=?').get(id).n,2);
+ const before=db.prepare('SELECT * FROM property_options ORDER BY property_key,value_key').all();
+ rebuildProperties(db); assert.deepEqual(db.prepare('SELECT * FROM property_options ORDER BY property_key,value_key').all(),before);
+ deleteGame(db,id); deleteGame(db,other);
+ assert.equal(db.prepare('SELECT count(*) n FROM property_options').get().n,0);
+ assert.deepEqual(db.pragma('foreign_key_check'),[]); db.close();
+});
