@@ -193,8 +193,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .review-help { font-size: 10px; color: #8b978b; line-height: 1.4; text-align: center; margin: 5px 0 0; }
 .review-position { color: #7a867b; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
 .review-score { background: #fffefa; border: 1px solid #e5e4da; border-radius: 6px; overflow: hidden; min-width: 0; display: flex; flex-direction: column; }
-.review-score-heading { padding: 8px 12px; border-bottom: 1px solid #e9e7dc; }
-.review-score-heading .eyebrow { display: none; }
 .review-score h2 { font: 500 20px Georgia,serif; margin: 0; color: #2a4032; }
 .review-transcript { padding: 10px 12px 16px; min-height: 0; flex: 1; overflow-y: auto; scrollbar-width: thin; font-size: 16px; line-height: 1.85; }
 .review-comment { font: 17px/1.65 Georgia,serif; color: #465345; white-space: pre-wrap; overflow-wrap: anywhere; margin: 7px 0; }
@@ -388,3 +386,32 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .engine-preferences-grid fieldset { min-width: 0; }
 .analysis-toggles .review-settings-button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 28px; padding: 4px; }
 .review-flip-button { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; }
+
+// Lichess-style column score: full-width prose interruptions and inset sidelines.
+.review-transcript { padding: 10px 0 16px; font: 15px/1.6 system-ui, sans-serif; }
+.review-moves { min-width: 0; }
+.review-mainline-row.review-move-pair { display: grid; grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; width: 100%; white-space: normal; border-bottom: 1px solid #eeeee6; }
+.review-row-number { padding: 8px 8px 8px 2px; text-align: right; color: #92978b; font: 13px/1.7 system-ui,sans-serif; background: #f6f6ef; }
+.review-mainline-row>.review-move { display: block; text-align: left; padding: 6px 10px; border-radius: 0; font: 650 18px/1.65 system-ui,sans-serif; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+.review-mainline-row>.review-move+.review-move { border-left: 1px solid #eeeee6; }
+.review-mainline-row .review-evaluation { white-space: nowrap; }
+.review-empty-move { padding: 8px 10px; color: #a6aa9d; }
+.review-moves>.review-comment { margin: 0; padding: 10px 14px; font: 15px/1.65 system-ui,sans-serif; background: #f8f8f3; color: #5a6256; border-bottom: 1px solid #edede5; }
+.review-variation-line { margin: 8px 12px 8px 24px; padding: 5px 8px; border-left: 2px solid #bfcbb3; background: #f4f6ef; color: #6b7662; line-height: 1.8; overflow-wrap: anywhere; }
+.review-variation-line .review-variation-line { margin: 6px 0 6px 8px; border-left-color: #d0d5c7; background: #eef1e7; }
+.review-variation-line .review-move { font: 500 14px/1.8 system-ui,sans-serif; padding: 2px 4px; }
+.review-variation-line .review-comment { font: 13px/1.65 system-ui,sans-serif; color: #79816e; }
+.review-variation-line .review-variation, .review-variation-line .review-variation-end { font: 14px/1.8 system-ui,sans-serif; color: #a1aa94; }
+.review-transcript>.review-headers, .review-transcript>.review-original { margin-left: 12px; margin-right: 12px; }
+.review-board-surface { position: relative; min-width: 0; }
+.review-board-footer { display: flow-root; }
+.board-resize-handle { position: absolute; right: -7px; bottom: -7px; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: #f5f3e4b3; cursor: nwse-resize; z-index: 5; touch-action: none; }
+.board-resize-handle::before, .board-resize-handle::after { content: ''; position: absolute; height: 2px; background: #3d4e35; transform: rotate(-45deg); }
+.board-resize-handle::before { width: 6px; left: 9px; top: 13px; }
+.board-resize-handle::after { width: 13px; left: 3px; top: 10px; }
+.board-resize-handle:hover, .board-resize-handle:focus-visible, .resizing-board .board-resize-handle { background: #c4d6ad; }
+.board-resize-handle:focus-visible { outline: 2px solid #436c38; outline-offset: 2px; }
+.resizing-board { user-select: none; cursor: nwse-resize; }
+
+.review-variation-line .review-variation, .review-variation-line .review-variation-end { display: none; }
+.review-controls span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

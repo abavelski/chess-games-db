@@ -139,6 +139,15 @@ async function checkWindow(window) {
     const pairMoves = [...pair.querySelectorAll('.review-move')].map(button => button.getBoundingClientRect());
     const evaluations = [...root.querySelectorAll('.review-evaluation')].map(e => e.textContent.trim());
     if (Math.abs(pairMoves[0].top - pairMoves[1].top) > 1) throw new Error('White and Black moves must share a line');
+    if (root.textContent.includes('Moves & commentary')) throw new Error('Score heading must be removed');
+    const main = root.querySelector('.review-mainline-row .review-move');
+    const side = root.querySelector('.review-variation-line .review-move');
+    if (parseFloat(getComputedStyle(main).fontSize) <= parseFloat(getComputedStyle(side).fontSize)) throw new Error('Mainline must be larger than variations');
+    if (root.querySelectorAll('.review-variation-line .review-variation-line').length !== 1) throw new Error('Nested variation grouping lost');
+    const e4 = [...root.querySelectorAll('.review-mainline-row .review-move')].find(move => move.textContent.includes('e4')).getBoundingClientRect();
+    const e5 = [...root.querySelectorAll('.review-mainline-row .review-move')].find(move => move.textContent.includes('e5')).getBoundingClientRect();
+    if (e5.left <= e4.left + 20 || Math.abs(e4.width - e5.width) > 1) throw new Error('Mainline must have equal White and Black columns');
+
     if (!evaluations.includes('(⩲)') || !evaluations.includes('(-0.80)')) throw new Error('Evaluations must appear beside their move');
     const evaluation = root.querySelector('.review-evaluation');
     if (parseFloat(getComputedStyle(evaluation).fontSize) >= parseFloat(getComputedStyle(evaluation.parentElement).fontSize)) throw new Error('Evaluation text must be smaller');
@@ -154,6 +163,10 @@ async function checkWindow(window) {
   assert.ok(reviewState.width > 500, 'Review board must use the available screen');
   assert.equal(reviewState.flipped, true);
   assert.equal(reviewState.original, pgn);
+  if (process.env.CHESS_REVIEW_SCREENSHOT) {
+    await window.webContents.executeJavaScript("document.querySelector('.review-transcript').scrollTop = 0");
+    writeFileSync(process.env.CHESS_REVIEW_SCREENSHOT, (await window.webContents.capturePage()).toPNG());
+  }
   window.setSize(920, 650);
   const compact = await window.webContents.executeJavaScript(`(async () => {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -170,6 +183,43 @@ async function checkWindow(window) {
   assert.equal(reviewState.parentheses, 3);
   assert.equal(reviewState.ends, 3);
   assert.ok(reviewState.controlsBottom <= reviewState.viewport, 'Controls must fit in the window');
+  await window.webContents.executeJavaScript('new Promise(resolve => setTimeout(resolve, 120))');
+  const resizeStart = await window.webContents.executeJavaScript(`(() => {
+    const handle = document.querySelector('[aria-label="Resize board"]').getBoundingClientRect();
+    return { x: Math.round(handle.left + handle.width / 2), y: Math.round(handle.top + handle.height / 2), width: document.querySelector('.review-board cg-board').getBoundingClientRect().width };
+  })()`);
+  window.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, x: resizeStart.x, y: resizeStart.y });
+  window.webContents.sendInputEvent({ type: 'mouseMove', button: 'left', modifiers: ['leftButtonDown'], x: resizeStart.x - 120, y: resizeStart.y - 120 });
+  window.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, x: resizeStart.x - 120, y: resizeStart.y - 120 });
+  const resized = await window.webContents.executeJavaScript(`(async () => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const board = document.querySelector('.review-board cg-board').getBoundingClientRect();
+    return { width: board.width, height: board.height, column: document.querySelector('.review-board').getBoundingClientRect().width, saved: Number(localStorage.getItem('review-board-size-v1')) };
+  })()`);
+  assert.ok(resized.width < resizeStart.width - 80, 'Dragging the corner shrinks the board: ' + JSON.stringify({ resizeStart, resized }));
+  assert.ok(Math.abs(resized.width - resized.height) < 1, 'Resizing keeps a square board');
+  assert.ok(Math.abs(resized.saved - resized.column) < 1, 'Board size is saved locally');
+  window.setSize(920, 650);
+  await window.webContents.executeJavaScript(`(async () => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const controls = document.querySelector('.review-controls').getBoundingClientRect();
+    const score = document.querySelector('.review-score').getBoundingClientRect();
+    if (controls.bottom > innerHeight || score.right > innerWidth) throw new Error('Resized board must fit smaller windows');
+  })()`);
+  window.setSize(1510, 920);
+  await window.webContents.executeJavaScript(`(async () => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const size = document.querySelector('.review-board').getBoundingClientRect().width;
+    if (Math.abs(size - Number(localStorage.getItem('review-board-size-v1'))) > 1) throw new Error('Window growth must restore preferred size');
+    const handle = document.querySelector('[aria-label="Resize board"]');
+    handle.focus();
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
+    if (document.querySelector('.review-move[aria-current="step"]')) throw new Error('Resize keys must not navigate the game');
+    if (Number(localStorage.getItem('review-board-size-v1')) >= size) throw new Error('Resize handle must support keyboard input');
+    handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    if (localStorage.getItem('review-board-size-v1') !== null) throw new Error('Double click must reset preferred size');
+    document.querySelector('.review-shell .lpv').focus();
+  })()`);
   // Use real Electron key input, including while the board itself has focus.
   const key = async (keyCode, expected) => {
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode });
