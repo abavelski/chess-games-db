@@ -203,6 +203,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .review-move svg { margin-left: 3px; vertical-align: baseline; }
 .review-move.in-variation { font-weight: 500; color: #6e7566; font-size: 15px; }
 .review-move:hover:not(:disabled) { background: #eef0e5; }
+.review-move:focus { outline: none; }
 .review-move[aria-current="step"] { background: #2c513c; color: #fff; }
 .review-move-number { opacity: .55; font-size: 12px; font-weight: 500; }
 .review-glyph { color: #a67934; margin-left: 2px; }
