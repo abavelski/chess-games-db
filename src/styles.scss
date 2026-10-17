@@ -392,7 +392,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .review-moves { min-width: 0; }
 .review-mainline-row.review-move-pair { display: grid; grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; width: 100%; white-space: normal; border-bottom: 1px solid #eeeee6; }
 .review-row-number { padding: 8px 8px 8px 2px; text-align: right; color: #92978b; font: 13px/1.7 system-ui,sans-serif; background: #f6f6ef; }
-.review-mainline-row>.review-move { display: block; text-align: left; padding: 6px 10px; border-radius: 0; font: 650 18px/1.65 system-ui,sans-serif; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+.review-mainline-row>.review-move { display: block; text-align: left; padding: 6px 10px; border-radius: 0; font: 650 17px/1.65 system-ui,sans-serif; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
 .review-mainline-row>.review-move+.review-move { border-left: 1px solid #eeeee6; }
 .review-mainline-row .review-evaluation { white-space: nowrap; }
 .review-empty-move { padding: 8px 10px; color: #a6aa9d; }
