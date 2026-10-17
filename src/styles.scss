@@ -27,23 +27,18 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .brand span { display: block; letter-spacing: 2.6px; font-size: 9px; color: #b2baa9; margin-top: 5px; font-weight: 750; }
 .sidebar-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 13px 24px; scrollbar-width: thin; }
 .nav-section-title { font-size: 10px; font-weight: 800; letter-spacing: 1.6px; color: #81988f; padding: 0 14px; margin-bottom: 13px; }
-.nav-link, .book-link {
+.nav-link {
   border: 0; color: #bdcdc2; background: transparent; width: 100%; display: flex;
   align-items: center; text-align: left; gap: 13px; border-radius: 8px;
   padding: 11px 13px; transition: background .15s ease, color .15s ease;
 }
 .nav-link { font-size: 13px; font-weight: 560; margin: 2px 0; position: relative; }
 .nav-link.selected { background: #2b463d; color: #fff; font-weight: 680; }
-.nav-link:not(.selected):hover, .book-link:not(.selected):hover { background: #223a32; color: #fff; }
+.nav-link:not(.selected):hover:not(.selected):hover { background: #223a32; color: #fff; }
 .nav-link.selected svg { color: #e2be85; }
 .active-dot { width: 5px; height: 5px; border-radius: 50%; background: #d4a968; position: absolute; right: 15px; }
 .sources-heading { display: flex; justify-content: space-between; align-items: center; padding-top: 36px; }
 .sources-heading>span { color: #bdc9bf; font-size: 12px; margin: 0 13px 11px; }
-.book-link { padding: 10px 13px; font-size: 12.5px; gap: 11px; }
-.book-link span:nth-of-type(1) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.book-link svg { flex-shrink: 0; }
-.book-link.selected { color: #f9e6c8; background: #264138; }
-.book-count { margin-left: auto; font-size: 10px; opacity: .65; }
 .library-help { margin: 8px 14px; font-size: 12px; line-height: 1.7; color: #80948b; }
 .sidebar-footer { border-top: 1px solid #30443c; padding: 18px 17px 22px; }
 .sidebar-db { display: flex; gap: 12px; align-items: center; margin: 2px 4px 17px; }
@@ -59,7 +54,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .overline span { color: #c3bcae; padding: 0 8px; }
 .page-heading h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(28px, 2.7vw, 39px); font-weight: 500; letter-spacing: -1.2px; margin: 8px 0 5px; color: #233631; line-height: 1.16; }
 .page-heading p { font-size: 13px; color: #79827b; margin: 0; }
-.book-sections { margin-bottom: 20px; max-width: 540px; }
 .secondary-button { display: inline-flex; justify-content: center; align-items: center; gap: 9px; background: #fff; border: 1px solid #deded7; border-radius: 9px; color: #3a4640; font-size: 12px; font-weight: 680; padding: 11px 15px; box-shadow: 0 1px 2px #142b2110; white-space: nowrap; }
 .secondary-button:hover { border-color: #bbaf9f; background: #fffdf8; }
 .stat-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 23px; }
@@ -237,47 +231,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   .results-list { max-height: 440px; }
 }
 
-.book-reader { height: 100dvh; display: flex; flex-direction: column; background: #f7f5ee; color: #2d4035; }
-.book-reader-header { padding: 15px 24px; border-bottom: 1px solid #e0ded1; display: flex; align-items: center; gap: 20px; justify-content: space-between; }
-.book-reader-header>div { min-width: 0; }
-.book-reader-header .eyebrow { display: flex; align-items: center; gap: 7px; }
-.book-reader-header h1 { font: 500 clamp(20px, 2vw, 29px)/1.25 Georgia,serif; margin: 5px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.book-reader-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; flex: 1; }
-.book-contents { overflow-y: auto; padding: 20px 15px; border-right: 1px solid #e0ded1; scrollbar-width: thin; }
-.book-contents h2 { font: 23px Georgia,serif; margin: 0 0 15px; }
-.book-section-link, .book-chapter-link { display: block; width: 100%; border: 0; background: transparent; text-align: left; border-radius: 5px; color: #53634f; padding: 9px 10px; overflow-wrap: anywhere; line-height: 1.5; }
-.book-section-link { font-size: 12px; font-weight: 750; margin-top: 12px; }
-.book-chapter-link { font-size: 12px; padding-left: 18px; }
-.book-chapter-link:hover, .book-section-link:hover { background: #ececdf; }
-.book-chapter-link[aria-current] { background: #dfe8d8; color: #244c34; }
-.book-reading-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.book-navigation { display: flex; gap: 15px; align-items: center; padding: 12px 20px; border-bottom: 1px solid #e0ded1; background: #fffdf6; }
-.book-navigation .field { flex: 1; }
-.book-navigation select { text-overflow: ellipsis; }
-.book-entry-content { overflow-y: auto; flex: 1; min-height: 0; padding: 18px 24px 30px; scrollbar-width: thin; }
-.book-entry-heading { max-width: 1050px; margin: 0 auto 20px; }
-.book-entry-heading h2 { font: 500 23px/1.35 Georgia,serif; margin: 0 0 10px; overflow-wrap: anywhere; }
-.book-prose { max-width: 820px; margin: 0 auto; padding: 28px clamp(20px, 4vw, 65px) 45px; background: #fffefa; border: 1px solid #e5e0d3; border-radius: 5px; box-shadow: 0 3px 16px #3f402909; font: 19px/1.85 Georgia,serif; overflow-wrap: anywhere; }
-.book-prose h2 { font-size: 29px; line-height: 1.4; margin: 0 0 25px; font-weight: 500; }
-.book-plain { white-space: pre-wrap; }
-.book-html table { width: 100%; border-collapse: collapse; }
-.book-html td, .book-html th { border: 1px solid #e5e0d3; padding: 6px; }
-.book-html pre { white-space: pre-wrap; }
-.book-media-note { display: block; color: #8a806c; font: italic 14px/1.6 Georgia,serif; }
-.book-original { margin-top: 36px; border-top: 1px solid #e5e0d3; padding-top: 15px; font: 12px/1.6 system-ui,sans-serif; color: #7b826f; }
-.book-original summary { cursor: pointer; }
-.book-original pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.6 monospace; }
-.book-language { max-width: 220px; margin-bottom: 24px; }
-.book-game-review.review-shell { --review-board-size: min(calc(100dvh - 330px), calc((100vw - 350px) * .52)); height: max(430px, calc(100dvh - 280px)); padding: 0; }
-.book-game-review .review-workspace { grid-template-columns: var(--review-board-size) minmax(240px, 1fr); }
 .page-heading>div:first-child { flex: 1; }
 @media(max-width: 1100px) {
-  .book-reader-layout { grid-template-columns: 190px minmax(0, 1fr); }
-  .book-entry-content { padding: 15px; }
-  .book-navigation { gap: 8px; padding: 10px; }
-  .book-game-review.review-shell { --review-board-size: min(calc(100dvh - 330px), calc((100vw - 260px) * .49)); }
-  .book-game-review .review-workspace { grid-template-columns: var(--review-board-size) minmax(220px, 1fr); }
-  .book-open { padding: 11px; }
 }
 
 .game-browser { max-width: 1260px; margin: 0 auto; padding: 36px clamp(24px, 4vw, 64px) 32px; }
@@ -293,7 +248,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .game-filters-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr 1.2fr; gap: 12px; }
 .year-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .extra-game-filters { display: flex; align-items: start; gap: 18px; margin-top: 14px; }
-.extra-game-filters .book-sections { width: 200px; margin: 0; }
 .more-game-filters { color: #73816f; font-size: 12px; padding-top: 5px; }
 .more-game-filters summary { cursor: pointer; }
 .more-game-filters .filters-grid { margin-top: 12px; min-width: 320px; }
@@ -386,7 +340,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .engine-preferences-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .engine-preferences-grid fieldset { min-width: 0; }
 .analysis-toggles .review-settings-button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 28px; padding: 4px; }
-.review-flip-button { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; }
+.review-settings-actions { margin-top: 10px; }
+.review-flip-button, .review-study-button { display: inline-flex; align-items: center; gap: 6px; }
 
 // Lichess-style column score: full-width prose interruptions and inset sidelines.
 .review-transcript { padding: 6px 0 10px; font: 15px/1.6 system-ui, sans-serif; }
@@ -424,3 +379,30 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .review-critical-navigation { display: flex; align-items: center; gap: 5px; color: #52604e; font-size: 12px; }
 .piece-entry .review-critical-navigation button { display: flex; padding: 4px; }
 .piece-entry button:disabled { opacity: .4; cursor: default; }
+
+.game-critical-badge { color: #375eaa; font-size: .8rem; font-weight: 600; }
+.review-move-with-reveal { display: inline-flex; align-items: center; min-width: 0; white-space: nowrap; }
+.review-mainline-row>.review-move-with-reveal>.review-move { padding: 1px 6px; border-radius: 0; font: 500 15px/1.65 system-ui,sans-serif; }
+.review-reveal-button { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; margin-left: 2px; padding: 3px; border: 1px solid #c5d2c0; border-radius: 4px; color: #38513d; background: #f6f7ef; }
+.review-reveal-button:hover:not(:disabled) { background: #e1eadc; }
+.review-reveal-button:focus-visible { outline: 2px solid #30563f; outline-offset: 2px; }
+
+.review-medal { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; color: #ab7817; vertical-align: middle; font-size: 12px; }
+.review-medal svg { flex-shrink: 0; margin-left: 0; }
+.review-move[aria-current="step"] .review-medal { color: #f4d071; }
+.game-medal-badge { display: inline-flex; align-items: center; gap: 3px; color: #946a1c; font-size: .8rem; font-weight: 600; }
+
+.review-glyph-description { font-size: .8em; font-weight: 400; white-space: normal; overflow-wrap: anywhere; opacity: .85; }
+.show-glyph-descriptions .review-evaluation { white-space: normal; }
+
+.property-filter { position: relative; min-width: 0; font-size: 12px; }
+.property-filter > span { display: block; margin-bottom: 5px; font-weight: 650; }
+.property-trigger { width: 100%; text-align: left; padding: 9px; background: white; border: 1px solid #d3d8ce; border-radius: 5px; }
+.property-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.property-chips button { font-size: 11px; background: #e1eadf; border: 0; border-radius: 9px; padding: 3px 7px; max-width: 100%; overflow-wrap: anywhere; }
+.property-popover { position: absolute; z-index: 20; background: white; padding: 10px; border: 1px solid #c5cdbd; border-radius: 5px; box-shadow: 0 6px 18px #0002; min-width: 260px; max-width: min(420px,90vw); }
+.property-popover input { width: 100%; padding: 8px; }
+.property-popover [role=listbox] { max-height: 240px; overflow-y: auto; }
+.property-popover [role=option] { display: flex; justify-content: space-between; gap: 12px; width: 100%; border: 0; background: white; padding: 8px; text-align: left; }
+.property-popover [role=option].active { background: #eef2e8; }
+.property-popover [aria-selected=true] { font-weight: bold; }

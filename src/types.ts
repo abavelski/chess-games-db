@@ -1,5 +1,3 @@
-export type Tab = 'all' | 'game' | 'position' | 'line' | 'text' | 'training' | 'records';
-
 export interface Source {
   id: number;
   source_key: string;
@@ -7,29 +5,13 @@ export interface Source {
   author: string | null;
   original_file: string | null;
   game_count: number;
-  training_count: number;
-  record_count: number;
+  kind: string;
 }
 export interface Catalog {
   capabilities?: { openings: boolean; criticalPositions?: boolean; studyMarkers?: boolean };
   path: string;
   sources: Source[];
-  books: Array<{
-    id: string;
-    title: string;
-    author: string | null;
-    source_ids: number[];
-    sections: Array<{ id: number; label: string; source_key: string }>;
-    game_count: number;
-  }>;
-  totals: {
-    books: number;
-    entries: number;
-    games: number;
-    positions: number;
-    training: number;
-    texts: number;
-  };
+  totals: { games: number };
 }
 export interface OpeningInfo {
   status: 'matched' | 'unmatched' | 'invalid' | 'unenriched';
@@ -56,8 +38,8 @@ export interface GameRow {
   has_critical_positions?: number | null;
   opening?: OpeningInfo;
   id: number;
-  source_id: number;
-  source_game_key: string;
+  source_id: number | null;
+  source_game_key: string | null;
   source_title: string;
   source_author: string | null;
   white: string | null;
@@ -69,10 +51,6 @@ export interface GameRow {
   result: string | null;
   eco: string | null;
   game_type: string | null;
-  record_kind: 'game' | 'position' | 'line' | 'text';
-  is_training: number;
-  training_magnitude: number;
-  is_deleted: number;
   start_fen: string | null;
   annotator: string | null;
 }
@@ -85,24 +63,6 @@ export interface GameDetail extends GameRow {
   created_at: string;
   updated_at: string;
 }
-export interface RecordRow {
-  id: number;
-  source_id: number;
-  source_title: string;
-  source_record_key: string;
-  record_type: 'game' | 'text';
-  status: 'extracted' | 'failed';
-  raw_moves_size: number | null;
-  raw_annotations_size: number | null;
-  created_at: string;
-  updated_at: string;
-}
-export interface RecordDetail extends RecordRow {
-  raw_moves_size: number;
-  raw_annotations_size: number;
-  raw_preview: string | null;
-  metadata_json: string;
-}
 export interface Page<T> {
   rows: T[];
   total: number;
@@ -111,32 +71,16 @@ export interface Page<T> {
 }
 export interface SearchFilters {
   properties?: Partial<Record<PropertyKey, string[]>>;
-  studyMarkers?: string;
-  criticalPositions?: string;
   openingNodeId?: string;
   search?: string;
-  sourceId?: number | null;
-  sourceIds?: number[];
-  kind?: string;
-  training?: string;
-  deleted?: string;
   yearFrom?: string;
   yearTo?: string;
-  white?: string;
-  black?: string;
-  eco?: string;
-  event?: string;
-  annotator?: string;
-  result?: string;
   sort?: string;
   page?: number;
   pageSize?: number;
-  recordType?: string;
-  status?: string;
 }
 export interface ChessArchiveAPI {
   openDatabase(): Promise<{ canceled: boolean; catalog?: Catalog }>;
-  bookContents(bookId: string): Promise<BookContents>;
   propertyOptions(request: {property: PropertyKey; query?: string; filters?: SearchFilters; cursor?: string | number; limit?: number}): Promise<{options: PropertyOption[]; cursor: string | null}>;
   getCatalog(): Promise<Catalog | null>;
   searchGames(f: SearchFilters): Promise<Page<GameRow>>;
@@ -149,22 +93,6 @@ declare global {
     chessArchive: ChessArchiveAPI;
   }
 }
-
-export type Book = Catalog['books'][number];
-export interface BookEntry {
-  record_id: number | null;
-  source_id: number;
-  record_key: string;
-  status: 'extracted' | 'failed';
-  game_id: number | null;
-  record_kind: string;
-  is_training: number;
-  is_deleted: number;
-  title: string;
-  error: string | null;
-  sequence: number;
-}
-export interface BookContents extends Book { entries: BookEntry[] }
 
 export type PropertyKey = 'source' | 'sourceType' | 'players' | 'white' | 'black' | 'annotators' | 'event' | 'site' | 'year' | 'result' | 'completeness' | 'annotations' | 'medals' | 'criticalPositions' | 'studyMarkers' | 'eco';
 export interface PropertyOption {id: string; label: string; count: number}
