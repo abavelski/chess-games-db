@@ -180,7 +180,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .review-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; padding: 0 4px; flex-shrink: 0; }
 .review-header>div { min-width: 0; }
 .review-header .eyebrow { font-size: 9px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.review-header h1 { font: 500 clamp(20px, 2vw, 28px)/1.15 Georgia,serif; margin: 4px 0; color: #233631; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.review-header h1 { font: 500 clamp(18px, 1.7vw, 24px)/1.15 Georgia,serif; margin: 4px 0; color: #233631; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .review-header p { color: #7a867b; font-size: 11px; margin: 0; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .review-workspace { display: grid; grid-template-columns: var(--review-board-size) minmax(280px, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; flex: 1; min-height: 0; }
 .review-board { min-width: 0; width: 100%; }
