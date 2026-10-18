@@ -20,6 +20,8 @@ Run commands from the repository root. Install **Node.js 22+**, npm, **Git** (ne
 npm install
 ```
 
+On Windows, if PowerShell blocks `npm.ps1` because script execution is disabled, use `npm.cmd` in place of `npm` for all commands below. No execution-policy change is needed.
+
 Installation rebuilds SQLite bindings for Electron. Downloading engines, Python packages and weights needs internet access; normal analysis uses local files and forces Hugging Face offline mode. The SQLite game archive is also separate from Git and installers: select an existing schema-v7 archive with **Open database**.
 
 ## 2. Install Stockfish 19
@@ -52,6 +54,8 @@ Get-ChildItem .local-engines/stockfish -Filter *.exe -Recurse
 
 For Windows ARM64, download `stockfish-windows-arm64-universal.zip` from the same release instead. Use the extracted `.exe` matching your architecture when creating the profile below. Keep its extracted directory intact.
 
+Verified Windows x86-64 archive SHA-256: `3c8bf1f9ea66a09350a40df4f632288285ac206d99f33ab5842c408fc30b48a7`. Check with `Get-FileHash .local-engines/stockfish.zip -Algorithm SHA256`.
+
 Stockfish is GPL-3.0; retain the license and matching source if redistributing it. This project uses user-installed engines rather than bundling third-party binaries.
 
 ## 3. Install Maia 3 (79M)
@@ -76,6 +80,17 @@ py -3.12 -m venv .local-engines/maia-venv
 & ./.local-engines/maia-venv/Scripts/maia3-cache.exe --model maia3-79m --revision a107d6ceb7b298cb04ae1da4edffe2939858b894 --cache-dir .local-engines/models
 ```
 
+If Python 3.12 is unavailable and you prefer a checkout-local runtime, an existing Python installation can bootstrap [uv](https://docs.astral.sh/uv/). Instead of `py -3.12 -m venv ...`, run:
+
+```powershell
+py -m pip install --target .local-engines/tooling uv
+& ./.local-engines/tooling/bin/uv.exe python install 3.12 --install-dir .local-engines/python --no-bin
+$localPython = (Get-ChildItem .local-engines/python -Filter python.exe -Recurse | Select-Object -First 1).FullName
+& $localPython -m venv .local-engines/maia-venv
+```
+
+Then continue with the Windows pip and model-cache commands above. Keep `.local-engines/python` in place: the virtual environment depends on it.
+
 The cache command prints the checkpoint path. With this cache directory and revision it is:
 
 ```text
@@ -86,7 +101,14 @@ Always select the **79M** checkpoint; other architectures are not interchangeabl
 
 Start with `device: "auto"`: the bridge chooses CUDA, then Apple MPS, then CPU according to availability. For NVIDIA acceleration, install a compatible PyTorch build in this same environment using the [official PyTorch installation selector](https://pytorch.org/get-started/locally/) before verification. Set `device` explicitly to `cpu`, `mps`, or `cuda` if desired. If acceleration fails, select `cpu` and retry. The app never substitutes a smaller model.
 
-Allow several hundred MB for weights plus the Python/PyTorch environment and working memory. CPU latency depends on your hardware. Virtual environments are machine-specific: recreate them on a new machine or after moving the checkout rather than copying them between operating systems.
+For Windows x64 with an RTX 3090 and a compatible NVIDIA driver, this CUDA 12.8 build was used for the local setup:
+
+```powershell
+& ./.local-engines/maia-venv/Scripts/python.exe -m pip install 'torch==2.11.0+cu128' --index-url https://download.pytorch.org/whl/cu128
+& ./.local-engines/maia-venv/Scripts/python.exe -c "import torch; print(torch.__version__); print('CUDA available:', torch.cuda.is_available())"
+```
+
+Allow several hundred MB for weights plus the Python/PyTorch environment and working memory. CUDA PyTorch downloads and installation require several GB of additional disk space. CPU latency depends on your hardware. Virtual environments are machine-specific: recreate them on a new machine or after moving the checkout rather than copying them between operating systems.
 
 The pinned [Maia code](https://github.com/CSSLab/maia3/tree/1e13597c42d4858b7cfd7cfdae01e297263364b2) is AGPL-3.0. The [weights repository](https://huggingface.co/UofTCSSLab/Maia3-79M/tree/a107d6ceb7b298cb04ae1da4edffe2939858b894) does not declare a separate license in its model-card metadata; verify redistribution terms with upstream before bundling.
 
@@ -181,7 +203,7 @@ Remove-Item Env:CHESS_ENGINE_CONFIG
 
 This builds the renderer and checks analysis, arrows, evaluation bar, Piece mode pause/resume, legal exploration, and archive integrity with HTTP blocked. It uses isolated temporary archives and preferences. `CHESS_ENGINE_CONFIG` is an input to this test only; it does **not** configure the normal app. The test runs unpackaged Electron; separately launch the packaged app to verify its user-data profile.
 
-The existing real-engine verification was performed on macOS. These Windows setup commands use native Windows paths and executables; Windows packaging and runtime still need a Windows validation pass. Standard desktop tests use fixture engines whose shebang launch is verified on macOS/Linux.
+Real-engine CLI and unpackaged Electron verification have passed on macOS and Windows x64 (Ryzen 5 5600X, 32 GiB RAM). Windows installer/packaged-app validation remains separate. Standard desktop tests use fixture engines whose shebang launch is verified on macOS/Linux.
 
 ## Resources and recovery
 

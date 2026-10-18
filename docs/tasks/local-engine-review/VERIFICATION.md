@@ -30,7 +30,32 @@ Timings are observations on this machine, not performance guarantees. Numerical 
 
 ## Practical limits
 
-Engine/model installation is guided, not bundled into installers. Stockfish and Maia assets are configured locally. Runtime never downloads models. Windows/Linux native distributions and GPU combinations have not been tested on this macOS host. Maia currently shows next-move probabilities; multi-move human continuations and piece-add/remove tools remain optional future extensions, as planned. Existing upstream Sass import deprecation warnings remain; builds and checks pass.
+Engine/model installation is guided, not bundled into installers. Stockfish and Maia assets are configured locally. Runtime never downloads models. Windows x64 runtime verification is recorded below; Windows packaging and Linux remain unverified. Maia currently shows next-move probabilities; multi-move human continuations and piece-add/remove tools remain optional future extensions, as planned. Existing upstream Sass import deprecation warnings remain; builds and checks pass.
+
+## Windows local setup (2026-10-18)
+
+Validated on Windows x64, AMD Ryzen 5 5600X, 32 GiB RAM, NVIDIA RTX 3090.
+Installed official Stockfish 19 and the same pinned Maia source/model revisions
+documented above. Python 3.12.15 is installed inside `.local-engines/python`
+using uv; Maia uses a dedicated environment with PyTorch 2.11.0+cu128.
+Both the checkout and `%APPDATA%/chess-books-explorer/engines.json` profiles
+point to these local assets, with device `auto`, 4 Stockfish threads, 256 MB
+hash, and a 3-second analysis budget.
+
+- `npm.cmd run build` passes, with existing Sass deprecation warnings.
+- Real offline CLI verification passes on CPU and CUDA, including legal policy
+  probabilities, the pinned checkpoint SHA-256, and engine-process cleanup.
+- CUDA CLI measurements: Stockfish completes in 3,566 ms at depth 24; Maia's
+  first prediction completes in 3,973 ms, with a subsequent prediction in 27 ms.
+- Real Electron review passes on CPU and CUDA with HTTP blocked, including
+  engine output, both arrow layers, evaluation bar, Piece mode pause/resume,
+  legal mouse exploration, both castling wings/colors, and archive integrity.
+  Initial CUDA review analysis completes in 4,042 ms.
+- Python dependency checks pass. The final CLI report and dependency snapshot
+  remain in the ignored `.local-engines` directory.
+
+These measurements describe this machine; installer/packaged-app validation
+was not part of this setup.
 
 ## Simplified controls (2026-10-17)
 
