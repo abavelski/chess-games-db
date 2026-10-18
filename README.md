@@ -25,6 +25,8 @@ npm install
 npm run dev
 ```
 
+For Stockfish and Maia on a fresh checkout, follow the [macOS and Windows engine setup guide](docs/tasks/local-engine-review/SETUP.md). Engine binaries, Python environments, weights, and `.local-engines/engines.json` are local assets and are not committed. The guide covers development, `npm start`, and packaged production configuration.
+
 For a production build or local installer:
 
 ```sh
