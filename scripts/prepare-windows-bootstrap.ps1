@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$Database,
+    [string]$Database,
     [string]$EngineConfig,
     [string]$UvPath,
     [switch]$SkipBuild,
@@ -26,13 +26,13 @@ if ($env:OS -ne 'Windows_NT' -or -not [Environment]::Is64BitProcess -or $env:PRO
 if (-not $EngineConfig) { $EngineConfig = Join-Path $repo '.local-engines/engines.json' }
 if (-not $UvPath) { $UvPath = Join-Path $repo '.local-engines/tooling/bin/uv.exe' }
 $uv = Require-File $UvPath
-$databasePath = Require-File $Database
+$databasePath = if ($Database) { Require-File $Database } else { '' }
 $config = Get-Content -LiteralPath (Require-File $EngineConfig) -Raw | ConvertFrom-Json
 $stockfish = Require-File $config.stockfishPath
 $python = Require-File $config.pythonPath
 # Check Python/database with a script file: PowerShell 5.1 mangles quotes in -c.
 $snapshotTool = Join-Path $PSScriptRoot 'windows-database-snapshot.py'
-Invoke-Checked $python @('-I', $snapshotTool, $databasePath)
+if ($databasePath) { Invoke-Checked $python @('-I', $snapshotTool, $databasePath) }
 if ($CheckOnly) { Write-Host 'Bootstrap inputs ready; no output created.'; exit 0 }
 
 Push-Location $repo
@@ -41,6 +41,9 @@ try {
     $app = Join-Path $repo 'release/win-unpacked'
     $null = Require-File (Join-Path $app 'Annotated Games Explorer.exe')
     $null = Require-File (Join-Path $app 'resources/app.asar.unpacked/electron/maia_bridge.py')
+    $smokeArguments = @('scripts/start-electron.mjs', 'tests/packaged-desktop-smoke.mjs')
+    if ($databasePath) { $smokeArguments += $databasePath }
+    Invoke-Checked 'node' $smokeArguments
     $version = (Get-Content (Join-Path $repo 'package.json') -Raw | ConvertFrom-Json).version
     $name = "ChessExplorer-$version-bootstrap-$(Get-Date -Format 'yyyyMMdd-HHmmss')-$([guid]::NewGuid().ToString('N').Substring(0,6))"
     $bundle = Join-Path $repo "release/$name"
@@ -48,7 +51,6 @@ try {
     $null = New-Item -ItemType Directory -Path $setup
     Copy-Tree $app (Join-Path $bundle 'app')
     Copy-Tree (Split-Path $stockfish -Parent) (Join-Path $bundle 'stockfish')
-    Invoke-Checked $python @('-I', $snapshotTool, $databasePath, (Join-Path $bundle 'games.sqlite3'))
     Copy-Item -LiteralPath $uv -Destination (Join-Path $setup 'uv.exe')
     # App-local C++ runtime: PyTorch also needs these on a clean Windows PC.
     # Copy only Microsoft runtime DLLs, not development tools or system Python.
@@ -91,7 +93,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $bundle 'READ-ME.txt'), @'
 1. Extract the ENTIRE ZIP into a permanent, writable folder on Windows 10/11 x64.
 2. Double-click Setup.bat. Internet is required for this first setup.
-3. Double-click Start.bat. Open database -> choose games.sqlite3 in this folder.
+3. Copy your database separately. Double-click Start.bat, then Open database.
 
 Setup reads CPU, RAM and NVIDIA GPU/driver information locally. It selects a
 compatible PyTorch build and tests real Maia predictions. GTX 1070 with driver
@@ -111,7 +113,7 @@ an existing profile is backed up once as engines.json.before-bundle.
 Future launches work offline. After moving the folder, rerun Setup.bat.
 If downloads fail, rerun Setup.bat; browsing and Stockfish remain available
 by opening app/Annotated Games Explorer.exe directly.
-Close other copies of the app before setup. This ZIP contains your game archive.
+Close other copies of the app before setup. This ZIP contains no game databases.
 '@, $utf8)
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = "$bundle.zip"

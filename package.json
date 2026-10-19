@@ -52,6 +52,8 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "lib/**/*.mjs",
+      "src/*.mjs",
       "package.json"
     ],
     "asar": true,

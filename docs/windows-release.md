@@ -7,16 +7,16 @@ Use this checklist for an Intel/AMD 64-bit Windows machine. The installer includ
 With dependencies and the [local engines](tasks/local-engine-review/SETUP.md) already installed on your Windows development machine, run from the repository root:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-windows-bootstrap.ps1 -Database data/annotated-games-v7-final.sqlite3
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-windows-bootstrap.ps1
 ```
 
-Choose your actual schema-v7 archive for `-Database`. The script builds the app, snapshots the database, and creates a folder and ZIP under `release/`. It includes the app, archive, Stockfish, the small uv bootstrap tool, and Maia/chess wheels. It excludes Python, PyTorch, CUDA libraries, and Maia's model. Close database maintenance tools first. On a fresh checkout, run `npm.cmd ci` and install the local engines first. Building the tiny Maia wheel needs Git and internet on the development machine.
+The script builds and tests the packaged app, then creates a folder and ZIP under `release/`. It includes the app, Stockfish, the small uv bootstrap tool, and Maia/chess wheels. Databases are never included; copy your schema-v7 archive separately. It excludes Python, PyTorch, CUDA libraries, and Maia's model. Optionally pass `-Database <path>` to validate an archive and use a temporary copy for the packaged startup test. On a fresh checkout, run `npm.cmd ci` and install the local engines first. Building the tiny Maia wheel needs Git and internet on the development machine.
 
 On the destination (Windows 10/11 x64):
 
 1. Extract the entire ZIP to a permanent writable folder.
 2. Double-click **Setup.bat** with internet connected. It downloads Python, PyTorch, dependencies and the pinned Maia 79M model into `.runtime` inside that folder, then tests Stockfish and actual Maia inference.
-3. Double-click **Start.bat**. Click **Open database** and select the included `games.sqlite3`. Later launches work offline.
+3. Copy your database separately. Double-click **Start.bat**, click **Open database**, and select your archive. Later launches work offline.
 
 Setup reads CPU cores, RAM, NVIDIA GPU compute capability and driver version locally. A GTX 1070 with driver 560.76 or newer selects PyTorch 2.11/CUDA 12.6. Unknown GPUs, older drivers, and unsupported architectures select CPU; GPU inference failure also falls back to CPU. Threads use at most half the physical CPU cores, capped at four; Stockfish's cache is reduced on low-RAM machines. Maia uses the same thread setting. The report is saved as `.runtime/hardware.json`.
 
