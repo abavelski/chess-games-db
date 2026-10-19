@@ -6,7 +6,7 @@ import { GameReview } from './GameReview';
 import { OpeningFilter, type OpeningSelection } from './OpeningFilter';
 import type { Catalog, GameDetail, GameRow, Page, PropertyKey, SearchFilters } from './types';
 
-const defaultFilters = { yearFrom: '', yearTo: '', sort: 'book', favouritesOnly: false };
+const defaultFilters = { yearFrom: '', yearTo: '', sort: 'book', favouritesOnly: false, personalOnly: false };
 const propertyLabels: Array<[PropertyKey,string]> = [['source','Source'],['sourceType','Source type'],['event','Event'],['year','Year'],['result','Result'],['studyMarkers','Study markers']];
 type Filters = typeof defaultFilters;
 const num = (value: number) => new Intl.NumberFormat().format(value);
@@ -174,6 +174,7 @@ export default function App() {
             </div>
             <div className="extra-game-filters">
               <label className="favourites-filter"><input type="checkbox" checked={filters.favouritesOnly} onChange={event => patchFilter('favouritesOnly', event.target.checked)} />Favourites only</label>
+              <label className="personal-filter favourites-filter"><input type="checkbox" checked={filters.personalOnly} onChange={event => patchFilter('personalOnly', event.target.checked)} />My lines or comments</label>
               {hasFilters && <button className="subtle-button" onClick={resetFilters}><X size={14} />Clear filters</button>}
 
             </div>
@@ -211,7 +212,7 @@ export default function App() {
         </>}
       </main>
     </div>
-    {review && <GameReview game={review} initialPath="" onClose={closeReview} onToggleFavourite={() => void toggleFavourite(review)} savingFavourite={savingFavourites.has(review.id)} favouriteError={favouriteError} />}
+    {review && <GameReview game={review} onPersonalSaved={() => setFavouriteRevision(value => value + 1)} initialPath="" onClose={closeReview} onToggleFavourite={() => void toggleFavourite(review)} savingFavourite={savingFavourites.has(review.id)} favouriteError={favouriteError} />}
 
   </>;
 }

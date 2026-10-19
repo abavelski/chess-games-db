@@ -83,6 +83,7 @@ app.whenReady().then(() => {
   ipcMain.handle('archive:opening-facets', (_event, filters) => currentArchive().openingFacets(filters));
   ipcMain.handle('archive:property-options', (_event, request) => currentArchive().propertyOptions(request));
   ipcMain.handle('archive:favourite', (_event, id, favourite) => currentArchive().setFavourite(id, favourite));
+  ipcMain.handle('archive:personal', (_event, id, personal) => currentArchive().savePersonal(id, personal));
   ipcMain.handle('archive:game', (_event, id) => currentArchive().getGame(id));
 
   const candidates = [];

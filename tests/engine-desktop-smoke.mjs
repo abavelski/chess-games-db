@@ -66,7 +66,7 @@ async function smoke() {
       if (document.querySelector('.review-move[aria-current="step"]').dataset.reviewPath !== criticalPath) throw new Error('Piece mode lost critical position');
       button('First position').click(); await wait(() => !document.querySelector('.review-move[aria-current="step"]'));
       if (button('Stockfish').getAttribute('aria-pressed') !== 'false' || button('Maia').getAttribute('aria-pressed') !== 'false') throw new Error('Engines must default off');
-      if (document.querySelectorAll('.review-analysis > .analysis-toggles button').length !== 3) throw new Error('Only settings and two engine toggles should appear');
+      if (document.querySelectorAll('.review-analysis > .analysis-toggles button').length !== 6) throw new Error('Settings, engine toggles and personal comment controls should appear');
       button('Stockfish').click(); await wait(() => document.querySelectorAll('.engine-line').length === 3);
       await wait(() => document.querySelector('svg.cg-shapes line[stroke="#27854c"]'));
       await window.smokeSetting('Evaluation bar', true); await wait(() => document.querySelector('.evaluation-bar'));
@@ -97,9 +97,9 @@ async function smoke() {
       await window.smokeSetting('Stockfish line count', 3);
       await window.smokeSetting('Maia line count', 3);
       await wait(() => document.querySelectorAll('.engine-line').length === 3 && document.querySelectorAll('.maia-candidates button').length === 3);
-      document.querySelector('.engine-line button').click(); await wait(() => document.querySelector('.analysis-branch'));
-      if (!document.querySelector('.analysis-branch').textContent.includes('e4')) throw new Error('Line preview missing');
-      button('Return to game position').click(); await wait(() => !document.querySelector('.analysis-branch'));
+      document.querySelector('.engine-line button').click(); await wait(() => document.querySelector('.review-move[aria-current="step"]')?.textContent.includes('e4'));
+      if (document.querySelector('.personal-move')) throw new Error('Existing book move created a personal branch');
+      button('First position').click(); await wait(() => !document.querySelector('.review-move[aria-current="step"]'));
       button('Stockfish').click(); button('Maia').click();
       document.querySelector('[aria-label="Next move"]').click(); await wait(() => document.querySelector('svg.cg-shapes circle'));
       await window.smokeSetting('Game annotations', false); await wait(() => !document.querySelector('svg.cg-shapes circle'));
@@ -116,12 +116,12 @@ async function smoke() {
       document.querySelector('[aria-label="First position"]').click();
       button('Stockfish').click(); button('Maia').click();
       await wait(() => document.querySelector('.engine-line button'));
-      document.querySelector('.engine-line button').click(); await wait(() => document.querySelector('.analysis-branch'));
+      document.querySelector('.engine-line button').click(); await wait(() => document.querySelector('.review-move[aria-current="step"]')?.textContent.includes('e4'));
       button('Game review settings').click(); await wait(() => document.querySelector('dialog[open]'));
       document.querySelector('[aria-label="Flip board"]').click(); button('Done').click(); await wait(() => !document.querySelector('dialog'));
       document.querySelector('.review-original').open = true;
       document.querySelector('.review-transcript').scrollTop = 25;
-      window.beforePiece = { branch: document.querySelector('.analysis-branch').textContent, pgn: document.querySelector('.review-original pre').textContent, path: document.querySelector('[aria-current="step"]')?.dataset.reviewPath || '', scroll: document.querySelector('.review-transcript').scrollTop };
+      window.beforePiece = { pgn: document.querySelector('.review-original pre').textContent, path: document.querySelector('[aria-current="step"]')?.dataset.reviewPath || '', scroll: document.querySelector('.review-transcript').scrollTop };
       button('Piece mode').focus(); button('Piece mode').click(); await wait(() => document.querySelector('.piece-mode[open] cg-board'));
       if (document.querySelector('.piece-mode').querySelector('svg, .evaluation-bar, .review-comment, .review-move, square.last-move, square.check')) throw new Error('Piece mode leaked annotations');
       if (!document.querySelector('.piece-mode .orientation-black')) throw new Error('Piece mode lost orientation');
@@ -146,7 +146,7 @@ async function smoke() {
       await wait(() => document.querySelector('.piece-board').dataset.fen !== window.pieceStart);
       button('Reset position').click(); await wait(() => document.querySelector('.piece-board').dataset.fen === window.pieceStart);
       button('Return to review').click(); await wait(() => !document.querySelector('.piece-mode'));
-      if (document.querySelector('.analysis-branch').textContent !== window.beforePiece.branch || document.querySelector('.review-original pre').textContent !== window.beforePiece.pgn) throw new Error('Return lost review state');
+      if ((document.querySelector('[aria-current="step"]')?.dataset.reviewPath || '') !== window.beforePiece.path || document.querySelector('.review-original pre').textContent !== window.beforePiece.pgn) throw new Error('Return lost review state');
       if (!document.querySelector('.review-board .orientation-black')) throw new Error('Return lost orientation');
       if (button('Stockfish').getAttribute('aria-pressed') !== 'true' || button('Maia').getAttribute('aria-pressed') !== 'true') throw new Error('Return changed enable states');
       await wait(() => document.querySelector('.stockfish-analysis .engine-status').textContent.includes('complete'));
@@ -160,8 +160,8 @@ async function smoke() {
       await window.smokeWait(() => !document.querySelector('.piece-mode'));
       if (!document.querySelector('.review-shell')) throw new Error('Piece mode Escape closed review');
       await window.smokeWait(() => document.activeElement?.textContent === 'Piece mode');
-      window.smokeButton('Return to game position').click();
-      await window.smokeWait(() => !document.querySelector('.analysis-branch'));
+      window.smokeButton('First position').click();
+      await window.smokeWait(() => !document.querySelector('.review-move[aria-current="step"]'));
     })()`);
     await window.webContents.executeJavaScript(`(async () => {
       const wait = window.smokeWait, button = window.smokeButton;

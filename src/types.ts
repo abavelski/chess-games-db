@@ -55,7 +55,9 @@ export interface GameRow {
   start_fen: string | null;
   annotator: string | null;
 }
+export interface PersonalAnalysis { lines: string[][]; comments: Array<{ moves: string[]; text: string }> }
 export interface GameDetail extends GameRow {
+  personal: PersonalAnalysis;
   pgn: string;
   headers_json: string;
   extras_json: string | null;
@@ -72,6 +74,7 @@ export interface Page<T> {
 }
 export interface SearchFilters {
   favouritesOnly?: boolean;
+  personalOnly?: boolean;
   properties?: Partial<Record<PropertyKey, string[]>>;
   openingNodeId?: string;
   search?: string;
@@ -88,6 +91,7 @@ export interface ChessArchiveAPI {
   searchGames(f: SearchFilters): Promise<Page<GameRow>>;
   openingFacets(f: SearchFilters): Promise<OpeningFacets>;
   setFavourite(id: number, favourite: boolean): Promise<boolean>;
+  savePersonal(id: number, personal: PersonalAnalysis): Promise<PersonalAnalysis>;
   getGame(id: number): Promise<GameDetail | null>;
 
 }

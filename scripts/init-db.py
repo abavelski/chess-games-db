@@ -25,19 +25,20 @@ def initialize(path: Path) -> None:
             raise RuntimeError("Legacy database: use npm run migrate:games -- --input OLD --output NEW; initialization never converts existing archives")
         if version == 0 and connection.execute("SELECT 1 FROM sqlite_master WHERE type='table'").fetchone():
             raise RuntimeError("Refusing to initialize a nonempty unversioned database")
-        for target in ([7] if version == 0 else []):
+        if version == 0:
             # Execute complete statements individually: executescript() would
             # implicitly commit the transaction before running the migration.
-            statement = ""
-            migration = next(MIGRATIONS.glob(f"{target:03d}_*.sql"))
-            for line in migration.read_text(encoding="utf-8").splitlines(True):
-                statement += line
-                if sqlite3.complete_statement(statement):
-                    connection.execute(statement)
-                    statement = ""
-            if statement.strip():
-                raise RuntimeError("Incomplete SQL migration")
-            connection.execute(f"PRAGMA user_version = {target}")
+            # 008 is an optional extension; the base schema stays at version 7.
+            for name in ("007_games.sql", "008_personal_analysis.sql"):
+                statement = ""
+                for line in (MIGRATIONS / name).read_text(encoding="utf-8").splitlines(True):
+                    statement += line
+                    if sqlite3.complete_statement(statement):
+                        connection.execute(statement)
+                        statement = ""
+                if statement.strip():
+                    raise RuntimeError("Incomplete SQL migration")
+            connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         connection.execute("COMMIT")
     except BaseException:
         if connection.in_transaction:

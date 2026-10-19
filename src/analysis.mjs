@@ -1,4 +1,4 @@
-import { Chess } from 'chessops/chess';
+import { Chess, normalizeMove } from 'chessops/chess';
 import { parseFen, makeFen } from 'chessops/fen';
 import { parseUci, makeUci } from 'chessops/util';
 import { makeSanAndPlay } from 'chessops/san';
@@ -30,7 +30,7 @@ export function appendMove(current, from, to, promotion = 'queen') {
   const piece = position.board.get(move.from);
   if (piece?.role === 'pawn' && (to[1] === '1' || to[1] === '8')) move.promotion = promotion;
   if (!position.isLegal(move)) throw new Error('Illegal move');
-  return replayPosition(current.initialFen, [...current.moves, makeUci(move)]);
+  return replayPosition(current.initialFen, [...current.moves, makeUci(normalizeMove(position, move))]);
 }
 export function linePreview(current, moves) {
   const valid = [];

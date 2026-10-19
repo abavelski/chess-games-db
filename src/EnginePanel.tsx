@@ -27,7 +27,8 @@ export function EvaluationBar({ state, enabled, flipped }: { state: EngineState;
 function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: () => void }) {
   return <button type="button" aria-pressed={value} onClick={onChange}>{label}</button>;
 }
-export function EnginePanel({ options, setOptions, display, setDisplay, states, position, onPreview, onFlip, canFlip }: {
+export function EnginePanel({ options, setOptions, display, setDisplay, states, position, onPreview, onFlip, canFlip, toolbarActions }: {
+  toolbarActions?: React.ReactNode;
   options: AnalysisOptions; setOptions: React.Dispatch<React.SetStateAction<AnalysisOptions>>;
   display: ReviewDisplay; setDisplay: React.Dispatch<React.SetStateAction<ReviewDisplay>>;
   states: { stockfish: EngineState; maia: EngineState }; position: AnalysisPosition | null;
@@ -42,6 +43,7 @@ export function EnginePanel({ options, setOptions, display, setDisplay, states, 
       <button className="review-settings-button" onClick={() => setSetup(true)} aria-label="Game review settings" title="Game review settings" aria-haspopup="dialog"><Settings size={17} aria-hidden="true" /></button>
       <Toggle label="Stockfish" value={options.stockfish} onChange={() => setOptions(current => ({ ...current, stockfish: !current.stockfish }))} />
       <Toggle label="Maia" value={options.maia} onChange={() => setOptions(current => ({ ...current, maia: !current.maia }))} />
+      {toolbarActions}
     </div>
     {options.stockfish && <section className="stockfish-analysis" aria-label="Stockfish analysis">
       <p className="engine-status" role="status">Stockfish · {states.stockfish.status}{states.stockfish.lines[0] ? ` · depth ${states.stockfish.lines[0].depth}` : ''}</p>

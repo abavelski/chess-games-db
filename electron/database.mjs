@@ -1,4 +1,6 @@
+import { emptyPersonal, validatePersonal } from '../src/personal.mjs';
 import Database from 'better-sqlite3';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { decodePgn, searchKey } from '../lib/game-policy.mjs';
 import { gameQuery, GAME_FROM, PROPERTIES, propertyClause, validateSelections } from './queries.mjs';
@@ -42,6 +44,25 @@ export class ChessArchive {
    return favourite;
   } finally {writer.close();}
  }
+ hasPersonalTable(){return !!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='game_personal_analysis'").get();}
+ getPersonal(id){return this.hasPersonalTable()?JSON.parse(this.db.prepare('SELECT data_json FROM game_personal_analysis WHERE game_id=?').get(id)?.data_json || JSON.stringify(emptyPersonal())):emptyPersonal();}
+ savePersonal(value,input){
+  const id=requiredId(value),game=this.getGame(id);
+  if(!game)throw new Error('Game is no longer available.');
+  const personal=validatePersonal(input,game.pgn);
+  const writer=new Database(this.path,{fileMustExist:true});
+  try {
+   writer.pragma('foreign_keys=ON');
+   writer.transaction(()=>{
+    if(!writer.prepare('SELECT 1 FROM games WHERE id=? AND hidden=0').get(id))throw new Error('Game is no longer available.');
+    writer.exec(readFileSync(new URL('../db/migrations/008_personal_analysis.sql', import.meta.url), 'utf8'));
+    if(!personal.lines.length&&!personal.comments.length)writer.prepare('DELETE FROM game_personal_analysis WHERE game_id=?').run(id);
+    else writer.prepare('INSERT INTO game_personal_analysis(game_id,data_json) VALUES(?,?) ON CONFLICT(game_id) DO UPDATE SET data_json=excluded.data_json,updated_at=CURRENT_TIMESTAMP').run(id,JSON.stringify(personal));
+   })();
+   this.optionCache.clear();
+   return personal;
+  } finally {writer.close();}
+ }
  close(){this.db.close();}
  catalog(){
   const sources=this.db.prepare('SELECT s.*,count(DISTINCT l.game_id) game_count FROM sources s LEFT JOIN game_sources l ON l.source_id=s.id GROUP BY s.id ORDER BY title,s.id').all();
@@ -50,7 +71,7 @@ export class ChessArchive {
  }
  predicate(filters={}) {
   validateSelections(this.db,filters.properties);
-  const q=gameQuery(filters,{favouriteColumn:this.hasFavouriteColumn()}),revision=activeOpeningRevision(this.db,true);
+  const q=gameQuery(filters,{favouriteColumn:this.hasFavouriteColumn(),personalTable:this.hasPersonalTable()}),revision=activeOpeningRevision(this.db,true);
   const selection=openingSelection(this.db,revision,filters.openingNodeId);
   if(selection.clause){q.where+=' AND '+selection.clause;Object.assign(q.params,selection.params);}
   return q;
@@ -61,12 +82,12 @@ export class ChessArchive {
   const rows=this.db.prepare(`SELECT ${this.gameColumns()}${GAME_FROM}${q.where} ORDER BY ${q.orderBy} LIMIT @limit OFFSET @offset`).all({...q.params,limit:q.pageSize,offset:q.offset});
   return {rows:openingLabels(this.db,activeOpeningRevision(this.db,true),rows),total,page:q.page,pageSize:q.pageSize};
  }
- openingFacets(filters){validateSelections(this.db,filters?.properties);return openingFacets(this.db,true,filters,{favouriteColumn:this.hasFavouriteColumn()});}
+ openingFacets(filters){validateSelections(this.db,filters?.properties);return openingFacets(this.db,true,filters,{favouriteColumn:this.hasFavouriteColumn(),personalTable:this.hasPersonalTable()});}
  getGame(id){
   const row=this.db.prepare(`SELECT ${this.gameColumns()},g.headers_json,g.extras_json,g.pgn_sha256,g.pgn_zstd,g.created_at,g.updated_at,s.source_key${GAME_FROM} WHERE g.id=?`).get(requiredId(id));
   if(!row)return null;
   const {pgn_zstd,...metadata}=row;
-  return openingLabels(this.db,activeOpeningRevision(this.db,true),[{...metadata,pgn:decodePgn(row)}])[0];
+  return openingLabels(this.db,activeOpeningRevision(this.db,true),[{...metadata,personal:this.getPersonal(row.id),pgn:decodePgn(row)}])[0];
  }
  propertyOptions({property,query='',filters={},cursor=0,limit=30}={}) {
   if(!PROPERTIES.includes(property))throw new Error('Invalid property');

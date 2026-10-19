@@ -1,23 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import LichessPgnViewer from '@lichess-org/pgn-viewer';
+import { makeGame } from '@lichess-org/pgn-viewer/pgn';
 import { Path } from '@lichess-org/pgn-viewer/path';
 import { prepareDisplayPgn } from './pgn.mjs';
 
 export type Viewer = ReturnType<typeof LichessPgnViewer>;
 
-export function PgnBoard({ pgn, review = false, initialPath = '', onReady, onPathChange, configureBoard, canSelectPath }: {
-  pgn: string; review?: boolean; initialPath?: string;
+export function PgnBoard({ pgn, review = false, initialPath = '', reviewPath, onReady, onPathChange, configureBoard, canSelectPath }: {
+  pgn: string; review?: boolean; initialPath?: string; reviewPath?: string;
   onReady?: (viewer: Viewer | null) => void;
   onPathChange?: (path: string) => void;
   canSelectPath?: (path: string) => boolean;
   configureBoard?: (viewer: Viewer) => void;
 }) {
+  const latestPgn = useRef(pgn);
+  latestPgn.current = pgn;
   const activeViewer = useRef<Viewer | null>(null);
   const allowed = useRef(canSelectPath);
   allowed.current = canSelectPath;
   const configure = useRef(configureBoard);
   configure.current = configureBoard;
-  useEffect(() => { if (activeViewer.current) configure.current?.(activeViewer.current); }, [configureBoard]);
   const container = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +33,7 @@ export function PgnBoard({ pgn, review = false, initialPath = '', onReady, onPat
       const mount = document.createElement('div');
       host.appendChild(mount);
       viewer = LichessPgnViewer(mount, {
-        pgn: prepareDisplayPgn(pgn),
+        pgn: prepareDisplayPgn(latestPgn.current),
         showMoves: review ? false : 'bottom',
         showPlayers: false,
         showControls: !review,
@@ -44,7 +46,7 @@ export function PgnBoard({ pgn, review = false, initialPath = '', onReady, onPat
           analysisBoard: { enabled: false },
         },
       });
-      viewer.opts.pgn = pgn; // Keep the viewer's PGN export authoritative too.
+      viewer.opts.pgn = latestPgn.current; // Keep the viewer's PGN export authoritative too.
       const go = viewer.toPath;
       viewer.toPath = (path, focus) => {
         if (allowed.current && !allowed.current(path.path)) return;
@@ -67,7 +69,26 @@ export function PgnBoard({ pgn, review = false, initialPath = '', onReady, onPat
       viewer?.ground?.destroy();
       host.replaceChildren();
     };
-  }, [pgn, review, initialPath, onReady, onPathChange]);
+  }, [review, initialPath, onReady, onPathChange]);
+
+  useEffect(() => {
+    const viewer = activeViewer.current;
+    if (!viewer || viewer.opts.pgn === pgn) return;
+    try {
+      // Update the score without replacing Chessground or resetting its pieces.
+      const game = makeGame(prepareDisplayPgn(pgn), viewer.opts.lichess);
+      let target = new Path(reviewPath ?? viewer.path.path);
+      while (!game.nodeAt(target) && !target.empty()) target = target.init();
+      viewer.game = game;
+      viewer.opts.pgn = pgn;
+      viewer.toPath(target, false);
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }, [pgn, reviewPath]);
+
+  useEffect(() => { if (activeViewer.current) configure.current?.(activeViewer.current); }, [configureBoard]);
 
   return (
     <div className="pgn-area">
