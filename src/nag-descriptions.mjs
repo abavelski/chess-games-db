@@ -57,4 +57,40 @@ pair(136, 'is under moderate time pressure');
 pair(138, 'is under severe time pressure');
 
 export const nagDescriptions = Object.freeze(descriptions);
-export function nagDescription(nag) { return nagDescriptions[nag]; }
+
+// Non-standard conventions listed at:
+// https://en.wikipedia.org/wiki/Portable_Game_Notation#Non-standard_NAGs
+// An empty symbol preserves the numeric code when a custom chess font is needed.
+export const nonStandardNagGlyphs = Object.freeze(Object.fromEntries([
+  [140, '∆', 'With the idea…'],
+  [141, '∇', 'Aimed against…'],
+  [142, '⌓', 'Better is…'],
+  [143, '<=', 'Worse is…'],
+  [144, '==', 'Equivalent is…'],
+  [145, 'RR', 'Editorial comment'],
+  [146, 'N', 'Novelty'],
+  [147, '!!!', 'Rare brilliant move; hard to find'],
+  [148, '!??', 'Dubious but dangerous in practice; difficult to refute'],
+  [220, '⬒', 'Diagram'],
+  [221, '⬓', 'Diagram from Black’s perspective'],
+  [238, '○', 'Space advantage'],
+  [239, '⇔', 'File'],
+  [240, '⇗', 'Diagonal'],
+  [241, '⊞', 'Centre'],
+  [242, '⟫', 'Kingside'],
+  [243, '⟪', 'Queenside'],
+  [244, '✕', 'Weak point'],
+  [245, '⊥', 'Ending'],
+  [246, '', 'Bishop pair'],
+  [247, '', 'Opposite-coloured bishops'],
+  [248, '', 'Same-coloured bishops'],
+  [249, '⯺', 'Connected pawns'],
+  [250, '⯻', 'Isolated pawns'],
+  [251, '⯼', 'Doubled pawns'],
+  [252, '⯽', 'Passed pawn'],
+  [253, '', 'Pawn majority'],
+  [254, '∟', 'With'],
+  [255, '⯾', 'Without'],
+].map(([nag, symbol, name]) => [nag, Object.freeze({ symbol, name })])));
+
+export function nagDescription(nag) { return nagDescriptions[nag] ?? nonStandardNagGlyphs[nag]?.name; }

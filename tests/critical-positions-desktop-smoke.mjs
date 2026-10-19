@@ -10,7 +10,7 @@ import { backfillCriticalPositions } from '../scripts/critical-positions.mjs';
 const temporary = desktopTestDirectory();
 app.setPath('userData', temporary);
 const path = join(temporary, 'archive.sqlite3');
-const db = fixtureArchive(path, ['1.e4 $1 $14 $94 $139 $200 {[%crit opening] First solution} (1.d4 {[%medal tactics,attack,sacrifice] Branch solution} d5) e5 2.Nf3 {[%crit endgame] [%medal strategy] Last solution} Nc6 *', '1.d4 d5 *', '1.c4 {[%medal strategy]} e5 *']);
+const db = fixtureArchive(path, ['1.e4 $1 $14 $94 $139 $142 $221 $246 $255 $200 {[%crit opening] First solution} (1.d4 {[%medal tactics,attack,sacrifice] Branch solution} d5) e5 2.Nf3 {[%crit endgame] [%medal strategy] Last solution} Nc6 *', '1.d4 d5 *', '1.c4 {[%medal strategy]} e5 *']);
 db.close();
 backfillCriticalPositions(path);
 const original = hash(readFileSync(path));
@@ -48,6 +48,8 @@ async function smoke() {
       if (document.querySelector('.game-medal-badge')?.textContent.trim() !== '4 medals' || document.querySelectorAll('.game-medal-badge').length !== 2) throw new Error('Medal counts and medal-only games must be visible');
       document.querySelector('.result-item').click();
       await waitForCritical(() => document.querySelector('.review-shell cg-board'));
+      const tacticsMedal = [...document.querySelectorAll('.review-medal')].find(el => el.textContent.includes('Tactics'));
+      if (tacticsMedal?.textContent !== 'Tactics, With Attack, Sacrifice' || !tacticsMedal.title.includes('Tactics: Contains an instructive tactical combination or sequence.') || !tacticsMedal.getAttribute('aria-label').includes('With Attack: Demonstrates an important attacking plan.')) throw new Error('Medals must have readable names and explanatory tooltips and accessible labels');
       document.querySelector('[aria-label="Game review settings"]').click();
       await waitForCritical(() => document.querySelector('dialog[open]'));
       const descriptionToggle = [...document.querySelectorAll('dialog label')].find(el => el.textContent === 'Show glyph descriptions')?.querySelector('input');
@@ -56,9 +58,13 @@ async function smoke() {
       if (!document.querySelector('.review-evaluation [title="White has a slight advantage"]')) throw new Error('Missing evaluation glyph hover description');
       if (document.querySelector('.review-glyph[title="White has poor rook placement"]')?.textContent !== '$94') throw new Error('Missing less common glyph description');
       if (!document.querySelector('.review-glyph[title="Annotation $200 (not defined in the PGN specification)"]')) throw new Error('Unknown NAG should have an explicit fallback');
+      for (const [title, symbol] of [['Better is…', '⌓'], ['Diagram from Black’s perspective', '⬓'], ['Bishop pair', '$246'], ['Without', '⯾']]) {
+        if ([...document.querySelectorAll('.review-glyph')].find(el => el.title === title)?.textContent !== symbol) throw new Error('Missing non-standard glyph: ' + title);
+      }
       descriptionToggle.click();
       await waitForCritical(() => document.querySelector('.review-glyph-description'));
       const annotatedMove = document.querySelector('.review-move').textContent;
+      if (!annotatedMove.includes('⌓ (Better is…)') || !annotatedMove.includes('$246 (Bishop pair)')) throw new Error('Non-standard glyph descriptions must appear in parentheses');
       if (!annotatedMove.includes('! (Good move)') || !annotatedMove.includes('⩲ (White has a slight advantage)') || !annotatedMove.includes('$94 (White has poor rook placement)')) throw new Error('Enabled glyph descriptions must appear in parentheses');
       await waitForCritical(() => JSON.parse(localStorage.getItem('review-analysis-v1')).glyphDescriptions === true);
       if (document.querySelector('.review-move[aria-current="step"]')) throw new Error('Showing descriptions moved the board');

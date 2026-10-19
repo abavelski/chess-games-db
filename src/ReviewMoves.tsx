@@ -2,11 +2,13 @@ import { Fragment, memo, useMemo } from 'react';
 import { Compass, Eye, Medal } from 'lucide-react';
 import { glyphs } from '@lichess-org/pgn-viewer/view/glyph';
 import { reviewLayout, type ScoreToken, type ScoreVariation } from './review-layout.mjs';
-import { nagDescription } from './nag-descriptions.mjs';
+import { nagDescription, nonStandardNagGlyphs } from './nag-descriptions.mjs';
+import { medalName, medalDescription } from './medal-descriptions';
 import type { ReviewToken } from './pgn.mjs';
 
 const annotationGlyphs: Record<number, { symbol: string; name: string }> = {
   ...glyphs,
+  ...nonStandardNagGlyphs,
   11: { symbol: '=', name: 'Equal chances, quiet position' },
   12: { symbol: '=', name: 'Equal chances, active position' },
   20: { symbol: '+−', name: '' },
@@ -43,7 +45,7 @@ export const ReviewMoves = memo(function ReviewMoves({ tokens, path, ready, onSe
       {token.annotated && <Compass size={12} aria-label="Board annotation" />}
       {token.critical?.map(phase => <span key={phase} className={`review-critical review-critical-${phase}`}
         role="img" aria-label={`Critical ${phase} position`} title={`Critical ${phase} position`}>◆</span>)}
-      {!!token.medals?.length && <span className="review-medal" role="img" aria-label={`Medals: ${token.medals.join(', ')}`} title={`Medals: ${token.medals.join(', ')}`}><Medal size={13} aria-hidden="true" /><span>{token.medals.join(', ')}</span></span>}
+      {!!token.medals?.length && <span className="review-medal" role="img" aria-label={`Medals: ${token.medals.map(medalDescription).join('; ')}`} title={token.medals.map(medalDescription).join('\n')}><Medal size={13} aria-hidden="true" /><span>{token.medals.map(medalName).join(', ')}</span></span>}
     </button>;
     if (token.path !== revealPath || !onReveal) return moveButton;
     const explanation = `Reveal ${revealToEnd ? 'the rest of the game' : 'up to the next critical position or medal'} without moving the board. Use the arrows to navigate moves.`;
