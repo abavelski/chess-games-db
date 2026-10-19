@@ -8,6 +8,7 @@ from maia3.uci import Maia3UCIEngine, parse_args
 parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint-path', required=True)
 parser.add_argument('--device', choices=['auto', 'cpu', 'mps', 'cuda'], default='auto')
+parser.add_argument('--threads', type=int, default=4)
 args = parser.parse_args()
 device = args.device
 if device == 'auto':
@@ -16,7 +17,7 @@ if device == 'auto':
 # legal masking, history, Elo conditioning, and softmax policy probabilities.
 cfg = parse_args(['--model', 'maia3-79m', '--checkpoint-path', args.checkpoint_path,
                   '--device', device, '--local-files-only', '--use-uci-history', '--no-use-amp'])
-torch.set_num_threads(4)
+torch.set_num_threads(max(1, min(128, args.threads)))
 print(f'Maia 3 79M · device={device} · torch={torch.__version__}', file=sys.stderr, flush=True)
 
 class PolicyEngine(Maia3UCIEngine):

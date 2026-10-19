@@ -158,7 +158,9 @@ export class EngineManager {
     const s = this.settings;
     const paths = engine === 'stockfish' ? [s.stockfishPath] : [s.pythonPath, s.checkpointPath];
     if (paths.some(path => !path || !existsSync(path))) throw new Error(engine === 'stockfish' ? 'Stockfish is not configured. See the local engine installation instructions.' : 'Maia is not configured. See the local engine installation instructions.');
-    session = this.processFactory(engine === 'stockfish' ? s.stockfishPath : s.pythonPath, engine === 'stockfish' ? [] : [fileURLToPath(new URL('./maia_bridge.py', import.meta.url)), '--checkpoint-path', s.checkpointPath, '--device', s.device]);
+    // External Python cannot read Electron's virtual app.asar filesystem.
+    const bridgePath = fileURLToPath(new URL('./maia_bridge.py', import.meta.url)).replace(/([\\/])app\.asar([\\/])/, '$1app.asar.unpacked$2');
+    session = this.processFactory(engine === 'stockfish' ? s.stockfishPath : s.pythonPath, engine === 'stockfish' ? [] : [bridgePath, '--checkpoint-path', s.checkpointPath, '--device', s.device, '--threads', String(s.threads)]);
     session.on('failure', error => {
       const request = session.active;
       if (!session.intentionalClose) this.logFailure({ engine, pid: session.child.pid, exitCode: error.exitCode, signal: error.signal, message: error.message, stderr: error.stderr, trace: error.trace, request });

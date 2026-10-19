@@ -56,7 +56,8 @@
     ],
     "asar": true,
     "asarUnpack": [
-      "node_modules/better-sqlite3/**"
+      "node_modules/better-sqlite3/**",
+      "electron/maia_bridge.py"
     ],
     "directories": {
       "output": "release"

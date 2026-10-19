@@ -29,6 +29,8 @@ For Stockfish and Maia on a fresh checkout, follow the [macOS and Windows engine
 
 For a production build or local installer:
 
+For a fresh Windows computer, see the short [Windows release and installation checklist](docs/windows-release.md), including which database and engine files to copy.
+
 ```sh
 npm run build      # typecheck and bundle the React renderer
 npm start          # run the built desktop app without a development server
