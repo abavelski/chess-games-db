@@ -29,6 +29,7 @@ export interface OpeningFacets {
   unclassified: number; nodes: OpeningNode[];
 }
 export interface GameRow {
+  favourite: number;
   game_key: string;
   completeness: string;
   medal_count?: number | null;
@@ -70,6 +71,7 @@ export interface Page<T> {
   pageSize: number;
 }
 export interface SearchFilters {
+  favouritesOnly?: boolean;
   properties?: Partial<Record<PropertyKey, string[]>>;
   openingNodeId?: string;
   search?: string;
@@ -85,6 +87,7 @@ export interface ChessArchiveAPI {
   getCatalog(): Promise<Catalog | null>;
   searchGames(f: SearchFilters): Promise<Page<GameRow>>;
   openingFacets(f: SearchFilters): Promise<OpeningFacets>;
+  setFavourite(id: number, favourite: boolean): Promise<boolean>;
   getGame(id: number): Promise<GameDetail | null>;
 
 }

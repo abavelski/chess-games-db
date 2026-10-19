@@ -1,8 +1,8 @@
+import { desktopTestDirectory, finishDesktopTest } from './fixtures/desktop-test.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { copyFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow } from 'electron';
 import Database from 'better-sqlite3';
@@ -10,7 +10,7 @@ import { initializeGames, upsertGame } from '../lib/game-writer.mjs';
 import { ChessArchive } from '../electron/database.mjs';
 
 // Run with Electron so this exercises its native SQLite ABI and sandboxed preload.
-const temporary = mkdtempSync(join(tmpdir(), 'chess-desktop-'));
+const temporary = desktopTestDirectory();
 app.setPath('userData', temporary);
 const path = join(temporary, 'archive.sqlite3');
 const db = new Database(path);
@@ -56,6 +56,9 @@ async function checkWindow(window) {
     if (document.querySelectorAll('.result-item').length !== 40) throw new Error('Expected paginated games');
     document.querySelector('.result-item').click();
     while (!document.querySelector('.review-shell cg-board') && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    while (document.querySelector('[aria-label="Next move"]').disabled && Date.now() < deadline) {
       await new Promise(resolve => setTimeout(resolve, 25));
     }
     document.querySelector('[aria-label="Next move"]').click();
@@ -262,7 +265,7 @@ async function checkWindow(window) {
     if(!source.querySelector('[role=combobox]').getAttribute('aria-activedescendant'))throw new Error('Missing keyboard active option');
     source.querySelector('[role=combobox]').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
     document.querySelector('.result-item').click();await waitFor(()=>document.querySelector('.review-shell'));
-    document.querySelector('.review-header button').click();await waitFor(()=>!document.querySelector('.review-shell'));
+    document.querySelector('.review-header > button').click();await waitFor(()=>!document.querySelector('.review-shell'));
     if(property('Source').querySelectorAll('.property-chips button').length!==2)throw new Error('Selections lost');
     const year=[...document.querySelectorAll('label.field')].find(el=>el.querySelector('span')?.textContent==='Year from').querySelector('input');
     change(year,'2000');await waitFor(()=>document.querySelector('.empty-results h3')?.textContent==='No games found');
@@ -274,7 +277,7 @@ async function checkWindow(window) {
     const scrollY = window.scrollY;
     document.querySelector('.result-item').click();
     await waitFor(() => document.querySelector('.review-shell cg-board'));
-    document.querySelector('.review-header button').click();
+    document.querySelector('.review-header > button').click();
     await waitFor(() => !document.querySelector('.review-shell') && document.activeElement?.classList.contains('result-item'));
     if (document.querySelector('.results-list').textContent !== originalText) throw new Error('Return changed the page');
     if (Math.abs(window.scrollY - scrollY) > 1) throw new Error('Return lost list scroll');
@@ -309,11 +312,7 @@ async function smoke() {
     exitCode = 1;
   } finally {
     clearTimeout(timeout);
-    app.on('will-quit', () => {
-      rmSync(temporary, { recursive: true, force: true });
-      app.exit(exitCode);
-    });
-    app.quit();
+    finishDesktopTest(app, exitCode);
   }
 }
 

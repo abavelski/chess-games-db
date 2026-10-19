@@ -1,15 +1,15 @@
+import { desktopTestDirectory, finishDesktopTest } from './fixtures/desktop-test.mjs';
 import { upsertGame } from '../lib/game-writer.mjs';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { app, BrowserWindow, dialog } from 'electron';
-import { mkdtempSync, writeFileSync, readFileSync, mkdirSync, rmSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { fixtureArchive, catalogueFiles, hash } from './fixtures/opening-archive.mjs';
 import { buildCatalogue } from '../electron/openings.mjs';
 import { enrichOpenings } from '../electron/opening-enrichment.mjs';
 
-const temporary = mkdtempSync(join(tmpdir(), 'opening-desktop-'));
+const temporary = desktopTestDirectory();
 app.setPath('userData', temporary);
 const path = join(temporary, 'enriched.sqlite3');
 const games = [...Array(41).fill('1.e4 e5 2.Nf3 Nc6 *'), '1.e4 e5 2.Nf3 *', '1.Nf3 Nf6 2.d4 d5 *', '1.h3 *', '1.e4 e5 2.Bh6 *'];
@@ -150,8 +150,8 @@ async function smoke() {
       if (openingSelect('Opening family').value !== savedOpeningSelection || !document.querySelector('.pagination').textContent.includes('Page 2 of 2')) throw new Error('Opening selection/page lost on return');
       if (Math.abs(scrollY-savedOpeningScroll)>1) throw new Error('Opening list scroll lost');
       document.querySelector('.result-item').click();
-      await waitForOpening(() => document.querySelector('.review-header button'));
-      document.querySelector('.review-header button').click();
+      await waitForOpening(() => document.querySelector('.review-header > button'));
+      document.querySelector('.review-header > button').click();
       await waitForOpening(() => !document.querySelector('.review-shell'));
       window.scrollTo(0,0);
       document.querySelector('.browser-archive button').click();
@@ -171,8 +171,7 @@ async function smoke() {
   } catch(error) { console.error(error); exitCode=1; }
   finally {
     clearTimeout(timeout);
-    app.on('will-quit',()=>{ rmSync(temporary,{ recursive:true,force:true }); app.exit(exitCode); });
-    app.quit();
+    finishDesktopTest(app, exitCode);
   }
 }
 void smoke();

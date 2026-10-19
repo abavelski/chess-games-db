@@ -5,6 +5,7 @@ import { chessgroundDests } from 'chessops/compat';
 import { makeSquare, parseSquare } from 'chessops/util';
 import { isMoveData } from '@lichess-org/pgn-viewer/game';
 import type { DrawShape } from '@lichess-org/chessground/draw';
+import { FavouriteButton } from './FavouriteButton';
 import { PieceMode } from './PieceMode';
 import { EnginePanel, EvaluationBar, readReviewPreferences, type ReviewDisplay } from './EnginePanel';
 import { appendMove, replayPosition, sourcePosition, type AnalysisPosition } from './analysis.mjs';
@@ -19,7 +20,7 @@ import { criticalNavigation, criticalReveal, criticalRevealStage } from './criti
 import { reviewPgn } from './pgn.mjs';
 import type { GameDetail } from './types';
 
-export function GameReview({ game, initialPath, onClose }: { game: GameDetail; initialPath: string; onClose: () => void }) {
+export function GameReview({ game, initialPath, onClose, onToggleFavourite, savingFavourite, favouriteError }: { game: GameDetail; initialPath: string; onClose: () => void; onToggleFavourite: () => void; savingFavourite: boolean; favouriteError: string | null }) {
   const viewer = useRef<Viewer | null>(null);
   const transcript = useRef<HTMLDivElement>(null);
   const [path, setPath] = useState(initialPath);
@@ -131,12 +132,13 @@ export function GameReview({ game, initialPath, onClose }: { game: GameDetail; i
     <header className="review-header">
       <div>
         <div className="eyebrow">GAME REVIEW · {game.source_title}</div>
-        <h1>{title}</h1>
+        <div className="review-title"><h1>{title}</h1><FavouriteButton favourite={!!game.favourite} disabled={savingFavourite} onClick={onToggleFavourite} label={title} /></div>
         {game.opening?.name && <p className="review-opening-name" title={game.opening.name}>{game.opening.name} · {game.opening.eco}{game.eco && game.eco !== game.opening.eco ? ` · Source ECO ${game.eco}` : ''}</p>}
         <p>{[game.event, game.site, game.date, game.opening?.name ? null : game.eco, revealed.paused ? null : game.result].filter(value => value && value !== '?').join(' · ')}</p>
       </div>
       <button className="secondary-button" onClick={onClose} autoFocus><ArrowLeft size={16} /> Back to games</button>
     </header>
+    {favouriteError && <div role="alert" className="notice error">{favouriteError}</div>}
     <div className={"review-workspace" + (resize.resizing ? " resizing-board" : "")} ref={resize.workspace}>
       <section ref={resize.board} className="review-board" aria-label="Game review board">
         <div className={"analysis-board-frame" + (display.bar && analysisOptions.stockfish ? " with-bar" : "")}><div className="review-board-surface"><PgnBoard pgn={game.pgn} review initialPath={initialPath} canSelectPath={canSelectPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} /><button {...resize.handle} data-board-resize className="board-resize-handle" title="Drag to resize board. Double-click to reset." /></div>{display.bar && analysisOptions.stockfish && <EvaluationBar state={engines.stockfish} enabled={analysisOptions.stockfish} flipped={flipped} />}</div>

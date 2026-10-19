@@ -1,13 +1,13 @@
+import { desktopTestDirectory, finishDesktopTest } from './fixtures/desktop-test.mjs';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { app } from 'electron';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { fixtureArchive, hash } from './fixtures/opening-archive.mjs';
 import { backfillCriticalPositions } from '../scripts/critical-positions.mjs';
 
-const temporary = mkdtempSync(join(tmpdir(), 'critical-desktop-'));
+const temporary = desktopTestDirectory();
 app.setPath('userData', temporary);
 const path = join(temporary, 'archive.sqlite3');
 const db = fixtureArchive(path, ['1.e4 $1 $14 $94 $139 $200 {[%crit opening] First solution} (1.d4 {[%medal tactics,attack,sacrifice] Branch solution} d5) e5 2.Nf3 {[%crit endgame] [%medal strategy] Last solution} Nc6 *', '1.d4 d5 *', '1.c4 {[%medal strategy]} e5 *']);
@@ -130,7 +130,7 @@ async function smoke() {
       await toggleStudy();
       await toggleStudy();
       if (!document.querySelector('.review-original') || document.querySelector('.review-reveal-button')) throw new Error('No future marker should leave the full score visible');
-      document.querySelector('.review-header button').click();
+      document.querySelector('.review-header > button').click();
       await waitForCritical(() => !document.querySelector('.review-shell'));
       document.querySelector('.result-item').click();
       await waitForCritical(() => document.querySelectorAll('.review-move').length === 1 && document.querySelector('.review-reveal-button'));
@@ -151,7 +151,7 @@ async function smoke() {
       await toggleStudy();
       if (!document.querySelector('.review-reveal-button')?.previousElementSibling.textContent.includes('Nf3')) throw new Error('Variation toggle must use score order');
       await toggleStudy();
-      document.querySelector('.review-header button').click();
+      document.querySelector('.review-header > button').click();
       await waitForCritical(() => !document.querySelector('.review-shell'));
       await changeCritical('no');
       await waitForCritical(() => !document.querySelector('.game-critical-badge'));
@@ -172,8 +172,7 @@ async function smoke() {
   } catch (error) { console.error(error); exitCode = 1; }
   finally {
     clearTimeout(timeout);
-    app.on('will-quit', () => { rmSync(temporary, { recursive: true, force: true }); app.exit(exitCode); });
-    app.quit();
+    finishDesktopTest(app, exitCode);
   }
 }
 void smoke();

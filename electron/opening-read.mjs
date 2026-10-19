@@ -38,9 +38,9 @@ export function openingLabels(db, revision, rows) {
   });
 }
 
-export function openingFacets(db, supported, filters = {}) {
+export function openingFacets(db, supported, filters = {}, queryOptions = {}) {
   const revision = activeOpeningRevision(db, supported);
-  const q = gameQuery({ ...filters, openingNodeId: undefined });
+  const q = gameQuery({ ...filters, openingNodeId: undefined }, queryOptions);
   const from = GAME_FROM;
   const total = db.prepare('SELECT count(*) n' + from + q.where).get(q.params).n;
   if (!revision) return { supported, revision: null, total, classified: 0, unclassified: total, nodes: [] };

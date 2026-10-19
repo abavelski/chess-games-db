@@ -1,6 +1,6 @@
 # Annotated Games Explorer
 
-A local, read-only **Electron + React + SQLite** desktop game browser. Filter annotated games, open one in full-screen review, and return to the same list.
+A local **Electron + React + SQLite** desktop game browser. Filter annotated games, open one in full-screen review, and return to the same list.
 
 Built on the schema and migration system in this repository, with the **[Lichess PGN Viewer](https://github.com/lichess-org/pgn-viewer)** (which uses Chessground) for the board, move navigation, comments, and variations.
 
@@ -46,6 +46,7 @@ The app opens the previously selected database if present, and during developmen
 
 - Searchable multiselects cover sources, source types, event, year, result, and study markers. Year ranges remain available.
 - Values within a property use OR; different properties use AND. Empty selections impose no constraint. Missing/unknown values are explicit options. Selected chips remain available at zero matches; dropdown counts apply other filters.
+- Click the star beside a game or its review title to save or remove it from favourites immediately. **Favourites only** combines with search, properties, years and openings. The first star change adds a boolean `games.favourite` column to the same database; browsing alone does not change the archive.
 - Exact Unicode spellings and whole annotator credits are preserved. Known catalogue collections appear once under Source; their section identities remain stored. Source order uses collection, section and original record sequence.
 - A game can have several sources or none. Different annotated editions remain distinct even when their moves or hashes match. Completeness remains unknown without trusted source evidence; `*` alone does not mean partial.
 - The **Opening** section retains offline name search and the family → line → subline hierarchy, with descendant/transposition matching. Source ECO stays separate from derived Lichess ECO.
@@ -91,7 +92,7 @@ The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lich
 
 ## Opening catalogue enrichment
 
-The desktop app remains read-only. Enrichment is an explicit, offline-capable
+The desktop app writes favourite preferences only. Enrichment is an explicit, offline-capable
 maintenance step; start with a copy of your archive. Install dependencies with
 `npm install`. The commands below use Electron's Node runtime so SQLite uses the
 same native ABI as the app; no browser window is opened.

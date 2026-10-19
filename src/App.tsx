@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, ChevronLeft, ChevronRight, ChevronsUpDown, FolderOpen, Medal, RefreshCw, Search, X } from 'lucide-react';
+import { FavouriteButton } from './FavouriteButton';
 import { PropertyFilter } from './PropertyFilter';
 import { GameReview } from './GameReview';
 import { OpeningFilter, type OpeningSelection } from './OpeningFilter';
 import type { Catalog, GameDetail, GameRow, Page, PropertyKey, SearchFilters } from './types';
 
-const defaultFilters = { yearFrom: '', yearTo: '', sort: 'book' };
+const defaultFilters = { yearFrom: '', yearTo: '', sort: 'book', favouritesOnly: false };
 const propertyLabels: Array<[PropertyKey,string]> = [['source','Source'],['sourceType','Source type'],['event','Event'],['year','Year'],['result','Result'],['studyMarkers','Study markers']];
 type Filters = typeof defaultFilters;
 const num = (value: number) => new Intl.NumberFormat().format(value);
@@ -22,6 +23,8 @@ function FilterInput({ label, value, onChange, year = false }: {
 
 export default function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const catalogPath = useRef(catalog?.path);
+  catalogPath.current = catalog?.path;
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
   const [properties, setProperties] = useState<Partial<Record<PropertyKey,string[]>>>({});
@@ -36,17 +39,22 @@ export default function App() {
   const [gameError, setGameError] = useState<string | null>(null);
   const [openingGame, setOpeningGame] = useState<number | null>(null);
   const [review, setReview] = useState<GameDetail | null>(null);
+  const [savingFavourites, setSavingFavourites] = useState<Set<number>>(new Set());
+  const pendingFavourites = useRef(new Set<number>());
+  const [favouriteError, setFavouriteError] = useState<string | null>(null);
+  const [favouriteRevision, setFavouriteRevision] = useState(0);
   const trigger = useRef<HTMLElement | null>(null);
   const scroll = useRef({ x: 0, y: 0 });
   const gameRequest = useRef(0);
-  const baseFilters = useMemo<SearchFilters>(() => ({...filters,properties,search:debouncedSearch}),[filters,properties,debouncedSearch]);
+  const baseFilters = useMemo<SearchFilters>(() => ({...filters,properties,search:debouncedSearch}),[filters,properties,debouncedSearch,favouriteRevision]);
   const dropdownFilters = useMemo<SearchFilters>(() => ({...baseFilters,openingNodeId:openingSelection?.id}),[baseFilters,openingSelection]);
 
   const closeReview = useCallback(() => {
     setReview(null);
     requestAnimationFrame(() => {
       window.scrollTo(scroll.current.x, scroll.current.y);
-      trigger.current?.focus({ preventScroll: true });
+      const target = trigger.current?.isConnected ? trigger.current : document.querySelector<HTMLInputElement>('.favourites-filter input');
+      target?.focus({ preventScroll: true });
     });
   }, []);
 
@@ -72,13 +80,17 @@ export default function App() {
     setFetching(true); setQueryError(null); setGameError(null);
     window.chessArchive.searchGames({
       ...baseFilters, openingNodeId: openingSelection?.id, page, pageSize: 40,
-    }).then(value => { if (alive) setResults(value); })
+    }).then(value => { if (alive) {
+      setResults(value);
+      const lastPage = Math.max(1, Math.ceil(value.total / 40));
+      if (page > lastPage) setPage(lastPage);
+    } })
       .catch(error => { if (alive) setQueryError(errorMessage(error)); })
       .finally(() => { if (alive) setFetching(false); });
     return () => { alive = false; };
   }, [catalog, baseFilters, openingSelection, page]);
 
-  const patchFilter = (key: keyof Filters, value: string) => {
+  const patchFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => {
     setFilters(previous => ({ ...previous, [key]: value })); setPage(1);
   };
   const resetFilters = () => {
@@ -91,7 +103,7 @@ export default function App() {
       if (!result.canceled && result.catalog) {
         gameRequest.current++;
         setOpeningGame(null); setGameError(null); setResults(null);
-        resetFilters(); setCatalog(result.catalog);
+        resetFilters(); setFavouriteError(null); setCatalog(result.catalog);
       }
     } catch (error) { setOpenError(errorMessage(error)); }
     finally { setOpening(false); }
@@ -108,6 +120,23 @@ export default function App() {
       setReview(detail);
     } catch (error) { if (request === gameRequest.current) setGameError(errorMessage(error)); }
     finally { if (request === gameRequest.current) setOpeningGame(null); }
+  };
+  const toggleFavourite = async (game: GameRow) => {
+    if (pendingFavourites.current.has(game.id)) return;
+    const archivePath = catalog?.path;
+    pendingFavourites.current.add(game.id);
+    setSavingFavourites(new Set(pendingFavourites.current)); setFavouriteError(null);
+    try {
+      const favourite = await window.chessArchive.setFavourite(game.id, !game.favourite);
+      if (archivePath !== catalogPath.current) return;
+      setResults(previous => previous && ({ ...previous, rows: previous.rows.map(row => row.id === game.id ? { ...row, favourite: Number(favourite) } : row) }));
+      setReview(previous => previous?.id === game.id ? { ...previous, favourite: Number(favourite) } : previous);
+      setFavouriteRevision(value => value + 1);
+    } catch (error) { if (archivePath === catalogPath.current) setFavouriteError('Could not save favourite: ' + errorMessage(error)); }
+    finally {
+      pendingFavourites.current.delete(game.id);
+      setSavingFavourites(new Set(pendingFavourites.current));
+    }
   };
   const total = results?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / 40));
@@ -144,6 +173,7 @@ export default function App() {
                 <FilterInput label="Year to" year value={filters.yearTo} onChange={value => patchFilter('yearTo', value)} /></div>
             </div>
             <div className="extra-game-filters">
+              <label className="favourites-filter"><input type="checkbox" checked={filters.favouritesOnly} onChange={event => patchFilter('favouritesOnly', event.target.checked)} />Favourites only</label>
               {hasFilters && <button className="subtle-button" onClick={resetFilters}><X size={14} />Clear filters</button>}
 
             </div>
@@ -155,13 +185,14 @@ export default function App() {
               <option value="white">White player A–Z</option><option value="source">Source title A–Z</option><option value="newest">Newest added</option>
             </select></label>
           </div>
+          {favouriteError && <div role="alert" className="notice error"><AlertCircle size={17} />{favouriteError}</div>}
           {gameError && <div role="alert" className="notice error"><AlertCircle size={17} />{gameError}</div>}
           {openingGame !== null && <p className="game-opening" role="status">Opening game…</p>}
           <section className="results-panel game-results" aria-label="Games" aria-busy={fetching}>
             {queryError ? <div className="empty-results" role="alert"><AlertCircle size={28} /><h3>Unable to search games</h3><p>{queryError}</p></div>
-              : fetching ? <div className="empty-results"><RefreshCw className="spin" size={26} /><p>Loading games…</p></div>
+              : fetching && !results ? <div className="empty-results"><RefreshCw className="spin" size={26} /><p>Loading games…</p></div>
               : !results?.rows.length ? <div className="empty-results"><Search size={28} /><h3>No games found</h3><p>Try another source or adjust your filters.</p><button className="secondary-button" onClick={resetFilters}>Clear filters</button></div>
-              : <div className="results-list">{results.rows.map(game => <button key={game.id} className="result-item" disabled={openingGame !== null}
+              : <div className="results-list">{results.rows.map(game => <div key={game.id} className="game-result-row"><button className="result-item" disabled={openingGame !== null}
                 onClick={event => void openGame(game, event.currentTarget)}>
                 <span className="game-piece" aria-hidden="true">♟</span>
                 <span className="item-main"><strong>{gameTitle(game)}</strong>
@@ -171,7 +202,7 @@ export default function App() {
                   {(game.opening?.name || catalog.capabilities?.openings) && <span className="game-opening-name" title={game.opening?.name ?? undefined}>{game.opening?.name ? `${game.opening.name} · ${game.opening.eco}` : game.opening?.status === 'unenriched' ? 'Opening not enriched' : 'Unclassified opening'}</span>}
                   <small>{game.source_title} · {game.completeness === 'unknown' ? 'Completeness unknown' : game.completeness}{game.annotator ? ` · Annotated by ${game.annotator}` : ''}</small></span>
                 <span className="item-extra"><span className="result-val">{game.result || '—'}</span><ChevronRight size={17} /></span>
-              </button>)}</div>}
+              </button><FavouriteButton favourite={!!game.favourite} disabled={savingFavourites.has(game.id)} onClick={() => void toggleFavourite(game)} label={gameTitle(game)} /></div>)}</div>}
             <div className="pagination"><span>{num(start)}–{num(end)} of {num(total)}</span><div>
               <button className="page-button" aria-label="Previous page" disabled={page <= 1 || fetching} onClick={() => setPage(value => value - 1)}><ChevronLeft size={17} /></button>
               <span>Page {page} of {pageCount}</span><button className="page-button" aria-label="Next page" disabled={page >= pageCount || fetching} onClick={() => setPage(value => value + 1)}><ChevronRight size={17} /></button>
@@ -180,7 +211,7 @@ export default function App() {
         </>}
       </main>
     </div>
-    {review && <GameReview game={review} initialPath="" onClose={closeReview} />}
+    {review && <GameReview game={review} initialPath="" onClose={closeReview} onToggleFavourite={() => void toggleFavourite(review)} savingFavourite={savingFavourites.has(review.id)} favouriteError={favouriteError} />}
 
   </>;
 }

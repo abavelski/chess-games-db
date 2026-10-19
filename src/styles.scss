@@ -406,3 +406,15 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .property-popover [role=option] { display: flex; justify-content: space-between; gap: 12px; width: 100%; border: 0; background: white; padding: 8px; text-align: left; }
 .property-popover [role=option].active { background: #eef2e8; }
 .property-popover [aria-selected=true] { font-weight: bold; }
+
+.game-result-row { display: flex; align-items: stretch; border-bottom: 1px solid #eff0eb; background: #fff; }
+.game-result-row:last-child { border-bottom: none; }
+.game-results .game-result-row .result-item { flex: 1; min-width: 0; width: auto; border-bottom: none; }
+.favourite-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; align-self: center; width: 38px; height: 38px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #7a867b; }
+.game-result-row > .favourite-button { margin-right: 16px; }
+.favourite-button[aria-pressed="true"] { color: #a87518; }
+.favourite-button:hover { background: #f8f1df; border-color: #e4d4ac; }
+.favourites-filter { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.favourites-filter input { accent-color: #a87518; }
+.review-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.review-title h1 { min-width: 0; }

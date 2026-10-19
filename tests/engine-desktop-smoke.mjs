@@ -1,13 +1,13 @@
+import { desktopTestDirectory, finishDesktopTest } from './fixtures/desktop-test.mjs';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { app } from 'electron';
 import { fixtureArchive } from './fixtures/opening-archive.mjs';
-const temporary = mkdtempSync(join(tmpdir(), 'chess-engines-'));
+const temporary = desktopTestDirectory();
 app.setPath('userData', temporary);
 const path = join(temporary, 'archive.sqlite3');
 const db = fixtureArchive(path, ['1.e4 {Book note [%crit opening] [%cal Ge2e4] [%csl Yd4]} (1.d4 {Variation [%crit middlegame] [%cal Rd2d4]} d5) e5 2.Nf3 Nc6 {[%crit endgame]} *', '[SetUp "1"]\n[FEN "7k/P7/8/8/8/8/8/7K w - - 0 25"]\n\n25.a8=Q+ *']); db.close();
@@ -178,7 +178,7 @@ async function smoke() {
       button('Stockfish').click(); await wait(() => document.querySelector('.stockfish-analysis .engine-error'));
       if (!document.querySelector('.review-comment')) throw new Error('Missing engine blocked book review');
       button('Stockfish').click(); await window.chessEngine.configure(settings);
-      document.querySelector('.review-header button').click(); await wait(() => !document.querySelector('.review-shell'));
+      document.querySelector('.review-header > button').click(); await wait(() => !document.querySelector('.review-shell'));
       document.querySelectorAll('.result-item')[1].click(); await wait(() => document.querySelector('.review-shell cg-board'));
       if (document.querySelector('.review-critical-navigation')) throw new Error('Critical navigation shown in unmarked game');
       if (button('Stockfish').getAttribute('aria-pressed') !== 'false') throw new Error('Enable state should default off for a new review');
@@ -195,6 +195,6 @@ async function smoke() {
     assert.deepEqual(errors, []);
     console.log('Engine desktop smoke passed: critical markers/navigation/variation study, local subprocess IPC, independent controls, probabilities/rating, arrows, line exploration, setup, free Piece mode/reset/exact restoration/Escape, and archive preservation.');
   } catch (error) { console.error(error); code = 1; }
-  finally { clearTimeout(timeout); app.on('will-quit', () => { rmSync(temporary, { recursive: true, force: true }); app.exit(code); }); app.quit(); }
+  finally { clearTimeout(timeout); finishDesktopTest(app, code); }
 }
 void smoke();

@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('chessArchive', Object.freeze({
   searchGames: (filters) => ipcRenderer.invoke('archive:games', filters),
   openingFacets: (filters) => ipcRenderer.invoke('archive:opening-facets', filters),
   propertyOptions: (request) => ipcRenderer.invoke('archive:property-options', request),
+  setFavourite: (id, favourite) => ipcRenderer.invoke('archive:favourite', id, favourite),
   getGame: (id) => ipcRenderer.invoke('archive:game', id),
 }));
 

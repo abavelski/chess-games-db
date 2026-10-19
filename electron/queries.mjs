@@ -39,8 +39,10 @@ export function validateSelections(db,input={}) {
   }
  }
 }
-export function gameQuery(input={}) {
+export function gameQuery(input={}, {favouriteColumn=true}={}) {
  const f=input??{},params={},where=['g.hidden=0'];
+ if(f.favouritesOnly!==undefined&&typeof f.favouritesOnly!=='boolean')throw new Error('Invalid favourites filter');
+ if(f.favouritesOnly)where.push(favouriteColumn?'g.favourite=1':'0');
  for(const [property,values] of Object.entries(f.properties??{})) {
   if(!PROPERTIES.includes(property)) throw new Error('Invalid property: '+property);
   if(!Array.isArray(values)||values.length>100) throw new Error('Invalid selection');
