@@ -12,5 +12,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-audit
-      - run: npm test
+      # Electron launcher tests require a graphical session and a working SUID sandbox.
+      - run: sudo chown root:root node_modules/electron/dist/chrome-sandbox && sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+      - run: xvfb-run -a npm test
       - run: npm run build
