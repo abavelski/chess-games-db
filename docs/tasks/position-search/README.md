@@ -1,10 +1,12 @@
 # Position search — implementation phase
 
-Status: **planned** (2026-10-20). These are proposed implementation tasks, not completed features. Source baseline: schema 7, `master` on 2026-10-20. Keep this folder as the implementation/review checklist and record completed task verification here.
+Status: **in progress** (2026-10-20). PS-01 is complete; the remaining tasks are proposed, not completed features. Source baseline: schema 7, `master` on 2026-10-20. Keep this folder as the implementation/review checklist and record completed task verification here.
 
 ## Goal
 
 Let the student construct an opening position by playing legal moves from the initial board, find **all library games that reached the position** (including transpositions and unnamed opening sublines), combine this with existing game filters, and enter each game at its matching move. Index **exact pawn structures from the beginning**, but defer the pawn-structure search UI.
+
+The PS-01 hash contract is implemented in [`lib/position-hash.mjs`](../../../lib/position-hash.mjs); this does **not** yet make position search available in the app. See [PS-01](01-hash-contract.md) for its test coverage, pinned constants and FEN/EP semantics.
 
 ## Technical decisions / invariants
 
@@ -23,7 +25,7 @@ Tasks are small independently reviewable increments. **MVP:** PS-01–PS-08. **F
 
 | ID | Task | Dependencies | Demonstrable result |
 | --- | --- | --- | --- |
-| [PS-01](01-hash-contract.md) | Zobrist/position/pawn signatures | None | Published vector + transposition tests |
+| [PS-01 — completed](01-hash-contract.md) | Zobrist/position/pawn signatures | None | Published vector + transposition tests |
 | [PS-02](02-position-storage.md) | Additive derived schema and capability | PS-01 | Fixture DB accepts/queries indexed rows; old DB opens |
 | [PS-03](03-mainline-replay.md) | Mainline extractor, reviewer paths, diagnostics | PS-01 | Mainline occurrences from fixture PGNs |
 | [PS-04](04-index-builder.md) | Offline CLI build/rebuild/resume and write invalidation | PS-02, PS-03 | Safe repeated build and changed-PGN rebuild |

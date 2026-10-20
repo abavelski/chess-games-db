@@ -108,3 +108,7 @@ Existing outputs, symlinks and report aliases are refused. Unsupported versions
 fail clearly. No fetching is performed. Reports contain actual input counts and
 excluded identities; keep them local. Rollback is reopening the original with the
 previous app. Historical book/raw archive preservation plans are superseded.
+
+## Position search hash contract (PS-01)
+
+The additive position-index tables are not yet implemented. PS-01 provides the shared, pure standard-chess Polyglot fingerprint in [`lib/position-hash.mjs`](../lib/position-hash.mjs), independent of the existing named-opening key. It returns unsigned 64-bit `bigint` hashes, explicit signed SQLite mappings, normalized four-field collision-verification keys, and exact two-color pawn signatures. See [PS-01 contract and validation rules](tasks/position-search/01-hash-contract.md). No archive migration or opening-query behavior changed.

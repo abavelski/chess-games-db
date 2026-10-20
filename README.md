@@ -84,6 +84,7 @@ See [docs/database.md](docs/database.md) for the schema, stable identifiers, PGN
 | `electron/queries.mjs` | Parameterized filtering, sort whitelists, safe paging |
 | `src/App.tsx` | Games-only browser, filters, and review navigation |
 | `lib/game-writer.mjs` | Shared transactional imports, features and property cache |
+| `lib/position-hash.mjs` | Pure Polyglot position/pawn fingerprint contract (PS-01; index and search still planned) |
 | `scripts/migrate-games.mjs` | Explicit read-only legacy snapshot conversion |
 | `src/PgnBoard.tsx` | Lichess viewer integration |
 | `db/migrations/` | Versioned schema migrations |
