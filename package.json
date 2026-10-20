@@ -53,6 +53,7 @@
       "dist/**/*",
       "electron/**/*",
       "lib/**/*.mjs",
+      "lib/polyglot-keys.LICENSE",
       "db/migrations/008_personal_analysis.sql",
       "src/*.mjs",
       "package.json"
