@@ -28,6 +28,34 @@ Builder options: `-CheckOnly` checks source inputs without building/copying; `-S
 
 Hardware selection follows [PyTorch's 2.11 support matrix](https://dev-discuss.pytorch.org/t/dropping-volta-support-from-cuda-12-8-binaries-for-release-2-11/3290) and the conservative [CUDA 12.6 Windows driver minimum](https://docs.nvidia.com/cuda/archive/12.6.0/cuda-toolkit-release-notes/index.html). Unrecognized newer GPUs use CPU until their matching PyTorch build is added.
 
+## App updates over your local network
+
+For the portable app (including the recommended bootstrap bundle above), both PCs can use the same shared folder mapped as `Z:`. Run these commands in ordinary PowerShell, without elevation, so your mapped drive is available.
+
+On the development PC, with npm dependencies installed, publish the current source:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/publish-windows-update.ps1
+```
+
+This builds the Windows x64 app and publishes a ZIP and `latest.json` under `Z:\ChessExplorer\updates`. It also copies the standalone updater there as `Update-App.ps1` and a ready-to-use `Update.bat`. Use `-SkipBuild` to publish an already built `release/win-unpacked` instead. Each publication is distinct even when the package version is unchanged; the latest manifest becomes visible only after the ZIP has finished copying and passed its checksum check.
+
+On your son's PC, copy `Z:\ChessExplorer\updates\Update.bat` beside `Setup.bat` and `Start.bat`, outside the `app` folder. New bootstrap bundles already include it. Close the app and double-click **Update.bat** whenever you want to pull the latest published app. It finds the adjacent `app` folder automatically and keeps the result visible until you press a key. Run the local copy, rather than the copy on the share.
+
+For a different portable folder layout, you can still run the updater directly, replacing the example path with the **app folder containing `Annotated Games Explorer.exe`**:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File Z:\ChessExplorer\updates\Update-App.ps1 -InstallDirectory 'C:\ChessExplorer\app'
+```
+
+Both PowerShell scripts accept `-ShareDirectory 'Z:\another-folder'` if you prefer a different shared folder; also edit `UPDATE_SHARE` near the top of your local `Update.bat` to match. If running a local copy of the updater, an empty share reports no published update; an unavailable share reports an error and preserves the installed app.
+
+The updater downloads and verifies the ZIP locally before replacing the app folder. Repeating it without a new publication does nothing. No Node.js, npm, internet, or administrator rights are needed on the receiving PC. Start the app normally after updating.
+
+Keep databases, engines, `.runtime`, and setup files **outside the app folder**, as in the bootstrap bundle. They and the user's AppData settings are preserved. Select only the bundle's `app` folder, never the entire bundle. This updater is for portable folders; for an app installed with the NSIS installer, use a newly built installer instead.
+
+Each successful update keeps the previous app in a sibling `app.before-update-<id>` folder. To roll back, close the app, move the current `app` folder aside, and rename that backup to `app`. You can delete old backup folders after checking an update. Published ZIPs are also retained on the share; keep the ZIP referenced by `latest.json` and remove older ones as desired. The shared folder should be writable only by people you trust to publish executable app updates.
+
 The manual installer procedure follows if you prefer separate components.
 
 ## 1. Create the release on your development machine

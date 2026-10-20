@@ -90,10 +90,13 @@ try {
         $launchFlag = if ($launcher -eq 'Start') { '-Launch' } else { '' }
         [IO.File]::WriteAllText((Join-Path $bundle "$launcher.bat"), "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%~dp0setup\Setup.ps1`" $launchFlag %*`r`nif errorlevel 1 pause`r`n", $utf8)
     }
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Update.bat') -Destination (Join-Path $bundle 'Update.bat')
     [IO.File]::WriteAllText((Join-Path $bundle 'READ-ME.txt'), @'
 1. Extract the ENTIRE ZIP into a permanent, writable folder on Windows 10/11 x64.
 2. Double-click Setup.bat. Internet is required for this first setup.
 3. Copy your database separately. Double-click Start.bat, then Open database.
+4. For later app updates, close the app and double-click Update.bat.
+   It pulls the latest published app from Z:\ChessExplorer\updates.
 
 Setup reads CPU, RAM and NVIDIA GPU/driver information locally. It selects a
 compatible PyTorch build and tests real Maia predictions. GTX 1070 with driver
