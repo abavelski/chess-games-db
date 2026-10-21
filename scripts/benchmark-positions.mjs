@@ -115,7 +115,10 @@ export async function benchmarkPositions({ database, games = 240, samples = 80, 
       ' SELECT game_id FROM position_hits WHERE hit_rank=1').all({ positionId: 1, ...POSITION_HIT_PARAMS }).map(row => row.detail);
     assert.ok(planKey.some(line => /INDEX/.test(line)));
     assert.ok(planOccurrences.some(line => /game_position_occurrences_position/.test(line)));
-    assert.equal(incremental.result.attempted, 0, 'second build must skip unchanged games');
+    // Failed PGNs are intentionally retried; only completed inputs are skipped.
+    assert.equal(incremental.result.attempted, first.result.invalid,
+      'incremental build should retry invalid sources without replaying completed games');
+    assert.equal(incremental.result.skipped, first.result.complete);
     assert.equal(after.complete + after.invalid, after.total, 'fixture must have no missing/stale indexed games');
     assert.deepEqual(writer.pragma('foreign_key_check'), []);
     writer.close(); writer = null;
