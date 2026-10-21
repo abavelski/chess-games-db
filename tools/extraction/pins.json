@@ -1,0 +1,9 @@
+{
+  "protocol": 1,
+  "morphy": "5e7682c105858a72bb6fd3fad7dad9aadd68a31a",
+  "uncbv": "bf93b9d2d5b70db300d572231e95abf199010503",
+  "sqliteJdbc": "3.46.1.0",
+  "zstdJni": "1.5.6-9",
+  "slf4j": "2.0.16",
+  "jackson": "2.18.2"
+}

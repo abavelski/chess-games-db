@@ -138,17 +138,17 @@ each supported historical state has an explicit path to v7 or a clear refusal.
 
 Depends on UI-01.
 
-- [ ] Package only the necessary Java/Python adapters, annotation converter,
+- [x] Package only the necessary Java/Python adapters, annotation converter,
   language handling, CBV unpacker and temporary-copy recovery with tests/licenses.
-- [ ] Preserve current pins: Morphy `5e7682c105858a72bb6fd3fad7dad9aadd68a31a`,
+- [x] Preserve current pins: Morphy `5e7682c105858a72bb6fd3fad7dad9aadd68a31a`,
   uncbv `bf93b9d2d5b70db300d572231e95abf199010503`; Maven currently uses
   SQLite JDBC 3.46.1.0, zstd-jni 1.5.6-9, SLF4J 2.0.16 and Jackson 2.18.2.
   Record changes to pins deliberately, including annotation-output differences.
-- [ ] Provide dependency preflight/setup for JDK 21+, Maven, Git, Python 3,
+- [x] Provide dependency preflight/setup for JDK 21+, Maven, Git, Python 3,
   Node 22+ and npm dependencies. Rust/Cargo is needed only for first CBV tool
   build. Run SQLite JS under `scripts/run-archive-tool.mjs` for Electron's ABI.
   Avoid requiring CB tooling for plain PGN input where practical.
-- [ ] Separate explicit dependency/catalogue downloads from offline import;
+- [x] Separate explicit dependency/catalogue downloads from offline import;
   reuse installed pinned tools without fetching/building on every invocation.
   Document macOS/Windows execution, path separators and Unicode paths.
 
