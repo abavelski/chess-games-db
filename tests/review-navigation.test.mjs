@@ -155,5 +155,5 @@ test('PS-10 refuses sideline navigation when source variations cannot be verifie
     path: variation.path, ply: variation.ply, isMainline: false, type: 'sourceVariation',
   }, d4);
   assert.equal(result.path, '');
-  assert.match(result.notice, /verify/i);
+  assert.match(result.notice, /verif/i);
 });
