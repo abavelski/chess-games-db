@@ -5,7 +5,9 @@ import { makeFen } from 'chessops/fen';
 import { parseSan } from 'chessops/san';
 import { extractMainlinePositions, extractAllPositions } from '../lib/position-mainline.mjs';
 import { positionFingerprint } from '../lib/position-hash.mjs';
-import { resolveReviewNavigation } from '../src/review-navigation.mjs';
+import { resolveReviewNavigation, reviewedSearchFen } from '../src/review-navigation.mjs';
+import { replayPosition } from '../src/analysis.mjs';
+import { emptyPersonal, mergePersonal } from '../src/personal.mjs';
 import { criticalReveal } from '../src/critical-positions.mjs';
 import { reviewPgn } from '../src/pgn.mjs';
 
@@ -156,4 +158,37 @@ test('PS-10 refuses sideline navigation when source variations cannot be verifie
   }, d4);
   assert.equal(result.path, '');
   assert.match(result.notice, /verif/i);
+});
+
+test('PS-11 extracts exact currently replayed legal source/mainline and saved personal positions', () => {
+  const startFen = makeFen(Chess.default().toSetup());
+  // The pure replay model is also the one sourcePosition(viewer) returns at any
+  // actual viewer path; a selected move number alone is never used as a key.
+  const original = '1. Nf3 (1. d4 d5) Nf6 *';
+  const sourceBranch = extractAllPositions(original);
+  assert.equal(sourceBranch.status, 'complete');
+  const d4 = fenAfter('d4');
+  assert.ok(sourceBranch.occurrences.some(o => o.is_mainline === 0 &&
+    o.verificationKey === positionFingerprint(d4).verificationKey));
+  const selectedSource = replayPosition(startFen, ['d2d4']);
+  assert.equal(reviewedSearchFen(selectedSource), positionFingerprint(d4).verificationKey);
+  assert.equal(reviewedSearchFen(replayPosition(startFen, ['g1f3'])),
+    positionFingerprint(fenAfter('Nf3')).verificationKey);
+
+  const personal = { ...emptyPersonal(), lines: [['e2e4']] };
+  const combined = mergePersonal(original, personal);
+  assert.ok(combined.pgn.includes('e4'), 'source PGN supplemented by personal line');
+  assert.ok(extractAllPositions(combined.pgn).occurrences.some(o =>
+    o.verificationKey === positionFingerprint(fenAfter('e4')).verificationKey));
+  const savedBranch = replayPosition(startFen, personal.lines[0]);
+  assert.equal(reviewedSearchFen(savedBranch), positionFingerprint(fenAfter('e4')).verificationKey);
+  assert.notEqual(reviewedSearchFen(savedBranch), reviewedSearchFen(selectedSource));
+
+  const epFen = 'k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1';
+  const epPosition = replayPosition(epFen, []);
+  assert.equal(reviewedSearchFen(epPosition), positionFingerprint(epFen).verificationKey,
+    'Polyglot pseudo-legal EP must not be lost through display-FEN normalization');
+  for (const invalid of [null, {}, { position: null, moves: [] }, { ...savedBranch, moves: null }]) {
+    assert.throws(() => reviewedSearchFen(invalid), /review position/);
+  }
 });
