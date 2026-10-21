@@ -88,9 +88,11 @@ async function smoke() {
           !document.querySelector('.position-turn').textContent.includes('Black')) throw new Error('Legal move or turn failed');
       if (!psCount(43)) throw new Error('Playing a move must not silently invoke the search API');
       document.querySelector('.position-search-actions button:nth-child(2)').click();
+      await psWait(() => document.querySelector('.position-fen output').textContent === startFen);
       if (document.querySelector('.position-fen output').textContent !== startFen) throw new Error('Undo must restore FEN');
       await psMove('e2', 'e4');
       document.querySelector('.position-search-actions button:nth-child(3)').click();
+      await psWait(() => document.querySelector('.position-fen output').textContent === startFen);
       if (document.querySelector('.position-fen output').textContent !== startFen) throw new Error('Reset must restore FEN');
       // Transposed order, no opening-name selection or PGN scan.
       for (const [a,b] of [['g1','f3'],['b8','c6'],['e2','e4'],['e7','e5']]) await psMove(a,b);
