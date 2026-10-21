@@ -8,7 +8,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import { initializeGames } from '../lib/game-writer.mjs';
-import { discover, revision, loadRegistry, resolveSources } from '../lib/import/discovery.mjs';
+import { discover, revision, hash, loadRegistry, resolveSources } from '../lib/import/discovery.mjs';
 import { inventoryArchive } from '../lib/import/inventory.mjs';
 import { extractionProfile, extractToStage } from '../lib/import/extraction.mjs';
 import { preflight } from '../lib/import/preflight.mjs';
@@ -120,6 +120,7 @@ export async function importGames(o,{signal,failAfter}={}) {
  for(const e of candidates) preflight(e.format);
  const destination=o.output??o.target;
  if(o.mode==='create') assertNew(destination);else assertUpdateTarget(destination);
+ if(o.manifest && existsSync(o.manifest))assertUpdateTarget(o.manifest);
  // Resolve dependencies before creating output directories or report files.
  let catalogue;
  if(!o.unenriched) {
@@ -133,7 +134,7 @@ export async function importGames(o,{signal,failAfter}={}) {
   assertNew(path);
   if(protectedPaths.some(p=>isAlias(path,p) || ['-wal','-shm','-journal'].some(s=>isAlias(path,p+s)))) throw new Error('Report aliases protected input/destination');
  }
- const report={protocol:1,runId,resumeFrom:o.resume??null,mode:o.mode,dryRun:!!o.dryRun,started,options:{...o},status:'failed',target:destination,report:reportPath,records:detailsPath,sources:[],discovery:entries.filter(e=>e.status!=='candidate'),tools:JSON.parse(readFileSync(new URL('../tools/extraction/pins.json',import.meta.url),'utf8'))};
+ const report={protocol:1,runId,resumeFrom:o.resume??null,mode:o.mode,dryRun:!!o.dryRun,started,options:{...o},status:'failed',target:destination,report:reportPath,records:detailsPath,sources:[],discovery:entries.filter(e=>e.status!=='candidate'),tools:{...JSON.parse(readFileSync(new URL('../tools/extraction/pins.json',import.meta.url),'utf8')),node:process.versions.node,electron:process.versions.electron??null,appVersion:JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')).version}};
  let scratch,db,planningDb,release,releaseManifest,detailsFd;
  const committed=new Set();
  try {
@@ -148,13 +149,15 @@ export async function importGames(o,{signal,failAfter}={}) {
   for(const [i,e] of candidates.entries()) {
    if(signal?.aborted) throw new Error('Import cancelled');
    const sr={sourceKey:e.sourceKey,input:e.path,locator:e.locator,revision:e.revision,profile:extractionProfile(o,e.format),status:'extracting'};report.sources.push(sr);
-   try {const extraction=await extractToStage(e,o,join(scratch,`source-${i}.db`),signal);Object.assign(sr,{summary:extraction.summary,recovery:extraction.recovery,status:'staged'});staged.push({e,extraction,sr});}
+   try {const extraction=await extractToStage(e,o,join(scratch,`source-${i}.db`),signal);if(e.revision.sha256!==extraction.revision.sha256)throw new Error('Source changed before extraction');Object.assign(sr,{revision:extraction.revision,summary:extraction.summary,recovery:extraction.recovery,status:'staged'});staged.push({e,extraction,sr});}
    catch(error){Object.assign(sr,{status:'failed',error:error.message});throw error;}
   }
+  if(o.manifest && !o.dryRun)mkdirSync(dirname(o.manifest),{recursive:true});
   // Refresh proposals with the exact revisions verified by extraction.
   proposal=resolveSources(entries,registry,{sourceKey:o.sourceKey,mappings:mappings.sources,register:true});
   let livePath;
   if(o.mode==='update') {
+   assertUpdateTarget(destination);
    if(!o.dryRun) {release=maintenanceLease(destination);if(o.manifest)releaseManifest=maintenanceLease(o.manifest);}
    const source=new Database(destination,{readonly:true,fileMustExist:true});
    try {
@@ -165,6 +168,13 @@ export async function importGames(o,{signal,failAfter}={}) {
   } else {
    if(o.manifest && !o.dryRun)releaseManifest=maintenanceLease(o.manifest);
    livePath=join(scratch,'created.db');const fresh=new Database(livePath);initializeGames(fresh);fresh.close();
+  }
+  if(o.manifest && !o.dryRun && registryChecksum(o.manifest)!==manifestHash)throw new Error('Registry edited during extraction; rerun discovery');
+  if(o.manifest && !o.dryRun && existsSync(o.manifest)) {
+   const backup=o.manifest+'.backup-'+runId+'.json',bytes=readFileSync(o.manifest);
+   assertNew(backup);writeFileSync(backup,bytes,{flag:'wx'});
+   if(hash(readFileSync(backup))!==manifestHash)throw new Error('Manifest backup verification failed');
+   report.manifestBackup={path:backup,sha256:manifestHash,verified:true};
   }
   db=new Database(livePath);db.pragma('foreign_keys=ON');db.pragma('busy_timeout=0');
   assertImportCompatible(db);
@@ -180,6 +190,8 @@ export async function importGames(o,{signal,failAfter}={}) {
    }
    const stage=new Database(extraction.stagePath);
    try {
+    sr.skipReasons=stage.prepare("SELECT json_extract(data,'$.reason') reason,count(*) count FROM diagnostics GROUP BY reason ORDER BY reason").all();
+    for(const diagnostic of stage.prepare('SELECT data FROM diagnostics').iterate())writeSync(detailsFd,JSON.stringify({sourceKey:e.sourceKey,status:'excluded',...JSON.parse(diagnostic.data)})+'\n');
     sr.counts=planSource(planningDb,stage,e,extraction,{acceptSourceUpdate:o.acceptSourceUpdate,reconciliation:mappings.records?.[e.sourceKey],aliases:mappings.aliases?.[e.sourceKey],validateReplacement});
     for(const row of stage.prepare('SELECT p.*,r.pgn_sha256 FROM plan p JOIN records r USING(key) ORDER BY r.sequence').iterate()) writeSync(detailsFd,JSON.stringify({sourceKey:e.sourceKey,...row,candidates:JSON.parse(row.candidates)})+'\n');
     if(sr.counts.conflict) {sr.status='conflict';continue;}
@@ -200,7 +212,7 @@ export async function importGames(o,{signal,failAfter}={}) {
   if(!o.dryRun) {
    report.derived=await refreshDerived(db,livePath,{catalogue,positions:o.positions,signal});
    if(signal?.aborted) throw new Error('Import cancelled');
-   report.verification=verifyArchive(db);
+   report.verification=verifyArchive(db,o.mode==='update'?{runId}:{});
    if(o.mode==='create' && failed) throw new Error('Create has unresolved source failures/conflicts; nothing published');
    const finalRegistry=committedRegistry(registry,proposal,committed);
    report.status=failed?(committed.size?'partial':'failed'):'completed';
@@ -208,7 +220,7 @@ export async function importGames(o,{signal,failAfter}={}) {
    db.pragma('wal_checkpoint(TRUNCATE)');
    if(o.mode==='create') {db.close();db=null;publishArchive(livePath,destination);}
    if(o.manifest && committed.size) publishRegistry(o.manifest,finalRegistry,manifestHash,runId);
-  } else {report.status=failed?'conflicts':'planned';report.verification=verifyArchive(db);}
+  } else {report.status=failed?'conflicts':'planned';report.verification=verifyArchive(planningDb,{runId});}
  } catch(error) {report.error=error.message;report.status=committed.size && o.mode==='update'?'partial':'failed';}
  finally {
   report.finished=new Date().toISOString();

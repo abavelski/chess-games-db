@@ -41,6 +41,7 @@ and empty standalone exercises are excluded with reasons. Failed binary decoding
 aborts the source rather than accepting Morphy's partial fallback. PGN parser
 failures are retained with error features and cannot become encounter candidates.
 Headerless PGN input represents one game; multiple games should use tag sections.
+PGN annotation filters count parsed comment and NAG tokens, excluding header text.
 Each decoded PGN is limited to 16 MiB; extraction and planning use disk staging.
 
 `--languages ru,en` selects the first requested language present anywhere in each
@@ -51,7 +52,8 @@ requires `--accept-source-update`; changed record bytes still need reconciliatio
 Use a different source key for a different edition.
 
 The source key identifies an edition; a path/title is a locator. Keep your catalogue
-with your backups. Existing v1 catalogue keys and standalone keys are preserved.
+with your backups. Imports that update an existing catalogue save a verified
+`MANIFEST.backup-RUNID.json` and record its location and checksum in the report. Existing v1 catalogue keys and standalone keys are preserved.
 Inspection never registers entries. New entries are proposed, recorded with source
 commits in `import_runs.registry_json`, then published atomically. Unchanged revision
 evidence recognizes a unique rename. Explicit source mappings handle renamed editions
@@ -83,6 +85,14 @@ A reviewed reconciliation file can use this shape:
   }
 }
 ```
+
+New records can also be reviewed explicitly as
+`{"insert":true,"key":"reviewed:new-record","expectedRevisionSha256":"OLD_SOURCE_REVISION"}`.
+Use a null expected revision when adopting a previously imported historical source
+without revision metadata. This separates a newly inserted PGN block from a block
+that inherited its ordinal. The incoming-to-durable key mapping is saved for that
+exact source revision, making reconciled reruns idempotent. Changed editions need
+new review rather than reuse of those revision-specific aliases.
 
 Pass it with `--reconcile /path/to/reconciliation.json`. Checksums prevent stale
 mappings. Aliases require identical bytes and a reviewed same-edition decision;
@@ -116,6 +126,25 @@ with `npm run import:games -- inspect --archive /path/to/restored.sqlite3`, then
 the app. Preserve or restore the manifest from the same run; durable proposed registry
 JSON is also stored inside the backup/target's `import_runs` table when present.
 Never copy a backup over an open database or combine it with another file's WAL.
+For example, in a POSIX shell after closing all tools (choose a new recovery directory):
+
+```sh
+archive_path='/path/to/archive.sqlite3'
+backup_path='/path/to/archive.sqlite3.backup-RUNID.sqlite3'
+recovery_dir='/path/to/recovery-RUNID'
+mkdir "$recovery_dir"
+for suffix in '' -wal -shm -journal; do
+  if test -e "$archive_path$suffix"; then
+    mv "$archive_path$suffix" "$recovery_dir/"
+  fi
+done
+cp "$backup_path" "$archive_path"
+npm run import:games -- inspect --archive "$archive_path"
+```
+
+Restore the matching `MANIFEST.backup-RUNID.json` to the catalogue path as well,
+retaining the current catalogue in the recovery directory first. On Windows use
+PowerShell `Move-Item`/`Copy-Item` for the same files; include all old sidecars.
 
 Every run writes a new JSON report and a `.records.jsonl` detail file. Dry-run stages
 and simulates changes in scratch but leaves the target and manifest unchanged; its
@@ -123,7 +152,11 @@ reports are new files. Apply always plans again; it never executes an old dry-ru
 plan. Retry the same command, or use `--resume RUNID` to recognize already committed
 sources with identical revision/profile. Resume loads the durable registry proposal,
 so it also recovers a crash between source commit and catalogue publication. No-op
-reruns preserve game timestamps/features/position rows. Candidate fingerprints are
+reruns preserve game timestamps/features/position rows. Verification checks every new PGN in staging and the shared writer, then rechecks
+checksums of games written by this run. It verifies archive integrity, foreign keys
+and property-cache equivalence globally. Unchanged games retain previously validated
+fingerprints, so a small no-op update does not decompress the entire archive.
+Candidate fingerprints are
 checksummed/versioned and indexed; existing targets need one initial backfill.
 
 Cancellation terminates extraction/apply children; uncommitted SQLite transactions
@@ -137,3 +170,9 @@ Legacy v3–v6 update is refused. Inventory personal extensions first, then use 
 `npm run migrate:games -- --input OLD --output NEW`. The existing converter is not a
 general personal-data transfer tool; do not assume it preserves custom study tables.
 The old integration commands remain available while parity is being validated.
+
+
+For a reproducible isolated incremental measurement, run
+`node scripts/run-archive-tool.mjs scripts/benchmark-import.mjs 5000`. It creates
+and removes its own archive, confirms indexed candidate lookup and unchanged
+feature rows/property revisions/timestamps, and reports time and peak process RSS.

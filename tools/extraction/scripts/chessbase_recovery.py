@@ -25,45 +25,50 @@ def stage_metadata_recovery(cbh, destination):
         path = staged.with_suffix(extension)
         if not path.exists():
             continue
-        original = path.read_bytes()
+        with path.open("rb") as stream:
+            original = stream.read(26)
+        physical_size = path.stat().st_size
         if len(original) < 26 or struct.unpack_from('>H', original)[0] != 26:
             continue
         _, size, wasted, size64, wasted64 = struct.unpack_from('>Hiiqq', original)
         # Use the 32-bit value only when physical file length independently confirms it.
         # A shorter/truncated payload, or contradictory physical size, is never fabricated.
-        if len(original) != size or size == size64 and wasted == wasted64:
+        if physical_size != size or size == size64 and wasted == wasted64:
             continue
         corrected = bytearray(original)
         struct.pack_into('>qq', corrected, 10, size, wasted)
-        assert corrected[26:] == original[26:]
-        path.write_bytes(corrected)
+        with path.open('r+b') as stream:
+            stream.write(corrected)
         actions.append({'file': cbh.with_suffix(extension).name, 'action': 'synchronize_duplicate_blob_counters',
-                        'physical_bytes': len(original), 'size32': size, 'old_size64': size64,
+                        'physical_bytes': physical_size, 'size32': size, 'old_size64': size64,
                         'wasted32': wasted, 'old_wasted64': wasted64,
                         'payload_unchanged': True})
     # The pinned iterator requires one optional extended header per core record.
     # Ask Morphy to preserve present headers and supply its documented empty defaults
     # for missing optional metadata, using the original core move/annotation offsets.
     cbj = staged.with_suffix('.cbj')
-    core = staged.read_bytes()
+    with staged.open("rb") as stream:
+        core = stream.read(46)
     if len(core) >= 46 and struct.unpack_from('>H', core, 3)[0] == 46:
         next_id = struct.unpack_from('>i', core, 6)[0]
         core_count = next_id - 1
     else:
         core_count = -1
     if cbj.exists() and core_count >= 0:
-        data = cbj.read_bytes()
+        with cbj.open("rb") as stream:
+            data = stream.read(32)
         if len(data) >= 32:
             version, item_size, count = struct.unpack_from('<iii', data)
             if (1 <= version <= 11 and item_size > 0 and 0 <= count < core_count
-                    and len(core) == next_id * 46 and len(data) == 32 + count * item_size):
+                    and staged.stat().st_size == next_id * 46 and cbj.stat().st_size == 32 + count * item_size):
                 actions.append({'file': cbj.name, 'action': 'pad_missing_optional_cbj',
                                 'present_records': count, 'core_records': core_count,
                                 'missing_from_id': count + 1,
                                 'reason': 'Preserve existing extended metadata; missing optional fields remain defaults/unknown'})
     flags = staged.with_suffix('.flags')
     if flags.exists():
-        data = flags.read_bytes()
+        with flags.open("rb") as stream:
+            data = stream.read(12)
         if len(data) >= 12 and struct.unpack_from('>I', data)[0] == 0x0F010A09:
             # Version-10 top-game rankings are optional and never consulted by PGN conversion.
             # Keep the original file; omit only its copy rather than reinterpret an unknown layout.

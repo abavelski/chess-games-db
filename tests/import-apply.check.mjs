@@ -26,3 +26,8 @@ test('stale notes and injected failures roll back the whole source',()=>{
  assert.equal(db.prepare('SELECT pgn_sha256 FROM games').get().pgn_sha256,hash(pgn));assert.equal(db.prepare('SELECT count(*) n FROM import_sources').get().n,0);
  db.prepare("UPDATE game_personal_analysis SET updated_at='newer'").run();assert.throws(()=>applySource(db,s,entry,extraction,{runId:'stale'}),/edited since planning/);s.close();db.close();
 });
+test('saved personal data makes a changed root an explicit conflict',()=>{
+ const {db,pgn}=fixture();const replacement='[SetUp "1"]\n[FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"]\n\n1... e5 *';
+ const s=stage(replacement),result=planSource(db,s,entry,extraction,{reconciliation:{'1':{key:'1',expectedSha256:hash(pgn)}},validateReplacement});
+ assert.equal(result.conflict,1);assert.match(s.prepare('SELECT diagnostic FROM plan').get().diagnostic,/root-position/);assert.equal(db.prepare('SELECT pgn_sha256 FROM games').get().pgn_sha256,hash(pgn));s.close();db.close();
+});

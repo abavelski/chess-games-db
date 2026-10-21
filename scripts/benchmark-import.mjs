@@ -1,0 +1,31 @@
+import { mkdtempSync,writeFileSync,rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { zstdCompressSync } from 'node:zlib';
+import { performance } from 'node:perf_hooks';
+import Database from 'better-sqlite3';
+import { initializeGames,upsertGame } from '../lib/game-writer.mjs';
+import { prepareImportStorage,FINGERPRINT_VERSION } from '../lib/import/storage.mjs';
+import { hash } from '../lib/import/discovery.mjs';
+import { importGames } from './import-games.mjs';
+const games=Number(process.argv[2]??5000);
+if(!Number.isSafeInteger(games) || games<1)throw new Error('Expected positive disposable archive size');
+const directory=mkdtempSync(join(tmpdir(),'benchmark-import-'));
+try {
+ const target=join(directory,'archive.db'),input=join(directory,'increment.pgn'),db=new Database(target),pgn='[White "Benchmark"]\n\n1. e4 e5 *\n';
+ initializeGames(db);
+ db.transaction(()=>{for(let i=0;i<games;i++)upsertGame(db,{pgn_zstd:zstdCompressSync(pgn),pgn_sha256:hash(pgn),sources:[{source:{source_key:'bulk',title:'Bulk'},source_game_key:String(i)}]});})();
+ prepareImportStorage(db);
+ const baseline=JSON.stringify(db.prepare('SELECT * FROM game_features ORDER BY game_id').all());
+ writeFileSync(input,pgn);
+ const options={mode:'update',input,sourceKey:'increment',target,unenriched:true};
+ const start=performance.now(),first=await importGames(options),insertMs=performance.now()-start;
+ if(first.status!=='completed')throw new Error(JSON.stringify(first));
+ const cache=db.prepare('SELECT * FROM property_cache_state').get(),updated=db.prepare('SELECT updated_at FROM games WHERE id=?').get(games+1);
+ const rerunStart=performance.now(),repeat=await importGames(options),noopMs=performance.now()-rerunStart;
+ if(repeat.status!=='completed' || repeat.sources[0].counts.noop!==1 || repeat.sources[0].applied!==0 || repeat.verification.verifiedGames!==0)throw new Error('Repeat was not a no-op');
+ if(JSON.stringify(db.prepare('SELECT * FROM game_features WHERE game_id<=? ORDER BY game_id').all(games))!==baseline || JSON.stringify(db.prepare('SELECT * FROM property_cache_state').get())!==JSON.stringify(cache) || JSON.stringify(db.prepare('SELECT updated_at FROM games WHERE id=?').get(games+1))!==JSON.stringify(updated))throw new Error('Unaffected derived data/timestamps changed');
+ const queryPlan=db.prepare('EXPLAIN QUERY PLAN SELECT game_id FROM import_fingerprints WHERE version=? AND fingerprint=?').all(FINGERPRINT_VERSION,'test');
+ if(!queryPlan.some(r=>r.detail.includes('import_fingerprints_hash')))throw new Error('Fingerprint lookup did not use its index');
+ console.log(JSON.stringify({games,insertMs,noopMs,parentPeakRssKiB:process.resourceUsage().maxRSS,noop:repeat.sources[0],verifiedChecksumsOnNoop:repeat.verification.verifiedGames,unchangedFeatures:true,unchangedPropertyRevision:true,indexQueryPlan:queryPlan},null,2));db.close();
+}finally{rmSync(directory,{recursive:true,force:true});}

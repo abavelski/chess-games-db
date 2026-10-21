@@ -14,7 +14,9 @@ python3 tools/extraction/scripts/setup.py --cbv
 
 Omit `--cbv` for CBH only. `--offline` recompiles/tests using installed Maven
 artifacts and performs no downloads. A clean checkout needs the online setup
-once. Preserve `target/` and your Maven cache for offline import. No sibling `cb`
+once. Preparation stamps the pinned dependencies and Java source checksum; stale builds
+are refused before import. Re-run setup after changing extraction code.
+Preserve `target/` and your Maven cache for offline import. No sibling `cb`
 checkout is used. Tests: `mvn -f tools/extraction/pom.xml test` and
 `python3 -m unittest discover -s tools/extraction/scripts/tests`.
 

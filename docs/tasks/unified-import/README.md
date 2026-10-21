@@ -1,7 +1,8 @@
 # Unified local game import plan
 
-Status: implementation in progress, 2026-10-21. See POLICY.md for the frozen
-import policy and the task checkboxes below for implementation status.
+Status: implemented and verified, 2026-10-21. See POLICY.md for the frozen
+import policy, [VALIDATION.md](VALIDATION.md) for evidence and
+[the operation guide](../../unified-import.md) for supported commands.
 Tasks below are ordered implementation/review units with acceptance criteria.
 
 ## Goal
@@ -62,14 +63,14 @@ must work without a sibling `cb` checkout. During development, an explicit
 extractor-project option may bridge to `cb`; do not retain a hidden dependency.
 Do not copy the experimental exporters unrelated to this pipeline.
 
-Illustrative future CLI (not implemented commands):
+Implemented CLI examples (see the operation guide for defaults):
 
 ```sh
 npm run import:games -- inspect --books-root /path/to/books --manifest /path/to/import-manifest.json
-npm run import:games -- create --books-root /path/to/books --book 'Фишер' --manifest /path/to/import-manifest.json --output /path/to/new.sqlite3
-npm run import:games -- create --input '/path/to/Mega Database 2026.cbh' --source-key chessbase:mega-database-2026 --count 100000 --min-annotations 20 --min-year 1950 --languages ru,en --output /path/to/mega.sqlite3
-npm run import:games -- update --input /path/to/collection.pgn --source-key pgn:my-collection --target /path/to/existing.sqlite3 --dry-run
-npm run import:games -- update --input /path/to/collection.pgn --source-key pgn:my-collection --target /path/to/existing.sqlite3 --report /path/to/new-import-report.json
+npm run import:games -- create --books-root /path/to/books --book 'Фишер' --manifest /path/to/import-manifest.json --unenriched --output /path/to/new.sqlite3
+npm run import:games -- create --input '/path/to/Mega Database 2026.cbh' --source-key chessbase:mega-database-2026 --count 100000 --min-annotations 20 --min-year 1950 --languages ru,en --unenriched --output /path/to/mega.sqlite3
+npm run import:games -- update --input /path/to/collection.pgn --source-key pgn:my-collection --unenriched --target /path/to/existing.sqlite3 --dry-run
+npm run import:games -- update --input /path/to/collection.pgn --source-key pgn:my-collection --unenriched --target /path/to/existing.sqlite3 --report /path/to/new-import-report.json
 ```
 
 Resolve user paths relative to the invocation directory; bundled tools resolve
@@ -277,17 +278,17 @@ reports distinguish an intentional subset from an incomplete failed scan.
 
 Depends on UI-08.
 
-- [ ] Add isolated integration fixtures across v3–v6 conversion and v7 capability
+- [x] Add isolated integration fixtures across v3–v6 conversion and v7 capability
   combinations (favourites, personal analysis, openings, position scopes, unknown
   extensions). Never use the user's archives as writable test fixtures.
-- [ ] Exercise create → open/review → favourite/add personal line and comments →
+- [x] Exercise create → open/review → favourite/add personal line and comments →
   close → update → reopen/search/review. Cover root and variation comments,
   changed FEN/mainline/removed author branches, duplicate candidates, stable keys,
   malformed input, source drift, concurrent edits, crash/cancel and rollback.
-- [ ] Run relevant extractor Java/Python tests plus `npm test`, `npm run build`
+- [x] Run relevant extractor Java/Python tests plus `npm test`, `npm run build`
   and `npm run test:desktop`. Measure a small incremental rerun against a larger
   disposable archive for bounded memory, index use and no-op/derived-work costs.
-- [ ] Document setup, supported format limits, identity/manifest backup, language
+- [x] Document setup, supported format limits, identity/manifest backup, language
   profiles, duplicates, dry-run, update/restore and retry. Provide recipes for one
   book, all books, PGN and a MegaBase subset; retire redundant integration paths
   only after parity is demonstrated. Real-book validation uses disposable outputs

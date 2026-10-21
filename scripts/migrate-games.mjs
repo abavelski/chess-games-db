@@ -50,6 +50,12 @@ export async function migrateGames({input,output,dryRun=false,report:reportPath,
   await source.backup(join(scratch,'snapshot.sqlite3')); source.close(); source=null;
   src=new Database(join(scratch,'snapshot.sqlite3'),{readonly:true,fileMustExist:true});
   if(src.pragma('integrity_check',{simple:true})!=='ok' || src.pragma('foreign_key_check').length) throw new Error('Input integrity/foreign-key check failed');
+  const knownTables=new Set(['sources','games','source_records','opening_revisions','opening_state','opening_nodes','opening_entries','game_openings','game_opening_matches']);
+  const unknownTables=src.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().filter(t=>!knownTables.has(t.name));
+  if(unknownTables.length)throw new Error('Unknown legacy extensions require explicit inventory and transfer before conversion: '+unknownTables.map(t=>t.name).join(', '));
+  const personalColumns=src.pragma('table_info(games)').filter(c=>/favour|personal|notes/i.test(c.name));
+  const personalTables=src.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().filter(t=>/personal|notes|study/i.test(t.name));
+  if(personalColumns.length || personalTables.length) throw new Error('Legacy personal extensions require explicit inventory and transfer before conversion; this converter does not copy them');
   report.inventory=src.transaction(()=>inventory(src))();
   if(report.inventory.corrupt.length) throw new Error('Corrupt input PGN bytes/checksum; see inventory');
   if(dryRun) { report.status='dry-run'; return report; }

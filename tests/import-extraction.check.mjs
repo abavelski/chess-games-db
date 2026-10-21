@@ -19,3 +19,11 @@ test('streamed UTF-8 blocks preserve BOM/CRLF/Unicode and header-looking comment
   await assert.rejects(extractToStage({path,format:'.pgn'},{},join(dir,'bad.db')),/Truncated/);
  }finally {rmSync(dir,{recursive:true,force:true});}
 });
+test('common policy keeps FEN starts, unknown players, null moves and parser failures while explaining empty records',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'policy-extract-'));
+ try{
+  const path=join(dir,'policy.pgn');writeFileSync(path,'[White "?"]\n[Black "?"]\n\n1. e4 e5 *\n[SetUp "1"]\n[FEN "8/8/8/8/8/4k3/8/4K3 w - - 0 1"]\n\n1. Kf1 *\n[Event "Malformed"]\n\n1. e4 e5 2. Bh6 *\n[Event "Null"]\n\n1. e4 -- 2. d4 *\n[Event "Empty"]\n\n*\n');
+  const result=await extractToStage({path,format:'.pgn'},{},join(dir,'stage.db'));assert.equal(result.summary.scanned,5);assert.equal(result.summary.exported,4);assert.equal(result.summary.skipped,1);
+  const db=new Database(result.stagePath);assert.equal(JSON.parse(db.prepare('SELECT data FROM diagnostics').get().data).reason,'empty-standalone-position');db.close();
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});

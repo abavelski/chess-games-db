@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Explicit online preparation. Imports never run this script implicitly."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -40,7 +41,14 @@ def main():
             parser.error('CBV first build requires explicit online setup; omit --offline')
         run('cargo', 'install', '--git', 'https://github.com/antoyo/uncbv', '--rev', PINS['uncbv'],
             '--locked', '--root', ROOT / '.deps/uncbv')
-    (ROOT / 'target/prepared.json').write_text(json.dumps(PINS, indent=2) + '\n')
+    digest = hashlib.sha256()
+    sources = [ROOT / 'pom.xml', ROOT / 'pins.json', *ROOT.glob('src/main/java/**/*.java')]
+    for source in sorted(sources, key=lambda path: path.relative_to(ROOT).as_posix()):
+        digest.update(source.relative_to(ROOT).as_posix().encode())
+        digest.update(b'\0')
+        digest.update(source.read_bytes())
+    prepared = {'pins': PINS, 'sourceSha256': digest.hexdigest()}
+    (ROOT / 'target/prepared.json').write_text(json.dumps(prepared, indent=2) + '\n')
 
 if __name__ == '__main__':
     main()

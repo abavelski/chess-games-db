@@ -10,6 +10,7 @@ import se.yarin.morphy.Database;
 import se.yarin.morphy.DatabaseMode;
 import se.yarin.morphy.DatabaseReadTransaction;
 import se.yarin.morphy.games.ExtendedGameHeaderStorage;
+import se.yarin.morphy.games.GameHeaderFlags;
 import se.yarin.morphy.util.CBUtil;
 import java.io.StringWriter;
 import java.io.OutputStream;
@@ -60,7 +61,7 @@ public final class UnifiedExport {
      if (moves.countPly(false)==0) { skip(out,game.id(),"empty-standalone-position"); skipped++; continue; }
      if (moves.countAnnotations()<annotations) { skip(out,game.id(),"minimum-annotations"); skipped++; continue; }
      if (!language.filter(model)) { skip(out,game.id(),"comment-language"); skipped++; continue; }
-     BookRecord.markRecord(model,"game",game.id(),game.trainingMagnitude(),game.deleted());
+     BookRecord.markRecord(model,"game",game.id(),game.trainingMagnitude(),game.trainingMagnitude()>0 || game.header().flags().contains(GameHeaderFlags.TRAINING),game.deleted());
      var pgn=new StringWriter(); exporter.exportGame(model,pgn);
      byte[] plain=pgn.toString().getBytes(StandardCharsets.UTF_8);
      var buffer=new StringWriter();
