@@ -128,4 +128,5 @@ export const POSITION_HIT_PARAMS = Object.freeze({
   positionAlgorithm: POSITION_HASH_ALGORITHM,
   positionVersion: POSITION_INDEXER_VERSION,
   allPositionVersion: ALL_POSITION_INDEXER_VERSION,
+  includeVariations: 0,
 });
