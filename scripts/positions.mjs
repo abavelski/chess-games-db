@@ -8,7 +8,7 @@ import { buildPositions, positionBuildStatus } from '../lib/position-builder.mjs
 import { installPositionIndex } from './position-index.mjs';
 
 const usage = 'Usage: npm run positions -- (init|build|status|rebuild) --database PATH ' +
-  '[--dry-run] [--batch-size N] [--max-games N] [--rebuild]';
+  '[--dry-run] [--batch-size N] [--max-games N] [--rebuild] [--include-variations]';
 
 function positiveOption(value, name, max = Number.MAX_SAFE_INTEGER) {
   if (value === undefined) return undefined;
@@ -29,6 +29,7 @@ export async function main(args = process.argv.slice(2)) {
       rebuild: { type: 'boolean' },
       'batch-size': { type: 'string' },
       'max-games': { type: 'string' },
+      'include-variations': { type: 'boolean' },
     },
   });
   const mode = positionals[0];
@@ -37,7 +38,8 @@ export async function main(args = process.argv.slice(2)) {
   const batchSize = positiveOption(values['batch-size'], '--batch-size', 1000) ?? 25;
   const maxGames = positiveOption(values['max-games'], '--max-games') ?? Infinity;
   if (mode !== 'build' && mode !== 'rebuild' &&
-      (values['batch-size'] !== undefined || values['max-games'] !== undefined || values.rebuild)) {
+      (values['batch-size'] !== undefined || values['max-games'] !== undefined ||
+       values.rebuild || values['include-variations'])) {
     throw new Error('Batch/rebuild flags require build or rebuild mode');
   }
   const db = new Database(resolve(values.database), { fileMustExist: true });
@@ -68,6 +70,7 @@ export async function main(args = process.argv.slice(2)) {
       const metrics = await buildPositions(db, {
         batchSize, maxGames, dryRun: !!values['dry-run'],
         rebuild: mode === 'rebuild' || !!values.rebuild,
+        includeVariations: !!values['include-variations'],
         shouldStop: () => stopped,
         onProgress: progress => {
           if (progress.status !== 'complete' || progress.attempted % 25 === 0) {

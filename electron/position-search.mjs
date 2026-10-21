@@ -1,5 +1,5 @@
 import { POSITION_HASH_ALGORITHM } from '../lib/position-hash.mjs';
-import { POSITION_INDEXER_VERSION } from '../lib/position-builder.mjs';
+import { POSITION_INDEXER_VERSION, ALL_POSITION_INDEXER_VERSION } from '../lib/position-builder.mjs';
 import { positionIndexCapability } from '../lib/position-index-storage.mjs';
 
 // Position queries are deliberately read-only. Only a FEN crosses the IPC
@@ -66,8 +66,9 @@ export function positionSearchCoverage(db) {
       SELECT CASE
         WHEN st.game_id IS NULL THEN 'unindexed'
         WHEN st.pgn_sha256 != g.pgn_sha256 THEN 'stale'
-        WHEN st.algorithm_id != @algorithm OR st.indexer_version != @version
-          OR st.scope != 'mainline' THEN 'unsupported'
+        WHEN st.algorithm_id != @algorithm OR NOT (
+          (st.indexer_version=@version AND st.scope='mainline') OR
+          (st.indexer_version=@allVersion AND st.scope='all')) THEN 'unsupported'
         WHEN st.status = 'complete' THEN 'complete'
         WHEN st.status = 'failed' THEN 'invalid'
         WHEN st.status = 'building' THEN 'building'
@@ -84,7 +85,8 @@ export function positionSearchCoverage(db) {
       coalesce(sum(category='unsupported'),0) unsupported,
       coalesce(sum(category='unindexed'),0) unindexed
     FROM classified
-  `).get({ algorithm: POSITION_HASH_ALGORITHM, version: POSITION_INDEXER_VERSION });
+  `).get({ algorithm: POSITION_HASH_ALGORITHM, version: POSITION_INDEXER_VERSION,
+    allVersion: ALL_POSITION_INDEXER_VERSION });
   const isComplete = result.complete === total;
   return { status: isComplete ? 'complete' : 'partial', isComplete, total, ...result };
 }
@@ -104,12 +106,15 @@ export const POSITION_HITS_CTE = `
     JOIN game_position_index_state st ON st.game_id=o.game_id
     JOIN games indexed_game ON indexed_game.id=o.game_id
     WHERE o.position_id=@positionId AND o.is_mainline=1
-      AND st.status='complete' AND st.scope='mainline'
+      AND st.status='complete' AND
+      ((st.scope='mainline' AND st.indexer_version=@positionVersion) OR
+       (st.scope='all' AND st.indexer_version=@allPositionVersion))
       AND st.pgn_sha256=indexed_game.pgn_sha256
-      AND st.algorithm_id=@positionAlgorithm AND st.indexer_version=@positionVersion
+      AND st.algorithm_id=@positionAlgorithm
   )`;
 
 export const POSITION_HIT_PARAMS = Object.freeze({
   positionAlgorithm: POSITION_HASH_ALGORITHM,
   positionVersion: POSITION_INDEXER_VERSION,
+  allPositionVersion: ALL_POSITION_INDEXER_VERSION,
 });
