@@ -93,7 +93,7 @@ test('PS-10 mainline-only, complete all-lines, partial author coverage, deduplic
     assert.throws(() => archive.searchByPosition(d4, { scope: 'all' }), /scope/);
     assert.throws(() => archive.searchByPosition(d4, { scope: true }), /scope/);
 
-    db.prepare("UPDATE game_position_index_state SET status='building' WHERE game_id=2").run();
+    db.prepare("UPDATE game_position_index_state SET status='building',completed_at=NULL WHERE game_id=2").run();
     const partial = archive.searchByPosition(d4, scope);
     assert.equal(partial.total, 2, 'non-complete entries never leak hits');
     assert.equal(partial.coverage.building, 1);
