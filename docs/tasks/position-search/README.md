@@ -1,6 +1,6 @@
 # Position search — implementation phase
 
-Status: **mainline MVP verified** (2026-10-21). PS-01–PS-08 are complete; PS-09–PS-12 remain planned. Source baseline: schema 7, `master` on 2026-10-20. Keep this folder as the implementation/review checklist and record completed task verification here.
+Status: **mainline MVP verified** (2026-10-21). PS-01–PS-09 are complete; PS-10–PS-12 remain planned. Source baseline: schema 7, `master` on 2026-10-20. Keep this folder as the implementation/review checklist and record completed task verification here.
 
 ## Goal
 
@@ -37,12 +37,14 @@ Tasks are small independently reviewable increments. **MVP:** PS-01–PS-08. **F
 | [PS-06 — completed](06-search-board.md) | Search board and filter integration | PS-05 | Play moves, undo, search, see filtered results |
 | [PS-07 — completed](07-review-navigation.md) | Open game at matching mainline path | PS-03, PS-05 | Result click lands at matching position |
 | [PS-08 — completed](08-mvp-verification.md) | MVP regression, benchmarks, user guide | PS-04–PS-07 | End-to-end verified first release |
-| [PS-09](09-variation-indexing.md) | Index author PGN variations | PS-03, PS-04 | Indexed mainlines + valid nested sidelines |
+| [PS-09 — completed](09-variation-indexing.md) | Index author PGN variations | PS-03, PS-04 | Indexed mainlines + valid nested sidelines |
 | [PS-10](10-variation-search.md) | Mainline/all-lines mode in API and browser | PS-05, PS-09 | Mode-dependent correct results |
 | [PS-11](11-search-from-review.md) | Search from currently selected review position | PS-07, PS-10 | One-click cross-game lookup and return |
 | [PS-12](12-final-verification.md) | Follow-up verification, benchmarking, documentation | PS-09–PS-11 | Verified release with variation search |
 
 PS-08 adds a disposable archive-copy acceptance test, extends desktop smoke to exercise the opt-in offline installer, and records reproducible fixture benchmarks (including actual index footprint, query plans and p50/p95). See [PS-08 evidence](08-mvp-verification.md). No private archive was available for real-database measurements.
+
+PS-09 adds opt-in original source variation indexing, complete/partial scope diagnostics and strict viewer-path tests. The PS-05 browser remains mainline-only until PS-10. See [PS-09](09-variation-indexing.md).
 
 ## Definition of done for *each* task
 
