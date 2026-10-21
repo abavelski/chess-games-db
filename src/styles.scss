@@ -172,7 +172,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 .review-shell { --review-board-size: min(calc(100dvh - 170px), calc(64vw - 20px)); padding: 8px; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 .review-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; padding: 0 4px; flex-shrink: 0; }
-.review-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+.review-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; margin-left: auto; }
 .review-header-actions button { white-space: nowrap; }
 .review-search-return { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 14px; border: 1px solid #c9ddcf; border-radius: 8px; margin: 12px 0 16px; background: #f3f8f2; }
 .review-search-return span { font-size: 12px; color: #395b47; }
@@ -310,6 +310,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .evaluation-bar>span { position: absolute; top: 45%; left: 0; width: 100%; padding: 5px 0; background: #e7e8dc; color: #24382b; text-align: center; font: 10px system-ui,sans-serif; writing-mode: vertical-rl; }
 .review-analysis { padding: 9px 10px; border-bottom: 1px solid #ddd; max-height: 45%; overflow-y: auto; flex-shrink: 0; font-size: 12px; }
 .analysis-toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.analysis-toggles .review-piece-mode-button { margin-left: auto; white-space: nowrap; }
 .analysis-toggles button, .engine-setup button, .promotion-choice button { border: 1px solid #d7dfd1; border-radius: 4px; background: #f6f7ef; color: #38513d; padding: 5px 8px; font-size: 11px; }
 .analysis-toggles button[aria-pressed=true] { background: #30563f; border-color: #30563f; color: white; }
 .analysis-options { margin-top: 7px; color: #687461; }

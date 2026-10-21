@@ -270,8 +270,8 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
           disabled={!searchTarget.fen || !!pieceMode || !!promotion || !!merged.error || !!model.error || !!model.data?.positionError || savingPersonal || suspended}
           title={pieceMode ? 'Return from Piece mode before searching a legal position.' : searchTarget.reason ?? 'Search other games at the current review position'}
           onClick={findPosition}><Search size={16} />Find games with this position</button>
+        <button className="secondary-button" disabled={savingPersonal} onClick={() => void closeReview()} autoFocus><ArrowLeft size={16} /> Back to games</button>
       </div>
-      <button className="secondary-button" disabled={savingPersonal} onClick={() => void closeReview()} autoFocus><ArrowLeft size={16} /> Back to games</button>
     </header>
     {favouriteError && <div role="alert" className="notice error">{favouriteError}</div>}
     {navigationWarning && <div role="status" className="notice position-navigation-notice">{navigationWarning}</div>}
@@ -291,17 +291,15 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
         </div>
       </section>
       <section className="review-score" aria-label="Game score and annotations">
-        <div className="piece-entry"><button disabled={!position || !!promotion} onClick={() => {
-          if (position && viewer.current) setPieceMode({ fen: position.fen, orientation: viewer.current.orientation(), scroll: transcript.current?.scrollTop || 0, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null });
-        }}>Piece mode</button>
-          {critical.total > 0 && <div className="review-critical-navigation" role="group" aria-label="Study stops">
+        {critical.total > 0 && <div className="piece-entry">
+          <div className="review-critical-navigation" role="group" aria-label="Study stops">
             <button aria-label="Previous study stop" title="Previous study stop (critical positions and medals, including variations)"
               disabled={!ready || !!promotion || !critical.previous} onClick={() => selectReviewPath(critical.previous!)}><ChevronLeft size={16} /></button>
             <span aria-live="polite">{critical.current ? `${critical.current} / ${critical.total}` : `${critical.total} stops`}</span>
             <button aria-label="Next study stop" title="Next study stop (critical positions and medals, including variations)"
               disabled={!ready || !!promotion || !critical.next} onClick={() => selectReviewPath(critical.next!)}><ChevronRight size={16} /></button>
-          </div>}
-        </div>
+          </div>
+        </div>}
         <EnginePanel toolbarActions={<>
           <button type="button" className="review-comment-button" aria-label="Add comment" title={showCommentEditor ? 'Hide comment editor' : merged.comments.has(path) ? 'Edit comment' : 'Add comment'}
             aria-expanded={showCommentEditor} aria-controls="personal-comment-editor" disabled={!position}
@@ -312,6 +310,9 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
             disabled={!hasPersonalAnalysis || savingPersonal} onClick={() => void deletePersonalAnalysis()}><Trash2 size={17} aria-hidden="true" /></button>
           {merged.ownPaths.has(path) && <button type="button" className="review-comment-button" aria-label="Delete selected personal move"
             title="Delete this move and its continuation from my line" disabled={savingPersonal || !!promotion} onClick={deleteSelectedMove}><Scissors size={17} aria-hidden="true" /></button>}
+          <button type="button" className="review-piece-mode-button" disabled={!position || !!promotion} onClick={() => {
+            if (position && viewer.current) setPieceMode({ fen: position.fen, orientation: viewer.current.orientation(), scroll: transcript.current?.scrollTop || 0, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null });
+          }}>Piece mode</button>
         </>} onFlip={() => viewer.current?.flip()} canFlip={ready} options={analysisOptions} setOptions={setAnalysisOptions} display={display} setDisplay={updateDisplay} states={engines} position={position} onPreview={moves => { if (position) explore(replayPosition(position.initialFen, moves)); }} />
         {(personalError || merged.error) && <p className="notice error" role="alert">{personalError || merged.error}</p>}
         {showCommentEditor && <div className="personal-comment-editor" id="personal-comment-editor">
