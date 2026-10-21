@@ -14,7 +14,8 @@ const annotationGlyphs: Record<number, { symbol: string; name: string }> = {
   20: { symbol: '+−', name: '' },
   21: { symbol: '−+', name: '' },
 };
-export const ReviewMoves = memo(function ReviewMoves({ tokens, path, ready, onSelect, revealPath, revealToEnd, onReveal, showGlyphDescriptions = false, ownPaths, personalComments }: {
+export const ReviewMoves = memo(function ReviewMoves({ tokens, path, ready, onSelect, revealPath, revealToEnd, onReveal, showGlyphDescriptions = false, ownPaths, personalComments, onEditComment }: {
+  onEditComment?: (path: string) => void;
   ownPaths?: Set<string>; personalComments?: Map<string, string>;
   showGlyphDescriptions?: boolean;
   revealPath?: string; revealToEnd?: boolean; onReveal?: () => void;
@@ -48,7 +49,7 @@ export const ReviewMoves = memo(function ReviewMoves({ tokens, path, ready, onSe
         role="img" aria-label={`Critical ${phase} position`} title={`Critical ${phase} position`}>◆</span>)}
       {!!token.medals?.length && <span className="review-medal" role="img" aria-label={`Medals: ${token.medals.map(medalDescription).join('; ')}`} title={token.medals.map(medalDescription).join('\n')}><Medal size={13} aria-hidden="true" /><span>{token.medals.map(medalName).join(', ')}</span></span>}
     </button>;
-    const withComment = token.path && personalComments?.has(token.path) ? <span className="review-move-with-comment" key={index}>{moveButton}<span className="review-comment inline-comment personal-comment"> {personalComments.get(token.path)} </span></span> : moveButton;
+    const withComment = token.path && personalComments?.has(token.path) ? <span className="review-move-with-comment" key={index}>{moveButton}<button type="button" className="review-comment inline-comment personal-comment" title="Edit comment" aria-label={`Edit comment: ${personalComments.get(token.path)}`} disabled={!ready} onClick={() => onEditComment?.(token.path!)}> {personalComments.get(token.path)} </button></span> : moveButton;
     if (token.path !== revealPath || !onReveal) return withComment;
     const explanation = `Reveal ${revealToEnd ? 'the rest of the game' : 'up to the next critical position or medal'} without moving the board. Use the arrows to navigate moves.`;
     return <span className="review-move-with-reveal" key={index}>{withComment}<button type="button" className="review-reveal-button"
@@ -67,7 +68,7 @@ export const ReviewMoves = memo(function ReviewMoves({ tokens, path, ready, onSe
     <span className="review-variation-end" aria-hidden="true">)</span>
   </div>;
   return <div className={"review-moves" + (showGlyphDescriptions ? " show-glyph-descriptions" : "")}>
-    {personalComments?.has('') && <p className="review-comment personal-comment">{personalComments.get('')}</p>}
+    {personalComments?.has('') && <button type="button" className="review-comment personal-comment root-personal-comment" title="Edit comment" aria-label="Edit starting-position comment" disabled={!ready} onClick={() => onEditComment?.('')}>{personalComments.get('')}</button>}
     {layout.map(item => item.type === 'variation' ? renderVariation(item) : item.type === 'token' ? renderToken(item.token, item.index) : <div className="review-mainline-row review-move-pair" key={item.index}>
       <span className="review-row-number">{item.number}.</span>
       {item.white ? renderToken(item.white.token, item.white.index, true) : <span className="review-empty-move" aria-hidden="true">…</span>}

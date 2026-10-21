@@ -1,7 +1,7 @@
 import { criticalReveal } from '../src/critical-positions.mjs';
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergePersonal, validatePersonal, emptyPersonal, personalReviewTokens } from '../src/personal.mjs';
+import { mergePersonal, validatePersonal, emptyPersonal, personalReviewTokens, removePersonalMove, updatePersonalComment } from '../src/personal.mjs';
 import { reviewPgn } from '../src/pgn.mjs';
 
 const pgn = '1.e4 {Book note} (1.d4 d5) e5 2.Nf3 *';
@@ -57,4 +57,34 @@ test('study keeps personal branches selectable while hiding subsequent book move
   assert.ok(!visible.some(t => t.text?.includes('Hidden solution')));
   assert.equal(visible.filter(t => t.type === 'variation-start').length, visible.filter(t => t.type === 'variation-end').length);
   assert.ok(!visible.some(t => t.type === 'move' && !merged.ownPaths.has(t.path) && t.san !== 'e4'));
+});
+
+
+test('editing or deleting a comment affects only that position and preserves comment ordering', () => {
+  const personal = { lines: [['e2e4', 'c7c5']], comments: [{ moves: [], text: 'Root' }, { moves: ['e2e4'], text: 'Original' }] };
+  const updated = updatePersonalComment(personal, ['e2e4'], 'Edited');
+  assert.equal(updated.comments[1].text, 'Edited');
+  assert.equal(personal.comments[1].text, 'Original');
+  assert.deepEqual(updatePersonalComment(updated, ['e2e4'], '').comments, [{ moves: [], text: 'Root' }]);
+  assert.deepEqual(updated.lines, personal.lines);
+  assert.deepEqual(updatePersonalComment(personal, ['e2e4'], 'Original'), personal);
+});
+
+test('trimming personal subtrees retains earlier moves, siblings and unrelated comments', () => {
+  const personal = { lines: [['e2e4', 'c7c5', 'g1f3', 'b8c6'], ['e2e4', 'c7c5', 'b1c3'], ['d2d4', 'd7d5', 'c2c4']], comments: [
+    { moves: [], text: 'Root' }, { moves: ['e2e4', 'c7c5'], text: 'Parent' },
+    { moves: ['e2e4', 'c7c5', 'g1f3'], text: 'Removed' }, { moves: ['e2e4', 'c7c5', 'g1f3', 'b8c6'], text: 'Descendant' },
+    { moves: ['e2e4', 'c7c5', 'b1c3'], text: 'Sibling' },
+  ] };
+  const trimmed = removePersonalMove(pgn, personal, ['e2e4', 'c7c5', 'g1f3']);
+  assert.deepEqual(trimmed.lines, [['e2e4', 'c7c5', 'b1c3'], ['d2d4', 'd7d5', 'c2c4']]);
+  assert.deepEqual(trimmed.comments.map(c => c.text), ['Root', 'Parent', 'Sibling']);
+  assert.deepEqual(validatePersonal(trimmed, pgn), trimmed);
+  const leaf = removePersonalMove(pgn, personal, ['e2e4', 'c7c5', 'g1f3', 'b8c6']);
+  assert.deepEqual(leaf.lines[0], ['e2e4', 'c7c5', 'g1f3']);
+  const branch = removePersonalMove(pgn, personal, ['e2e4', 'c7c5']);
+  assert.deepEqual(branch.lines, [['d2d4', 'd7d5', 'c2c4']]);
+  assert.deepEqual(branch.comments.map(c => c.text), ['Root']);
+  assert.throws(() => removePersonalMove(pgn, personal, ['e2e4']), /Only personal/);
+  assert.equal(personal.lines[0].length, 4, 'Original analysis is unchanged');
 });

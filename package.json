@@ -18,7 +18,7 @@
     "study-markers": "node scripts/run-archive-tool.mjs scripts/critical-positions.mjs",
     "critical-positions": "node scripts/run-archive-tool.mjs scripts/critical-positions.mjs",
     "openings": "node scripts/run-archive-tool.mjs scripts/openings.mjs",
-    "test:desktop": "npm run build && node scripts/start-electron.mjs tests/desktop-smoke.mjs && node scripts/start-electron.mjs tests/openings-desktop-smoke.mjs && node scripts/start-electron.mjs tests/engine-desktop-smoke.mjs && node scripts/start-electron.mjs tests/critical-positions-desktop-smoke.mjs && node scripts/start-electron.mjs tests/favourites-desktop-smoke.mjs && node scripts/start-electron.mjs tests/personal-desktop-smoke.mjs",
+    "test:desktop": "npm run build && node scripts/start-electron.mjs tests/desktop-smoke.mjs && node scripts/start-electron.mjs tests/openings-desktop-smoke.mjs && node scripts/start-electron.mjs tests/engine-desktop-smoke.mjs && node scripts/start-electron.mjs tests/critical-positions-desktop-smoke.mjs && node scripts/start-electron.mjs tests/favourites-desktop-smoke.mjs && node scripts/start-electron.mjs tests/personal-desktop-smoke.mjs && node scripts/start-electron.mjs tests/personal-edit-desktop-smoke.mjs",
     "postinstall": "electron-builder install-app-deps",
     "engines:verify": "node scripts/verify-local-engines.mjs",
     "test:engines:local": "npm run build && node scripts/start-electron.mjs tests/real-engine-desktop.mjs"

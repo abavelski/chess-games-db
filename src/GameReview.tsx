@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MessageSquarePlus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MessageSquarePlus, Save, Trash2, Scissors } from 'lucide-react';
 import type { Key } from '@lichess-org/chessground/types';
 import { chessgroundDests } from 'chessops/compat';
 import { makeSquare, parseSquare } from 'chessops/util';
@@ -17,7 +17,7 @@ import { PgnBoard, type Viewer } from './PgnBoard';
 import { ReviewMoves } from './ReviewMoves';
 import { useBoardResize } from './useBoardResize';
 import { criticalNavigation, criticalReveal, criticalRevealStage } from './critical-positions.mjs';
-import { emptyPersonal, mergePersonal, personalPath, personalReviewTokens } from './personal.mjs';
+import { emptyPersonal, mergePersonal, personalPath, personalReviewTokens, updatePersonalComment, removePersonalMove } from './personal.mjs';
 import { Chess } from 'chessops/chess';
 import { parseFen } from 'chessops/fen';
 import { reviewPgn } from './pgn.mjs';
@@ -100,6 +100,11 @@ export function GameReview({ game, initialPath, onClose, onToggleFavourite, savi
   const critical = useMemo(() => criticalNavigation(revealed.tokens, path), [revealed.tokens, path]);
   const resize = useBoardResize();
   const selectReviewPath = useCallback((value: string) => viewer.current?.toPath(new Path(value), false), []);
+  const editComment = useCallback((value: string) => {
+    viewer.current?.toPath(new Path(value), false);
+    setShowCommentEditor(true);
+    requestAnimationFrame(() => commentEditor.current?.focus());
+  }, []);
   const onReady = useCallback((value: Viewer | null) => {
     viewer.current = value; setReady(!!value);
     if (value) {
@@ -125,6 +130,13 @@ export function GameReview({ game, initialPath, onClose, onToggleFavourite, savi
     setPromotion(null);
     setPersonal(previous => ({ ...previous, lines: [...previous.lines.filter(line => !(line.length < next.moves.length && line.every((move, index) => move === next.moves[index]))), next.moves] }));
   }, []);
+  const deleteSelectedMove = () => {
+    if (!position || savingPersonal || !merged.ownPaths.has(path)) return;
+    try {
+      setPersonal(previous => removePersonalMove(game.pgn, previous, position.moves));
+      setPersonalError(null);
+    } catch (error) { setPersonalError(error instanceof Error ? error.message : String(error)); }
+  };
   const engines = useEngineAnalysis(position, analysisOptions, !!pieceMode);
   const configureBoard = useCallback((board: Viewer) => {
     const current = (() => { try { return sourcePosition(board); } catch { return null; } })();
@@ -222,13 +234,15 @@ export function GameReview({ game, initialPath, onClose, onToggleFavourite, savi
           </div>}
         </div>
         <EnginePanel toolbarActions={<>
-          <button type="button" className="review-comment-button" aria-label="Add comment" title={showCommentEditor ? 'Hide comment editor' : 'Add comment'}
+          <button type="button" className="review-comment-button" aria-label="Add comment" title={showCommentEditor ? 'Hide comment editor' : merged.comments.has(path) ? 'Edit comment' : 'Add comment'}
             aria-expanded={showCommentEditor} aria-controls="personal-comment-editor" disabled={!position}
             onClick={() => setShowCommentEditor(value => !value)}><MessageSquarePlus size={17} aria-hidden="true" /></button>
           <button type="button" className="review-comment-button" aria-label="Save my comments" title="Save my comments and lines"
             disabled={!dirty || savingPersonal || !!merged.error} aria-busy={savingPersonal} onClick={() => void savePersonal()}><Save size={17} aria-hidden="true" /></button>
           <button type="button" className="review-comment-button" aria-label="Delete my lines and comments" title="Delete all my lines and comments in this game"
             disabled={!hasPersonalAnalysis || savingPersonal} onClick={() => void deletePersonalAnalysis()}><Trash2 size={17} aria-hidden="true" /></button>
+          {merged.ownPaths.has(path) && <button type="button" className="review-comment-button" aria-label="Delete selected personal move"
+            title="Delete this move and its continuation from my line" disabled={savingPersonal || !!promotion} onClick={deleteSelectedMove}><Scissors size={17} aria-hidden="true" /></button>}
         </>} onFlip={() => viewer.current?.flip()} canFlip={ready} options={analysisOptions} setOptions={setAnalysisOptions} display={display} setDisplay={updateDisplay} states={engines} position={position} onPreview={moves => { if (position) explore(replayPosition(position.initialFen, moves)); }} />
         {(personalError || merged.error) && <p className="notice error" role="alert">{personalError || merged.error}</p>}
         {showCommentEditor && <div className="personal-comment-editor" id="personal-comment-editor">
@@ -236,14 +250,17 @@ export function GameReview({ game, initialPath, onClose, onToggleFavourite, savi
             onChange={event => {
               if (!position) return;
               const text = event.target.value, moves = [...position.moves];
-              setPersonal(previous => ({ ...previous, comments: [...previous.comments.filter(comment => JSON.stringify(comment.moves) !== JSON.stringify(moves)), ...(text.trim() ? [{ moves, text }] : [])] }));
+              setPersonal(previous => updatePersonalComment(previous, moves, text));
             }} />
+          <button type="button" className="delete-position-comment" aria-label="Delete comment at this position" title="Delete only the comment at this position"
+            disabled={!position || !merged.comments.has(path) || savingPersonal}
+            onClick={() => { if (position) setPersonal(previous => updatePersonalComment(previous, position.moves, '')); }}><Trash2 size={16} aria-hidden="true" /></button>
         </div>}
         {promotion && <div className="promotion-choice" role="group" aria-label="Choose promotion">Promote to {(['queen', 'rook', 'bishop', 'knight'] as const).map(role => <button key={role} onClick={() => { explore(appendMove(promotion.position, promotion.from, promotion.to, role)); setPromotion(null); }}>{role}</button>)}</div>}
         <div className="review-transcript" ref={transcript}>
           {model.error && <div className="notice error">{model.error}</div>}
           {model.data?.positionError && <div className="notice error">{model.data.positionError}</div>}
-          {model.data && <ReviewMoves showGlyphDescriptions={display.glyphDescriptions} tokens={reviewTokens} ownPaths={merged.ownPaths} personalComments={merged.comments} path={path} ready={ready} onSelect={selectReviewPath}
+          {model.data && <ReviewMoves showGlyphDescriptions={display.glyphDescriptions} tokens={reviewTokens} ownPaths={merged.ownPaths} personalComments={merged.comments} onEditComment={editComment} path={path} ready={ready} onSelect={selectReviewPath}
             revealPath={revealed.paused ? revealed.path : undefined} revealToEnd={!nextReveal?.paused}
             onReveal={() => setRevealStage(stage => stage + 1)} />}
           {!revealed.paused && game.result && game.result !== '*' && <p className="review-result">{game.result}</p>}

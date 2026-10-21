@@ -107,3 +107,38 @@ export function personalReviewTokens(tokens, ownPaths, revealed) {
   const tail = result.findIndex(token => token.type === 'move' && !token.depth && ownPaths.has(token.path));
   return tail < 0 ? result : [...result.slice(0, tail), { type: 'variation-start', depth: 1 }, ...result.slice(tail).map(token => ({ ...token, depth: token.depth + 1 })), { type: 'variation-end', depth: 1 }];
 }
+
+
+export function updatePersonalComment(personal, moves, text) {
+  const key = JSON.stringify(moves);
+  const index = personal.comments.findIndex(comment => JSON.stringify(comment.moves) === key);
+  const comments = [...personal.comments];
+  if (!text.trim()) {
+    if (index >= 0) comments.splice(index, 1);
+  } else if (index >= 0) comments[index] = { moves: [...moves], text };
+  else comments.push({ moves: [...moves], text });
+  return { ...personal, comments };
+}
+
+// Remove a personal move's subtree, retaining the prefix and sibling branches.
+export function removePersonalMove(pgn, personal, moves) {
+  const merged = mergePersonal(pgn, personal);
+  let initial;
+  new PgnParser((game, error) => {
+    if (error) throw new Error('This PGN is too complex to edit completely.');
+    initial ??= startingPosition(game.headers).unwrap();
+  }).parse(pgn);
+  const target = personalPath(initial, moves);
+  if (!merged.ownPaths.has(target)) throw new Error('Only personal moves can be deleted.');
+  const candidates = new Map();
+  for (const line of personal.lines) {
+    const linePath = personalPath(initial, line);
+    const kept = linePath.startsWith(target) ? line.slice(0, moves.length - 1) : [...line];
+    const keptPath = personalPath(initial, kept);
+    if (merged.ownPaths.has(keptPath)) candidates.set(keptPath, kept);
+  }
+  const paths = [...candidates.keys()];
+  const lines = paths.filter(path => !paths.some(other => other !== path && other.startsWith(path))).map(path => candidates.get(path));
+  const comments = personal.comments.filter(comment => !personalPath(initial, comment.moves).startsWith(target));
+  return { lines, comments };
+}

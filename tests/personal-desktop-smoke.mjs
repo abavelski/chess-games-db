@@ -52,7 +52,7 @@ async function smoke() {
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
       };
       await wait(() => document.querySelector('.result-item')); document.querySelector('.result-item').click();
-      await wait(() => document.querySelector('.review-board cg-board'));
+      await wait(() => document.querySelector('.review-board cg-board') && button('Add comment') && !button('Add comment').disabled);
       if (document.querySelector('textarea')) throw new Error('Editor should start hidden');
       if (!button('Save my comments').disabled || !button('Delete my lines and comments').disabled) throw new Error('Empty game actions should be disabled');
       for (const label of ['Add comment', 'Save my comments', 'Delete my lines and comments']) {
@@ -112,7 +112,7 @@ async function smoke() {
       button('Back to games').click(); await wait(() => document.querySelector('.unsaved-changes-dialog[open]'));
       button('Discard').click(); await wait(() => !document.querySelector('.review-shell'));
       if ((await window.chessArchive.getGame(gameId)).personal.comments.find(c => !c.moves.length).text !== 'My starting note') throw new Error('Discard overwrote saved comments');
-      document.querySelector('.result-item').click(); await wait(() => button('Add comment')); button('Add comment').click(); await wait(() => document.querySelector('textarea')?.value === 'My starting note');
+      document.querySelector('.result-item').click(); await wait(() => button('Add comment') && !button('Add comment').disabled); button('Add comment').click(); await wait(() => document.querySelector('textarea')?.value === 'My starting note');
       await comment('Explicitly saved on leaving'); await wait(() => !button('Save my comments').disabled);
       button('Back to games').click(); await wait(() => document.querySelector('.unsaved-changes-dialog[open]'));
       button('Save').click(); await wait(() => !document.querySelector('.review-shell'));
@@ -127,7 +127,7 @@ async function smoke() {
       if ((await window.chessArchive.searchGames({ personalOnly: true })).total) throw new Error('Deleted game still matches personal analysis filter');
       button('Back to games').click(); await wait(() => !document.querySelector('.review-shell'));
       document.querySelector('.personal-filter input').click(); await wait(() => document.querySelectorAll('.result-item').length === 2);
-      document.querySelectorAll('.result-item')[1].click(); await wait(() => document.querySelector('.review-board cg-board'));
+      document.querySelectorAll('.result-item')[1].click(); await wait(() => document.querySelector('.review-board cg-board') && button('Add comment') && !button('Add comment').disabled);
     `);
     await click('a7'); await click('a8');
     await run(`

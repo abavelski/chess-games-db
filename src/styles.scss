@@ -434,3 +434,9 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .unsaved-changes-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .unsaved-changes-actions button { padding: 7px 14px; border: 1px solid #c5d2c0; border-radius: 4px; background: #f6f7ef; color: #38513d; }
 .unsaved-changes-actions button:first-child { background: #2c513c; color: #fff; }
+
+button.personal-comment { cursor: pointer; border-top: 0; border-right: 0; border-bottom: 0; text-align: left; }
+button.personal-comment:focus-visible { outline: 2px solid #216e5d; outline-offset: 2px; }
+.root-personal-comment { display: block; width: 100%; }
+.personal-comment-editor { position: relative; padding-right: 34px; }
+.delete-position-comment { position: absolute; right: 0; top: 0; display: inline-flex; padding: 5px; border: 1px solid #c5d2c0; border-radius: 4px; background: #f6f7ef; color: #38513d; }
