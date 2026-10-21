@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MessageSquarePlus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MessageSquarePlus, Save, Search, Trash2 } from 'lucide-react';
 import type { Key } from '@lichess-org/chessground/types';
 import { chessgroundDests } from 'chessops/compat';
 import { makeSquare, parseSquare } from 'chessops/util';
@@ -21,12 +21,13 @@ import { emptyPersonal, mergePersonal, personalPath, personalReviewTokens } from
 import { Chess } from 'chessops/chess';
 import { parseFen } from 'chessops/fen';
 import { reviewPgn } from './pgn.mjs';
-import { reviewPositionKey } from './review-navigation.mjs';
+import { reviewPositionKey, reviewedSearchFen } from './review-navigation.mjs';
 import type { GameDetail } from './types';
 
-export function GameReview({ game, initialPath, matchedPositionKey = null, navigationNotice = null, positionSearchNavigation = false, onClose, onToggleFavourite, savingFavourite, favouriteError, onPersonalSaved }: {
+export function GameReview({ game, initialPath, matchedPositionKey = null, navigationNotice = null, positionSearchNavigation = false, suspended = false, onFindPosition, onClose, onToggleFavourite, savingFavourite, favouriteError, onPersonalSaved }: {
   onPersonalSaved: () => void; game: GameDetail; initialPath: string;
   matchedPositionKey?: string | null; navigationNotice?: string | null; positionSearchNavigation?: boolean;
+  suspended?: boolean; onFindPosition: (fen: string) => void;
   onClose: () => void; onToggleFavourite: () => void; savingFavourite: boolean; favouriteError: string | null;
 }) {
   const viewer = useRef<Viewer | null>(null);
@@ -40,6 +41,20 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
   const [saved, setSaved] = useState(() => JSON.stringify(game.personal || emptyPersonal()));
   const [savingPersonal, setSavingPersonal] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
+  const [pendingFindFen, setPendingFindFen] = useState<string | null>(null);
+  const resumeFocus = useRef<HTMLElement | null>(null);
+  const resumeTranscriptScroll = useRef(0);
+  useEffect(() => {
+    if (suspended || !resumeFocus.current) return;
+    const target = resumeFocus.current;
+    const previousScroll = resumeTranscriptScroll.current;
+    const frame = requestAnimationFrame(() => {
+      if (transcript.current) transcript.current.scrollTop = previousScroll;
+      if (target.isConnected) target.focus({ preventScroll: true });
+      resumeFocus.current = null;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [suspended]);
   const [personalError, setPersonalError] = useState<string | null>(null);
   const selectedPath = useRef(initialPath);
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
@@ -60,7 +75,16 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
   };
   const closeReview = () => {
     if (savingPersonal) return;
+    setPendingFindFen(null);
     if (dirty) setConfirmExit(true);
+    else onClose();
+  };
+  const finishExit = (saveChanges: boolean) => {
+    setConfirmExit(false);
+    const fen = pendingFindFen;
+    setPendingFindFen(null);
+    if (!saveChanges) setPersonal(JSON.parse(saved));
+    if (fen) onFindPosition(fen);
     else onClose();
   };
   const closeRef = useRef(closeReview);
@@ -136,6 +160,22 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
     try { return sourcePosition(viewer.current); } catch { return null; }
   }, [ready, path, merged.pgn]);
   const position = source;
+  // Reuse the real viewer's legal replay, not the board's possibly modified
+  // Chessground FEN, a selected ply, or a manually reconstructed move.
+  const searchTarget = useMemo(() => {
+    if (!position) return { fen: null, reason: 'No legal review position is available.' };
+    try { return { fen: reviewedSearchFen(position), reason: null }; }
+    catch { return { fen: null, reason: 'This position is not supported by standard-chess search.' }; }
+  }, [position]);
+  const findPosition = () => {
+    if (!searchTarget.fen || savingPersonal || pieceMode || promotion || suspended) return;
+    resumeFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    resumeTranscriptScroll.current = transcript.current?.scrollTop ?? 0;
+    if (dirty) {
+      setPendingFindFen(searchTarget.fen);
+      setConfirmExit(true);
+    } else onFindPosition(searchTarget.fen);
+  };
   const explore = useCallback((next: AnalysisPosition) => {
     const initial = Chess.fromSetup(parseFen(next.initialFen).unwrap()).unwrap();
     const target = personalPath(initial, next.moves);
@@ -147,7 +187,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
     setPromotion(null);
     setPersonal(previous => ({ ...previous, lines: [...previous.lines.filter(line => !(line.length < next.moves.length && line.every((move, index) => move === next.moves[index]))), next.moves] }));
   }, []);
-  const engines = useEngineAnalysis(position, analysisOptions, !!pieceMode);
+  const engines = useEngineAnalysis(position, analysisOptions, !!pieceMode || suspended);
   const configureBoard = useCallback((board: Viewer) => {
     const current = (() => { try { return sourcePosition(board); } catch { return null; } })();
     if (!current || !board.ground) return;
@@ -213,7 +253,13 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
         {game.opening?.name && <p className="review-opening-name" title={game.opening.name}>{game.opening.name} · {game.opening.eco}{game.eco && game.eco !== game.opening.eco ? ` · Source ECO ${game.eco}` : ''}</p>}
         <p>{[game.event, game.site, game.date, game.opening?.name ? null : game.eco, revealed.paused ? null : game.result].filter(value => value && value !== '?').join(' · ')}</p>
       </div>
-      <button className="secondary-button" disabled={savingPersonal} onClick={() => void closeReview()} autoFocus><ArrowLeft size={16} /> Back to games</button>
+      <div className="review-header-actions">
+        <button className="secondary-button" type="button"
+          disabled={!searchTarget.fen || !!pieceMode || !!promotion || !!merged.error || !!model.error || !!model.data?.positionError || savingPersonal || suspended}
+          title={pieceMode ? 'Return from Piece mode before searching a legal position.' : searchTarget.reason ?? 'Search other games at the current review position'}
+          onClick={findPosition}><Search size={16} />Find games with this position</button>
+        <button className="secondary-button" disabled={savingPersonal} onClick={() => void closeReview()} autoFocus><ArrowLeft size={16} /> Back to games</button>
+      </div>
     </header>
     {favouriteError && <div role="alert" className="notice error">{favouriteError}</div>}
     {navigationWarning && <div role="status" className="notice position-navigation-notice">{navigationWarning}</div>}
@@ -277,15 +323,15 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
         </div>
       </section>
     </div>
-    {confirmExit && <UnsavedChangesDialog saving={savingPersonal} error={personalError}
-      onSave={async () => { if (await savePersonal()) onClose(); }}
-      onDiscard={onClose} onCancel={() => setConfirmExit(false)} />}
+    {confirmExit && <UnsavedChangesDialog saving={savingPersonal} error={personalError} searching={pendingFindFen !== null}
+      onSave={async () => { if (await savePersonal()) finishExit(true); }}
+      onDiscard={() => finishExit(false)} onCancel={() => { setConfirmExit(false); setPendingFindFen(null); resumeFocus.current = null; }} />}
     {pieceMode && <PieceMode fen={pieceMode.fen} orientation={pieceMode.orientation} onReturn={returnFromPieceMode} />}
   </main>;
 }
 
-function UnsavedChangesDialog({ saving, error, onSave, onDiscard, onCancel }: {
-  saving: boolean; error: string | null; onSave: () => Promise<void>; onDiscard: () => void; onCancel: () => void;
+function UnsavedChangesDialog({ saving, error, searching = false, onSave, onDiscard, onCancel }: {
+  saving: boolean; error: string | null; searching?: boolean; onSave: () => Promise<void>; onDiscard: () => void; onCancel: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -296,7 +342,7 @@ function UnsavedChangesDialog({ saving, error, onSave, onDiscard, onCancel }: {
   return <dialog ref={dialog} className="unsaved-changes-dialog" aria-labelledby="unsaved-changes-title"
     onCancel={event => { event.preventDefault(); if (!saving) onCancel(); }}>
     <h2 id="unsaved-changes-title">You have unsaved changes</h2>
-    <p>Save your lines and comments or discard these changes before returning to the games list.</p>
+    <p>Save your lines and comments or discard these changes before {searching ? 'searching for matching games' : 'returning to the games list'}.</p>
     {error && <p className="notice error" role="alert">{error}</p>}
     <div className="unsaved-changes-actions">
       <button disabled={saving} onClick={() => void onSave()}>{saving ? 'Saving...' : 'Save'}</button>
