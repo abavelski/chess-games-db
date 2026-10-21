@@ -87,26 +87,30 @@ See [docs/database.md](docs/database.md) for the schema, stable identifiers, PGN
 | `lib/position-hash.mjs` | Pure Polyglot position/pawn fingerprint contract (PS-01) |
 | `lib/position-mainline.mjs` | Pure, strict one-PGN mainline extraction, root/ply/viewer paths, and diagnostics (PS-03) |
 | `lib/position-index-storage.mjs` | Read-only detection of the optional position-index schema (PS-02) |
-| `scripts/position-index.mjs` | Explicit installation of derived position-index storage; no search UI yet |
+| `scripts/position-index.mjs` | Legacy explicit position-storage installer (PS-02) |
+| `scripts/positions.mjs` / `lib/position-builder.mjs` | Offline position index build, rebuild, resume, status and per-game atomic publication (PS-04) |
 | `scripts/migrate-games.mjs` | Explicit read-only legacy snapshot conversion |
 | `src/PgnBoard.tsx` | Lichess viewer integration |
 | `db/migrations/` | Versioned schema migrations |
 | `scripts/init-db.py` | Fresh v7 initializer |
 
-The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lichess PGN Viewer license. No custom chess engine or full-game position index is included. Named opening matches are derived from the Lichess catalogue; live Explorer statistics are a separate future feature.
+The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lichess PGN Viewer license. No custom chess engine or GUI position-search interface is included; an optional offline mainline position index can be built explicitly. Named opening matches are derived from the Lichess catalogue; live Explorer statistics are a separate future feature.
 
-## Optional position-search storage (PS-02)
+## Optional offline position-search index (PS-02–PS-04)
 
-A local archive can optionally receive the **derived position-index tables**, without changing its original PGNs or schema version. A separate pure mainline extractor (PS-03) computes per-ply hashes and reviewer paths from valid PGNs and rejects incomplete scores; it does not write any database rows. **This does not yet build an index or enable position search**; the offline builder and search UI are later tasks. Neither opening an archive nor starting the desktop app installs this extension.
+A local archive can optionally receive the **derived position-index tables**, without changing its original PGNs or schema version. The PS-03 extractor computes per-ply hashes and reviewer paths; the offline PS-04 builder persists complete, checksum-verified mainlines. **There is still no position-search UI** (PS-05 onward). Neither opening an archive nor starting the desktop app installs or builds the extension.
 
 From a development checkout with Node.js 22+ and dependencies installed, back up your archive and explicitly install the storage:
 
 ```sh
 cp data/annotated-games.sqlite3 data/games.positions.sqlite3
-npm run position-index -- install --database data/games.positions.sqlite3
+npm run positions -- init --database data/games.positions.sqlite3
+npm run positions -- status --database data/games.positions.sqlite3
+npm run positions -- build --database data/games.positions.sqlite3 --batch-size 25
+npm run positions -- rebuild --database data/games.positions.sqlite3 --dry-run
 ```
 
-The command refuses missing, legacy, future-version and incompatible/partial extensions. It is idempotent and leaves `PRAGMA user_version` at 7; it also works on older schema-7 archives without personal analysis. Newly initialized archives are not automatically position-indexed. On existing archives, the extension is optional; `getCatalog().capabilities.positionIndex.status` is `unavailable` without it, `installed` when its schema is valid (not a claim about game coverage), or `incompatible` for a partial/unrecognized layout. Importing a changed PGN invalidates its derived occurrences transactionally. See [position-storage contract](docs/tasks/position-search/02-position-storage.md).
+All commands require an explicit existing schema-7 archive path. `init` is idempotent; `build` resumes by skipping current completed games, and `rebuild` replays them without dropping valid old results ahead of publication. `build --dry-run` checks PGNs and reports prospective counts without writing. `--max-games N` bounds attempted games per invocation; `--batch-size N` limits the scan window (1–1000). Repeat `build` to resume after interruption. `status` distinguishes absent schema, unindexed, stale, invalid and complete coverage, including database size and stored occurrence totals. A failed or corrupt PGN gets a per-game diagnostic and no partial hits. Indexing is local and never starts engines or network calls. Hidden games and separately annotated editions are stored individually; the future search API must filter hidden games. PGN changes invalidate rows in the writer transaction, and deletions cascade; orphaned keys are reclaimed after builds. `getCatalog().capabilities.positionIndex.status` reports schema capability only, not coverage. See [PS-04](docs/tasks/position-search/04-index-builder.md).
 
 ## Opening catalogue enrichment
 
