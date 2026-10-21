@@ -1,6 +1,6 @@
 # PS-05 — Fast position search with existing filters and paging
 
-Status: **planned**. Depends on: PS-02. Use seeded index fixture; full CLI not required.
+Status: **implemented** (2026-10-21). Depends on: PS-02 and PS-04. Read-only archive query; no GUI.
 
 ## Deliver
 
@@ -17,3 +17,13 @@ Status: **planned**. Depends on: PS-02. Use seeded index fixture; full CLI not r
 - All existing filters combine as AND where appropriate; correct total/page counts, zero-result and last-page behavior; stable order and no hidden rows.
 - Unindexed/partially indexed/stale archive reports coverage rather than fabricating complete results; arbitrary SQL/FEN input rejected.
 - Test `EXPLAIN QUERY PLAN` and an indexed fixture without PGN decompression; `npm test`, `npm run build`.
+
+## Implementation
+
+`ChessArchive.searchByPosition(fen, filters = {})` in `electron/database.mjs` reuses the shared `predicate()` (all game properties, opening-descendant and transposition matches, year, text, favourites, personal analysis and hidden=0), plus the same `GAME_FROM`, labels, whitelisted sorts and bounded pages. `electron/position-search.mjs` supplies a strict request validator, read-only visible-game coverage report and indexed occurrence query CTE. The query first derives a validated PS-01 Polyglot fingerprint from a four- or six-field standard-chess FEN; it **never accepts caller-provided numeric hashes**. The `position_keys(zobrist_hash,exact_key)` unique index verifies collision safety before seeking `game_position_occurrences_position`. The CTE ranks only current, complete, supported-version, mainline occurrences by `(ply,path)`, choosing one deterministic preferred path per game before counting, filtering or paging.
+
+Return shape: `{rows,total,page,pageSize,coverage}`. Each row contains the same game metadata/opening labels as `searchGames`, plus `match:{path,ply,isMainline:true}`. `coverage` describes **all visible games**: `status: 'unavailable'|'incompatible'|'partial'|'complete'`, `isComplete` and numeric `total,complete,invalid,building,partial,stale,unsupported,unindexed` counts. In partial coverage, `total` is the number of currently indexed matches only; a zero is **not** a claim of no library matches. Hidden games are excluded, and no source PGNs are decompressed or replayed at query time.
+
+The Electron main process registers `archive:position-search`; the context-isolated preload exposes `searchByPosition` with a typed `PositionSearchResult` in `src/types.ts`. FEN and request sizes are bounded, dynamic filters use the existing validated/whitelisted parameters, and IPC receives no database handle or raw SQL. Neither app startup nor search performs schema writes or extension installation. Mainline search only; variations and interactive UI remain PS-09/PS-06.
+
+Tests in `tests/position-search.check.mjs` use disposable schema-7 archives and cover transpositions/editions, repeated game visits and preferred paths, real opening hierarchy plus all existing filters, stable paging, visible coverage and stale/invalid/unsupported states, forced hash collisions, legal and pinned en-passant, SQL planner indexes, malformed input, and search without PGN decompression. Run `npm test` and `npm run build` via the project CI.
