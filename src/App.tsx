@@ -5,7 +5,7 @@ import { PropertyFilter } from './PropertyFilter';
 import { GameReview } from './GameReview';
 import { PositionSearchBoard } from './PositionSearchBoard';
 import { OpeningFilter, type OpeningSelection } from './OpeningFilter';
-import type { Catalog, GameDetail, GameRow, Page, PositionSearchCoverage, PositionSearchRow, PropertyKey, SearchFilters } from './types';
+import type { Catalog, GameDetail, GameRow, Page, PositionSearchCoverage, PositionSearchResult, PositionSearchRow, PropertyKey, SearchFilters } from './types';
 
 const defaultFilters = { yearFrom: '', yearTo: '', sort: 'book', favouritesOnly: false, personalOnly: false };
 const propertyLabels: Array<[PropertyKey,string]> = [['source','Source'],['sourceType','Source type'],['event','Event'],['year','Year'],['result','Result'],['studyMarkers','Study markers']];
@@ -92,7 +92,7 @@ export default function App() {
       : window.chessArchive.searchByPosition(appliedPositionFen, requestFilters);
     request.then(value => { if (alive) {
       setResults(value);
-      setPositionCoverage('coverage' in value ? value.coverage : null);
+      setPositionCoverage(appliedPositionFen === null ? null : (value as PositionSearchResult).coverage);
       const lastPage = Math.max(1, Math.ceil(value.total / 40));
       if (page > lastPage) setPage(lastPage);
     } })
