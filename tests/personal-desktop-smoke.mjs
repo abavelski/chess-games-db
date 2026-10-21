@@ -23,7 +23,7 @@ async function smoke() {
     await once(window.webContents, 'did-finish-load');
     const run = script => window.webContents.executeJavaScript(`(async () => { ${script} })()`);
     await run(`
-      window.wait = async predicate => { const end = Date.now() + 7000; while (!predicate()) { if (Date.now() > end) throw new Error('Timed out: ' + predicate); await new Promise(r => setTimeout(r, 20)); } };
+      window.wait = async predicate => { const end = Date.now() + 7000; while (!predicate()) { if (Date.now() > end) throw new Error('Timed out (' + (window.testStage || 'unknown') + '): ' + predicate); await new Promise(r => setTimeout(r, 20)); } };
       window.button = text => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text || b.getAttribute('aria-label') === text);
       window.current = () => document.querySelector('.review-move[aria-current="step"]');
       window.rememberBoard = () => {
@@ -60,6 +60,8 @@ async function smoke() {
         if (!action.closest('.analysis-toggles') || !action.title || action.textContent.trim() || !action.querySelector('svg')) throw new Error('Comment actions should be toolbar icons with hover descriptions');
       }
       if (document.querySelector('.personal-tools') || document.querySelector('.personal-comment-editor')) throw new Error('Removed comment labels still visible');
+      window.testStage = 'initial comment editor';
+      await wait(() => !button('Next move')?.disabled);
       button('Add comment').click(); await wait(() => document.querySelector('textarea'));
       button('Add comment').click(); await wait(() => !document.querySelector('textarea'));
     `);
@@ -101,6 +103,8 @@ async function smoke() {
       button('Game review settings').click(); await wait(() => document.querySelector('dialog[open]'));
       button('Study stops').click(); button('Done').click();
       await wait(() => !document.querySelector('.review-original'));
+      window.testStage = 'study-stop comment editor after reopening';
+      await wait(() => !button('Next move')?.disabled);
       button('Add comment').click(); await wait(() => document.querySelector('textarea'));
       if (document.querySelectorAll('.personal-move').length !== 3) throw new Error('Study hid personal branches');
       document.querySelector('.personal-move').click(); await wait(() => current()?.classList.contains('personal-move'));

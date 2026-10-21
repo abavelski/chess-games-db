@@ -11,6 +11,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --ignore-scripts --no-audit
-      - run: npm test
+      - run: npm install --no-audit
+      # Electron launcher tests require a graphical session and a working SUID sandbox.
+      - run: sudo chown root:root node_modules/electron/dist/chrome-sandbox && sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+      - run: xvfb-run -a npm test
       - run: npm run build
+      # Isolated deterministic fixture only; emits reproducible machine-readable measurements.
+      - run: npm run benchmark:positions -- --games 240 --samples 80
+      # PS-12: compare mainline and fully indexed nested author variations on separate disposable copies.
+      - run: npm run benchmark:position-variations -- --games 120 --samples 40
+      # PS-08 release gate: all desktop smoke journeys, not just position search.
+      - run: xvfb-run -a npm run test:desktop

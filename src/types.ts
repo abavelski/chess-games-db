@@ -7,8 +7,14 @@ export interface Source {
   game_count: number;
   kind: string;
 }
+export interface PositionIndexCapability {
+  status: 'unavailable' | 'incompatible' | 'installed';
+  schemaVersion?: number;
+  hashAlgorithm?: string;
+  pawnAlgorithm?: string;
+}
 export interface Catalog {
-  capabilities?: { openings: boolean; criticalPositions?: boolean; studyMarkers?: boolean };
+  capabilities?: { openings: boolean; criticalPositions?: boolean; studyMarkers?: boolean; positionIndex?: PositionIndexCapability };
   path: string;
   sources: Source[];
   totals: { games: number };
@@ -66,6 +72,31 @@ export interface GameDetail extends GameRow {
   created_at: string;
   updated_at: string;
 }
+/** Search coverage is archive-wide for visible games, not just the chosen FEN.
+ * A partial index can return valid hits, but zero results are not conclusive
+ * until isComplete is true. No PGN bytes or bigint hashes cross IPC.
+ */
+export interface PositionSearchCoverage {
+  status: 'unavailable' | 'incompatible' | 'partial' | 'complete';
+  isComplete: boolean;
+  scope: 'mainline' | 'includeSourceVariations';
+  total: number;
+  complete: number;
+  /** Indexed mainlines without verified author-variation coverage. */
+  mainlineOnly: number;
+  invalid: number;
+  building: number;
+  partial: number;
+  stale: number;
+  unsupported: number;
+  unindexed: number;
+}
+export interface PositionSearchRow extends GameRow {
+  match: { path: string; ply: number; isMainline: boolean; type: 'playedGame' | 'sourceVariation' };
+}
+export interface PositionSearchResult extends Page<PositionSearchRow> {
+  coverage: PositionSearchCoverage;
+}
 export interface Page<T> {
   rows: T[];
   total: number;
@@ -73,6 +104,8 @@ export interface Page<T> {
   pageSize: number;
 }
 export interface SearchFilters {
+  /** Used by position search only; omitted means played game mainlines. */
+  scope?: 'mainline' | 'includeSourceVariations';
   favouritesOnly?: boolean;
   personalOnly?: boolean;
   properties?: Partial<Record<PropertyKey, string[]>>;
@@ -89,6 +122,7 @@ export interface ChessArchiveAPI {
   propertyOptions(request: {property: PropertyKey; query?: string; filters?: SearchFilters; cursor?: string | number; limit?: number}): Promise<{options: PropertyOption[]; cursor: string | null}>;
   getCatalog(): Promise<Catalog | null>;
   searchGames(f: SearchFilters): Promise<Page<GameRow>>;
+  searchByPosition(fen: string, filters?: SearchFilters): Promise<PositionSearchResult>;
   openingFacets(f: SearchFilters): Promise<OpeningFacets>;
   setFavourite(id: number, favourite: boolean): Promise<boolean>;
   savePersonal(id: number, personal: PersonalAnalysis): Promise<PersonalAnalysis>;

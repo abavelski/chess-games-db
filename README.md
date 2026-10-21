@@ -37,7 +37,8 @@ npm start          # run the built desktop app without a development server
 npm run dist:dir   # unpacked desktop app
 npm run dist       # installer/DMG/AppImage (depends on platform)
 npm test           # SQL filter/query unit tests
-npm run test:desktop # games and opening-filter desktop smoke tests (requires a graphical session)
+npm run test:desktop # full offline Electron regression suite (requires a graphical session)
+npm run benchmark:positions -- --games 240 --samples 80 # disposable fixture only
 ```
 
 The app opens the previously selected database if present, and during development also looks for `data/annotated-games.sqlite3`. Otherwise, click **Open database** to select an existing SQLite file. **The database is not included in Git or any installer.** The app never writes to the archive and does not create an empty replacement if a file is missing.
@@ -84,12 +85,100 @@ See [docs/database.md](docs/database.md) for the schema, stable identifiers, PGN
 | `electron/queries.mjs` | Parameterized filtering, sort whitelists, safe paging |
 | `src/App.tsx` | Games-only browser, filters, and review navigation |
 | `lib/game-writer.mjs` | Shared transactional imports, features and property cache |
+| `lib/position-hash.mjs` | Pure Polyglot position/pawn fingerprint contract (PS-01) |
+| `lib/position-mainline.mjs` | Pure, strict one-PGN mainline extraction, root/ply/viewer paths, and diagnostics (PS-03) |
+| `lib/position-index-storage.mjs` | Read-only detection of the optional position-index schema (PS-02) |
+| `scripts/position-index.mjs` | Legacy explicit position-storage installer (PS-02) |
+| `scripts/positions.mjs` / `lib/position-builder.mjs` | Offline position index build, rebuild, resume, status and per-game atomic publication (PS-04) |
+| `electron/position-search.mjs` / `electron/database.mjs` | Collision-safe mainline position lookup, coverage and shared game filters (PS-05) |
+| `src/PositionSearchBoard.tsx` / `src/position-search-board.mjs` | Keyboard-accessible legal-move board, undo/reset and explicit search in the browser (PS-06) |
+| `src/review-navigation.mjs` / `src/GameReview.tsx` | Verify searched positions against original PGN and reviewer board, choose safe Study-stops navigation (PS-07) |
 | `scripts/migrate-games.mjs` | Explicit read-only legacy snapshot conversion |
 | `src/PgnBoard.tsx` | Lichess viewer integration |
 | `db/migrations/` | Versioned schema migrations |
 | `scripts/init-db.py` | Fresh v7 initializer |
 
-The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lichess PGN Viewer license. No custom chess engine or full-game position index is included. Named opening matches are derived from the Lichess catalogue; live Explorer statistics are a separate future feature.
+The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lichess PGN Viewer license. No custom chess engine is included; the optional exact-position search UI uses a separately built offline position index (played mainlines by default, opt-in author variations). Named opening matches are derived from the Lichess catalogue; live Explorer statistics are a separate future feature.
+
+## Optional offline position-search index (PS-02–PS-04)
+
+A local archive can optionally receive the **derived position-index tables**, without changing its original PGNs or schema version. The PS-03 extractor computes per-ply hashes and reviewer paths; the offline PS-04 builder persists complete, checksum-verified mainlines. **Position search UI is available from PS-06**, but only backed by an explicitly built index. PS-07 verifies stored paths against original PGN and opens matching review positions, safely handling stale indexes and Study stops. Neither opening an archive nor starting the desktop app installs or builds the extension.
+
+From a development checkout with Node.js 22+ and dependencies installed, **make a consistent copy** and opt in explicitly. Close other writers; SQLite's online backup command also captures committed WAL transactions. Use a *new destination file*, then select that copy using **Change database** in the app:
+
+```sh
+sqlite3 data/annotated-games.sqlite3 ".backup 'data/games.positions.sqlite3'"
+npm run positions -- init --database data/games.positions.sqlite3
+npm run positions -- build --database data/games.positions.sqlite3 --batch-size 25
+npm run positions -- status --database data/games.positions.sqlite3
+npm run positions -- rebuild --database data/games.positions.sqlite3 --dry-run
+# Optional full replay after troubleshooting or an algorithm update:
+npm run positions -- rebuild --database data/games.positions.sqlite3
+npm run positions -- status --database data/games.positions.sqlite3
+```
+
+If the `sqlite3` command-line tool is unavailable, use another SQLite-compatible *online backup* tool; only use a filesystem copy after all database connections, including WAL writers, are closed. Neither the installer nor the app makes a backup for you.
+
+All commands require an explicit existing schema-7 archive path. `init` is idempotent; `build` resumes by skipping current completed games, and `rebuild` replays them without dropping valid old results ahead of publication. `build --dry-run` checks PGNs and reports prospective counts without writing. `--max-games N` bounds attempted games per invocation; `--batch-size N` limits the scan window (1–1000). Repeat `build` to resume after interruption. `status` distinguishes absent schema, unindexed, stale, invalid and complete coverage, including database size and stored occurrence totals. A failed or corrupt PGN gets a per-game diagnostic and no partial hits. Indexing is local and never starts engines or network calls. Hidden games and separately annotated editions are stored individually; search excludes hidden games and returns one earliest matching occurrence per visible game. PGN changes invalidate rows in the writer transaction, and deletions cascade; orphaned keys are reclaimed after builds. `getCatalog().capabilities.positionIndex.status` reports schema capability only, not coverage. See [PS-04](docs/tasks/position-search/04-index-builder.md) and the [PS-08 release measurements](docs/tasks/position-search/08-mvp-verification.md).
+
+### Recovery and index scope
+
+The optional index defaults to **standard-chess root and mainline** positions. PS-09 can additionally index nested original author PGN variations on explicit request; the browser and API default to mainline search and allow opt-in **Include annotated variations** after building with `--include-variations`. Pawn signatures are not yet exposed as a pawn-structure search UI. Keys include side to move, castling and Polyglot en-passant semantics; equivalent transpositions match even when move orders or matching plies differ. Repeated occurrences in one game produce one result, **preferentially from the played mainline**; if only author branches match, choose the earliest ply then shortest/stable path. Different annotated editions remain separate.
+
+If `status` reports `unindexed` or `stale`, repeat `build` on the **copy**. Use `rebuild --dry-run` to preview a full replay, then `rebuild` to regenerate derived rows. Invalid source PGNs or checksum failures are reported, not silently skipped as conclusive no-matches; correcting an invalid PGN requires fixing/reimporting its source separately. If the extension is incompatible or a copy becomes damaged, restore a **fresh verified archive copy** from the original and rerun `init → build → status`. You can always reopen the original unindexed archive. Neither searching nor starting Electron automatically installs, repairs or updates the index. Explicit favourite and personal-note actions remain the only review/browser writes.
+
+To measure your own archive **without modifying it**, run `npm run benchmark:positions -- --database /path/to/archive.sqlite3 --samples 80`. The benchmark opens the supplied schema-7 archive read-only, makes a temporary SQLite backup, performs indexing on that copy, and removes it afterward. Omitting `--database` benchmarks a deterministic, generated fixture (240 games by default). For example, a measured **240-game fixture copy** increased from **520,192 to 847,872 bytes** after indexing (**+327,680 bytes / 320 KiB**); real archive sizes depend on its scores. Results include hardware, build/rebuild time, additional file size, query plans, duplicate occurrences, coverage and warmed p50/p95 latency; do not treat [fixture measurements](docs/tasks/position-search/08-mvp-verification.md) as performance guarantees for your archive.
+
+### Release verification and variation-heavy benchmarks (PS-12)
+
+The final release gate verifies both search scopes and review-return behavior with automated schema-7 fixture and Electron desktop journeys; see [PS-12 completion evidence](docs/tasks/position-search/12-final-verification.md). It checks exact reviewer paths, collision safety (hash **and** four-field key), pawn signature storage, interrupted/resumed builds, partial author-variation failures, transactional rebuild rollback, stale PGN invalidation, opening enrichment, favourites, personal notes, and original source preservation. There is **no automatic installation or indexing**, and the original PGN text and annotated editions remain untouched.
+
+Compare the two scopes and storage footprints on **separate, temporary SQLite online backups**, keeping a supplied archive read-only:
+
+```sh
+# Deterministic variation-heavy schema-7 fixture (no external archive needed)
+npm run benchmark:position-variations -- --games 120 --samples 40
+# Optional: read-only snapshot of your own schema-7 archive (not modified)
+npm run benchmark:position-variations -- --database /path/to/archive.sqlite3 --samples 40
+```
+
+The benchmark records exact SQLite page-byte footprints, build and incremental timings, coverage, occurrence counts, indexed SQL plans and warmed p50/p95 per position for three conditions: baseline mainline-only index, mainline query on a full all-lines index, and **Include annotated variations** query on the same all-lines index. Reported timings are machine-dependent and **fixture-only unless an archive copy is explicitly supplied**. Invalid source sidelines on a real archive may produce partial coverage; such zeros are non-exhaustive. The local benchmark does not contact servers or launch engines.
+
+**Not shipped:** searching solely by pawn structure (the signature is indexed for future use), fuzzy board similarity, player repertoire tools, online chess databases or background index services.
+
+### Optional author-variation index (PS-09)
+
+After installing the derived index on an archive **copy**, opt in to author variation replay and check independent all-lines coverage:
+
+```sh
+npm run positions -- build --database data/games.positions.sqlite3 --include-variations
+npm run positions -- status --database data/games.positions.sqlite3
+npm run positions -- rebuild --database data/games.positions.sqlite3 --include-variations --dry-run
+```
+
+`status` reports `allComplete` and `variationIncomplete`. Valid nested source PGN sidelines receive exact reviewer paths, plies, position hashes and pawn signatures. Invalid sidelines are diagnosed and retain their game's valid mainline, without claiming complete variation coverage. **Saved personal lines are excluded.** PS-10 enables the **Include annotated variations** checkbox for search results and verified review-at-variation navigation. Normal queries remain mainline-only, even when an archive contains all-lines occurrences. See [PS-09 implementation](docs/tasks/position-search/09-variation-indexing.md).
+
+## Position search API (PS-05)
+
+With an explicitly built index (`npm run positions -- build --database PATH`), the app's read-only archive API supports `searchByPosition(fen, filters)` over the Electron preload/IPC boundary. The query accepts a validated four- or six-field standard-chess FEN, computes Polyglot keys on the trusted side, checks the full position key against collisions, and combines matches with the **same** filters and sorting as `searchGames`. It returns `{ rows, total, page, pageSize, coverage }`; each row includes `match: { path, ply, isMainline, type }` with `type` of `playedGame` or `sourceVariation` for verified reviewer navigation. Pass `scope: 'includeSourceVariations'` in the filter object to search both played positions and indexed author sidelines; the default `'mainline'` scope preserves MVP behavior.
+
+`coverage.status` is `unavailable`, `incompatible`, `partial`, or `complete`; `coverage.isComplete` and the scope-specific visible-game counts `complete`, `mainlineOnly`, `invalid`, `building`, `partial`, `stale`, `unsupported`, `unindexed` are essential. In incomplete coverage, `rows` and `total` reflect **indexed games only**, so a zero result is not conclusive. Hidden games are excluded and repeated positions yield just one preferred occurrence per game (played mainline first, otherwise earliest ply, shortest and stable path). In opt-in variation mode, archives with mainline-only indexes still return their known played hits but warn explicitly that author-variation coverage is incomplete. Only complete all-lines index coverage makes zero results exhaustive. Neither searching nor opening the archive installs an extension, scans/decompresses source PGN, or starts any background indexing. The interactive search board is implemented in PS-06; PS-07 validates and opens the exact match in review.
+
+## Search by position in the games browser (PS-06)
+
+Open an archive with an offline index and select **Search by position** below the opening filter. Check **Include annotated variations** to include indexed source-authored sidelines; matches seen only in annotations are labelled separately and open at the verified branch. Repeated matches produce one card per game, favouring the played occurrence. The option works by keyboard and preserves other filters, sorting, and review-return state. The board starts at the normal chess setup; click a piece, then a highlighted legal destination. Square buttons can also be operated with keyboard arrow keys and Enter/Space (Escape cancels a selection). The board supports castling, en passant, explicit promotion choices, **Undo**, **Reset board** and **Flip**. It shows SAN move history, the side to move, and the current FEN.
+
+Click **Search position** to search; moving a piece by itself never runs a database query. Exact-position matches appear in the existing game list with a ply label and combine with all currently selected source, year, opening, favourites and personal filters. Pagination resets when the searched position or a filter changes. Changing the board after a search shows a reminder until you search again. The board, search results, pagination and browser scroll remain intact when opening a review and returning. **Clear position search** returns to normal games while preserving all unrelated filters and the board's move history.
+
+If the archive has no index, the browser shows how to explicitly build one; incomplete indexes show complete/unindexed/building/stale/invalid counts and never mistake an unindexed zero for a definite no-match. A fully indexed zero is labelled as no games reaching this exact position under the filters. The interactive board remains separate from the free-move **Piece mode**. Opening a matching row now verifies the stored occurrence against the original PGN and jumps to that exact position. A missing/stale index path or viewer mismatch produces a notice and safely opens at game start. If **Study stops** hides the target, review opens at the nearest revealed mainline ancestor with an explanation, without revealing hidden continuations. Back preserves filters, page, board, moves, scroll and focus.
+
+## Find games from the current review position (PS-11)
+
+In **Game review**, navigate to any legal played move, original author variation or saved personal sideline, then select **Find games with this position**. The browser switches to an exact-position search from the current viewer replay, retaining existing game filters and sorting. Search starts in played-game **mainline** mode; open **Search by position** to enable **Include annotated variations**. If the optional index is absent or incomplete, an explicit coverage warning appears rather than a false zero. The original game can appear naturally among matches, and different annotated editions remain separate.
+
+The browser shows **Return to reviewed game**. It returns to the same still-mounted review at the original variation path, preserving editor state, transcript scroll, focus, board orientation and analysis settings. Opening other matching games does not destroy the originating session. Separately saved personal lines may be the **query input**, but are not inserted into source index tables.
+
+If personal notes are unsaved when you search, the existing **Save / Discard / Cancel** dialog appears first. Cancel stays in review, Save persists edits before searching, and Discard restores the saved version. Searching is disabled while free-move **Piece mode** is open; return to a legal review position first. The browser's separate setup board may have different history, so the exact reviewed FEN is shown beside the return control.
 
 ## Opening catalogue enrichment
 

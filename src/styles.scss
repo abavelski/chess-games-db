@@ -172,6 +172,14 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 .review-shell { --review-board-size: min(calc(100dvh - 170px), calc(64vw - 20px)); padding: 8px; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 .review-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; padding: 0 4px; flex-shrink: 0; }
+.review-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+.review-header-actions button { white-space: nowrap; }
+.review-search-return { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 14px; border: 1px solid #c9ddcf; border-radius: 8px; margin: 12px 0 16px; background: #f3f8f2; }
+.review-search-return span { font-size: 12px; color: #395b47; }
+.review-search-return .review-search-exact { flex-basis: 100%; font-size: 11px; overflow-wrap: anywhere; }
+.review-search-exact code { user-select: text; }
+@media (max-width: 850px) { .review-header-actions { flex-direction: column-reverse; align-items: stretch; } }
+
 .review-header>div { min-width: 0; }
 .review-header .eyebrow { font-size: 9px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .review-header h1 { font: 500 clamp(18px, 1.7vw, 24px)/1.15 Georgia,serif; margin: 4px 0; color: #233631; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -440,3 +448,56 @@ button.personal-comment:focus-visible { outline: 2px solid #216e5d; outline-offs
 .root-personal-comment { display: block; width: 100%; }
 .personal-comment-editor { position: relative; padding-right: 34px; }
 .delete-position-comment { position: absolute; right: 0; top: 0; display: inline-flex; padding: 5px; border: 1px solid #c5d2c0; border-radius: 4px; background: #f6f7ef; color: #38513d; }
+
+/* PS-06: the optional search board belongs to the browser, not the PGN
+   reviewer/Piece mode. No active index is constructed by opening this panel. */
+.position-search-section { margin: 16px 0 22px; min-width: 0; }
+.position-search-heading, .position-search-heading > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.position-search-heading { justify-content: space-between; }
+.position-search-active { color: #27624a; font-size: 12px; font-weight: 680; }
+.position-variation-toggle { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 4px; font-size: 13px; font-weight: 700; color: #284c3c; cursor: pointer; }
+.position-variation-toggle input { width: 17px; height: 17px; accent-color: #267152; }
+.position-variation-toggle input:focus-visible { outline: 3px solid #1745bd; outline-offset: 2px; }
+.position-variation-description { margin: 0 0 12px; color: #56685c; font-size: 12px; line-height: 1.4; }
+
+.position-search-panel { padding: 16px; margin-top: 12px; background: #fafbf8; border: 1px solid #dce2d8; border-radius: 10px; }
+.position-search-intro { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+.position-search-intro h3 { margin: 0 0 5px; color: #2b4635; font-size: 16px; }
+.position-search-intro p { margin: 0; font-size: 12px; color: #56685c; line-height: 1.5; max-width: 520px; }
+.position-search-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+.position-search-actions .secondary-button { padding: 7px 10px; }
+.position-search-layout { display: grid; grid-template-columns: minmax(220px, 340px) minmax(0, 1fr); gap: clamp(14px, 3vw, 32px); align-items: start; }
+.position-search-board { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); aspect-ratio: 1; width: 100%; overflow: hidden; border: 3px solid #5b695a; border-radius: 4px; box-shadow: 0 2px 7px #10291d18; }
+.position-square { position: relative; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; min-width: 0; min-height: 0; aspect-ratio: 1; cursor: pointer; }
+.position-square.light { background: #ebefe4; color: #314637; }
+.position-square.dark { background: #90a98b; color: #233d2b; }
+.position-square:hover { filter: brightness(1.08); }
+.position-square.selected { background: #d5ca82; box-shadow: inset 0 0 0 3px #70591a; }
+.position-square:focus-visible { outline: 3px solid #1745bd; outline-offset: -3px; z-index: 2; }
+.position-square > span:first-child { position: relative; z-index: 1; font: clamp(22px, 3vw, 38px)/1 'DejaVu Sans', 'Segoe UI Symbol', sans-serif; text-shadow: 0 1px 1px #fff8; pointer-events: none; }
+.position-square-target { position: absolute; inset: 32%; border-radius: 50%; background: #276d4a7d; }
+.position-square:has(> span:first-child:not(:empty)) .position-square-target { inset: 3px; border: 3px solid #26714d; background: transparent; }
+.position-square-coordinate { position: absolute; bottom: 1px; left: 3px; font: 600 9px/1 system-ui, sans-serif; opacity: .7; pointer-events: none; }
+.position-search-details { min-width: 0; display: grid; align-content: start; gap: 12px; }
+.position-turn { margin: 0; color: #315040; font-size: 14px; font-weight: 750; }
+.position-move-history { display: grid; gap: 5px; color: #3c5647; font-size: 12px; }
+.position-move-list { display: flex; flex-wrap: wrap; gap: 5px 9px; max-height: 100px; overflow: auto; padding: 8px; border: 1px solid #d8dfd4; background: #fff; border-radius: 5px; font: 13px/1.5 system-ui, sans-serif; }
+.position-move-list span { white-space: nowrap; }
+.position-no-moves { opacity: .65; }
+.position-fen { display: grid; gap: 5px; font-size: 12px; color: #56705f; }
+.position-fen output { display: block; background: #f1f4ed; border: 1px solid #dce3d7; padding: 8px; border-radius: 5px; color: #2e4a35; font: 11px/1.6 monospace; overflow-wrap: anywhere; user-select: text; }
+.position-search-submit { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.position-search-dirty { margin: 0; font-size: 12px; color: #825c24; }
+.position-promotion { padding: 10px; background: #e7efe1; border-radius: 5px; }
+.position-promotion > strong { display: block; margin-bottom: 8px; font-size: 12px; }
+.position-promotion > div { display: flex; gap: 5px; flex-wrap: wrap; }
+.position-promotion button { padding: 6px 10px; background: white; border: 1px solid #8ba08a; border-radius: 5px; }
+.position-board-error { margin: 0; color: #9b2525; font-size: 12px; }
+.position-coverage-notice { display: flex; align-items: start; gap: 9px; margin: 8px 0 18px; background: #fbf6ec; color: #6b512f; }
+.position-coverage-notice svg { flex-shrink: 0; }
+.position-match-label { font-size: 12px; font-weight: 730; color: #267152; }
+@media (max-width: 700px) {
+  .position-search-layout { grid-template-columns: 1fr; }
+  .position-search-board { max-width: 340px; }
+  .position-search-panel { padding: 12px; }
+}

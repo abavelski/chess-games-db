@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { decodePgn, searchKey } from '../lib/game-policy.mjs';
 import { gameQuery, GAME_FROM, PROPERTIES, propertyClause, validateSelections } from './queries.mjs';
+import { positionIndexCapability as probePositionIndexCapability } from '../lib/position-index-storage.mjs';
+import { positionFingerprint } from '../lib/position-hash.mjs';
+import { positionSearchCoverage, validatePositionSearchRequest, POSITION_HITS_CTE, POSITION_HIT_PARAMS } from './position-search.mjs';
 import { activeOpeningRevision, openingSelection, openingLabels, openingFacets } from './opening-read.mjs';
 
 function requiredId(value) {
@@ -44,6 +47,7 @@ export class ChessArchive {
    return favourite;
   } finally {writer.close();}
  }
+ positionIndexCapability(){return probePositionIndexCapability(this.db);}
  hasPersonalTable(){return !!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='game_personal_analysis'").get();}
  getPersonal(id){return this.hasPersonalTable()?JSON.parse(this.db.prepare('SELECT data_json FROM game_personal_analysis WHERE game_id=?').get(id)?.data_json || JSON.stringify(emptyPersonal())):emptyPersonal();}
  savePersonal(value,input){
@@ -67,7 +71,7 @@ export class ChessArchive {
  catalog(){
   const sources=this.db.prepare('SELECT s.*,count(DISTINCT l.game_id) game_count FROM sources s LEFT JOIN game_sources l ON l.source_id=s.id GROUP BY s.id ORDER BY title,s.id').all();
   const games=this.db.prepare('SELECT count(*) n FROM games WHERE hidden=0').get().n;
-  return {path:this.path,sources,capabilities:{openings:true,criticalPositions:true,studyMarkers:true},totals:{games}};
+  return {path:this.path,sources,capabilities:{openings:true,criticalPositions:true,studyMarkers:true,positionIndex:this.positionIndexCapability()},totals:{games}};
  }
  predicate(filters={}) {
   validateSelections(this.db,filters.properties);
@@ -82,6 +86,47 @@ export class ChessArchive {
   const rows=this.db.prepare(`SELECT ${this.gameColumns()}${GAME_FROM}${q.where} ORDER BY ${q.orderBy} LIMIT @limit OFFSET @offset`).all({...q.params,limit:q.pageSize,offset:q.offset});
   return {rows:openingLabels(this.db,activeOpeningRevision(this.db,true),rows),total,page:q.page,pageSize:q.pageSize};
  }
+ /**
+  * Exact position search over played mainlines and opt-in source variations.
+  * No source PGN is decompressed during this
+  * query and no schema changes occur when opening or searching an archive.
+  * For partial coverage, rows/total describe *indexed* games only; consumers
+  * must inspect coverage.isComplete before treating an empty page as no hits.
+  */
+ searchByPosition(fen,filters={}) {
+  validatePositionSearchRequest(fen,filters);
+  let fingerprint;
+  try { fingerprint=positionFingerprint(fen); } // strict PS-01 FEN validation
+  catch(error) { throw new Error('Invalid standard-chess FEN: '+(error?.message??String(error))); }
+  return this.db.transaction(() => {
+   const scope=filters.scope ?? 'mainline';
+   const coverage=positionSearchCoverage(this.db,scope);
+   const q=this.predicate(filters); // identical filters, opening hierarchy and sort to searchGames
+   const empty={rows:[],total:0,page:q.page,pageSize:q.pageSize,coverage};
+   if(coverage.status==='unavailable'||coverage.status==='incompatible')return empty;
+   // Match BOTH the Polyglot 64-bit hash and exact normalized four-field key.
+   const key=this.db.prepare('SELECT id FROM position_keys WHERE zobrist_hash=? AND exact_key=?')
+    .get(fingerprint.sqliteHash,fingerprint.verificationKey);
+   if(!key)return empty;
+   const from=GAME_FROM.replace(' FROM games g',
+    ' FROM position_hits hit JOIN games g ON g.id=hit.game_id AND hit.hit_rank=1');
+   const params={...q.params,...POSITION_HIT_PARAMS,
+    includeVariations:scope==='includeSourceVariations'?1:0,positionId:key.id};
+   const total=this.db.prepare(POSITION_HITS_CTE+' SELECT count(*) n'+from+q.where).get(params).n;
+   if(!total)return empty;
+   const raw=this.db.prepare(POSITION_HITS_CTE+
+    ` SELECT ${this.gameColumns()},hit.path AS match_path,hit.ply AS match_ply,hit.is_mainline AS match_mainline`+
+    from+q.where+` ORDER BY ${q.orderBy} LIMIT @limit OFFSET @offset`)
+    .all({...params,limit:q.pageSize,offset:q.offset});
+   const rows=openingLabels(this.db,activeOpeningRevision(this.db,true),raw)
+    .map(({match_path,match_ply,match_mainline,...game})=>({
+     ...game,match:{path:match_path,ply:match_ply,isMainline:match_mainline===1,
+      type:match_mainline===1?'playedGame':'sourceVariation'},
+    }));
+   return {rows,total,page:q.page,pageSize:q.pageSize,coverage};
+  })();
+ }
+
  openingFacets(filters){validateSelections(this.db,filters?.properties);return openingFacets(this.db,true,filters,{favouriteColumn:this.hasFavouriteColumn(),personalTable:this.hasPersonalTable()});}
  getGame(id){
   const row=this.db.prepare(`SELECT ${this.gameColumns()},g.headers_json,g.extras_json,g.pgn_sha256,g.pgn_zstd,g.created_at,g.updated_at,s.source_key${GAME_FROM} WHERE g.id=?`).get(requiredId(id));

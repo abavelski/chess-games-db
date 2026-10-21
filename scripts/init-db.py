@@ -29,6 +29,7 @@ def initialize(path: Path) -> None:
             # Execute complete statements individually: executescript() would
             # implicitly commit the transaction before running the migration.
             # 008 is an optional extension; the base schema stays at version 7.
+            # 009_position_index.sql is explicit opt-in, never initialized here.
             for name in ("007_games.sql", "008_personal_analysis.sql"):
                 statement = ""
                 for line in (MIGRATIONS / name).read_text(encoding="utf-8").splitlines(True):

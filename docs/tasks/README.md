@@ -6,6 +6,16 @@ searchable multiselect filters, and unchanged game review. Its release-specific
 rules supersede the older archive-preservation and compatibility rules below when
 implementing that release. The six implementation tasks are complete; see its [verification](annotated-games-db/verification.md). Historical rules below apply only to their earlier releases.
 
+## Position search (planned)
+
+The [position-search phase](position-search/README.md) is a new planned increment:
+first an indexed, filtered **mainline** position lookup with a move-entry board,
+then author-variation matching and **Find games with this position** from review.
+Uses 64-bit Polyglot Zobrist hashing and indexed pawn signatures in SQLite.
+Its [PS-01–PS-12 backlog](position-search/README.md#backlog-and-deliverables) has
+individually verifiable acceptance criteria. It does not require implementing
+the still-planned online Opening Explorer (option 3).
+
 ## Opening enrichment tasks
 
 **Option 2 is implemented and verified. Option 3 remains planned.** Implement **option 2 first** in a fresh checkout if using these task descriptions as implementation guidance. Its four tasks deliver a complete offline app with named openings, line/subline filters, and game-list labels. Option 3 is a separate, optional release for reference-game move statistics. “First option” here means the first implementation below: option 2 from the investigation.
