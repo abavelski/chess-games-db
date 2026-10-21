@@ -92,7 +92,6 @@ async function smoke() {
       await rsWait(() => rsCount(1) && !!rsOrigin() && !rsReview(), 'source variation lookup');
       if (rsFrom.value !== '2015' || document.querySelector('.position-coverage-notice')) throw new Error('Filters/coverage incorrect after review lookup');
       if (!document.querySelector('.position-search-active')) throw new Error('Reviewed FEN not applied to search');
-      document.querySelector('.position-search-heading > div > button').click();
       await rsWait(() => !!document.querySelector('.position-variation-toggle input'), 'showing variation scope toggle');
       const scope = document.querySelector('.position-variation-toggle input');
       if (scope.checked) throw new Error('Review lookup must default to mainline');
@@ -162,7 +161,7 @@ async function smoke() {
       await rsWait(() => !rsReview() && !rsOrigin(), 'back from origin');
       if (rsFrom.value !== '2015') throw new Error('Returning from origin lost filters');
       window.rsStage = 'saved personal sideline';
-      document.querySelector('.position-search-heading .subtle-button')?.click();
+      document.querySelector('.position-search-submit .subtle-button')?.click();
       rsSetField(rsFrom, '');
       await rsWait(() => rsCount(4), 'all games for personal branch');
       const game3 = [...document.querySelectorAll('.result-item')]

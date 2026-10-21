@@ -1,16 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeftRight, RotateCcw, Search, Undo2, X } from 'lucide-react';
-import {
-  POSITION_FILES, positionBoard, positionLegalTargets, positionNeedsPromotion,
-  positionPiece, playPositionMove,
-} from './position-search-board.mjs';
+import { chessgroundDests } from 'chessops/compat';
+import type { Key } from '@lichess-org/chessground/types';
+import { PgnBoard, type Viewer } from './PgnBoard';
+import { positionBoard, positionNeedsPromotion, playPositionMove } from './position-search-board.mjs';
 
-const pieces: Record<string, string> = {
-  'white:king': '♔', 'white:queen': '♕', 'white:rook': '♖',
-  'white:bishop': '♗', 'white:knight': '♘', 'white:pawn': '♙',
-  'black:king': '♚', 'black:queen': '♛', 'black:rook': '♜',
-  'black:bishop': '♝', 'black:knight': '♞', 'black:pawn': '♟',
-};
 const promotions = ['queen', 'rook', 'bishop', 'knight'] as const;
 
 export function PositionSearchBoard({ moves, onMovesChange, onSearch, onClear, activeFen }: {
@@ -21,98 +15,65 @@ export function PositionSearchBoard({ moves, onMovesChange, onSearch, onClear, a
   activeFen: string | null;
 }) {
   const board = useMemo(() => positionBoard(moves), [moves]);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [keyboardSquare, setKeyboardSquare] = useState('e2');
   const [flipped, setFlipped] = useState(false);
   const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const boardHost = useRef<HTMLDivElement>(null);
+  const [moveInput, setMoveInput] = useState('');
   const promotionQueen = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (promotion) promotionQueen.current?.focus(); }, [promotion]);
-  const targets = useMemo(() => selected ? positionLegalTargets(board, selected) : [], [board, selected]);
-  const files = flipped ? [...POSITION_FILES].reverse() : [...POSITION_FILES];
-  const ranks = flipped ? [1, 2, 3, 4, 5, 6, 7, 8] : [8, 7, 6, 5, 4, 3, 2, 1];
   const dirty = activeFen !== null && activeFen !== board.fen;
-  const update = (next: string[]) => {
-    setSelected(null); setPromotion(null); setError(null);
+  const update = useCallback((next: string[]) => {
+    setPromotion(null); setError(null); setMoveInput('');
     onMovesChange(next);
-  };
-  const makeMove = (from: string, to: string, role: typeof promotions[number] = 'queen') => {
+  }, [onMovesChange]);
+  const makeMove = useCallback((from: string, to: string, role: typeof promotions[number] = 'queen') => {
     try { update(playPositionMove(moves, from, to, role)); }
     catch { setError('Illegal move. Choose a highlighted destination.'); }
-  };
-  const choose = (square: string) => {
-    if (promotion) return;
-    setKeyboardSquare(square);
-    const piece = positionPiece(board, square);
-    if (selected === square) { setSelected(null); setError(null); return; }
-    if (selected && targets.includes(square)) {
-      if (positionNeedsPromotion(board, selected, square)) {
-        setPromotion({ from: selected, to: square });
-        return;
-      }
-      makeMove(selected, square);
-    } else if (piece && piece.color === board.turn) {
-      setSelected(square); setError(null);
-    } else if (selected) setError('Illegal move. Choose a highlighted destination.');
-  };
-  const keyboard = (event: KeyboardEvent<HTMLButtonElement>, square: string) => {
-    if (event.key === 'Escape') {
-      event.preventDefault(); event.stopPropagation();
-      setSelected(null); setError(null);
-      return;
-    }
-    if (event.key === 'Enter' || event.key === ' ') {
-      // Roving focus includes tabIndex=-1 squares. Handle activation directly
-      // rather than depending on the host platform's synthetic button click.
-      event.preventDefault(); choose(square); return;
-    }
-    const delta: Record<string, [number, number]> = {
-      ArrowRight: [flipped ? -1 : 1, 0],
-      ArrowLeft: [flipped ? 1 : -1, 0],
-      ArrowUp: [0, flipped ? -1 : 1],
-      ArrowDown: [0, flipped ? 1 : -1],
-    };
-    const change = delta[event.key];
-    if (!change) return;
-    event.preventDefault();
-    const file = POSITION_FILES.indexOf(square[0]) + change[0];
-    const rank = Number(square[1]) + change[1];
-    if (file < 0 || file > 7 || rank < 1 || rank > 8) return;
-    const next = POSITION_FILES[file] + rank;
-    setKeyboardSquare(next);
-    boardHost.current?.querySelector<HTMLButtonElement>(`[data-square="${next}"]`)?.focus();
-  };
+  }, [moves, update]);
+  const configureBoard = useCallback((viewer: Viewer) => {
+    const ground = viewer.ground;
+    if (!ground) return;
+    const last = moves.at(-1);
+    ground.set({ fen: board.fen, orientation: flipped ? 'black' : 'white',
+      turnColor: board.turn, check: board.position.isCheck(), selected: undefined,
+      lastMove: last ? [last.slice(0, 2) as Key, last.slice(2, 4) as Key] : undefined,
+      viewOnly: false,
+      movable: { free: false, color: promotion ? undefined : board.turn, dests: promotion ? new Map() : chessgroundDests(board.position),
+        events: { after: (from, to) => {
+          if (positionNeedsPromotion(board, from, to)) {
+            ground.set({ fen: board.fen });
+            setPromotion({ from, to });
+          } else makeMove(from, to);
+        } } },
+      draggable: { enabled: !promotion }, selectable: { enabled: !promotion },
+      premovable: { enabled: false }, drawable: { enabled: false },
+    });
+  }, [board, moves, flipped, promotion, makeMove]);
   const selectPromotion = (role: typeof promotions[number]) => {
     if (promotion) makeMove(promotion.from, promotion.to, role);
+  };
+  const playTypedMove = () => {
+    const move = moveInput.trim().toLowerCase();
+    if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move)) {
+      setError('Enter a move such as e2e4 or e7e8q.'); return;
+    }
+    const from = move.slice(0, 2), to = move.slice(2, 4);
+    if (!move[4] && positionNeedsPromotion(board, from, to)) { setPromotion({ from, to }); return; }
+    const roles: Record<string, typeof promotions[number]> = { q: 'queen', r: 'rook', b: 'bishop', n: 'knight' };
+    makeMove(from, to, roles[move[4]] ?? 'queen');
   };
   return <section className="position-search-panel" aria-label="Search by position board">
     <div className="position-search-intro">
       <div><h3>Find games from a position</h3><p>Play legal moves, then select Search position. Named openings are optional; your game filters still apply.</p></div>
       <div className="position-search-actions">
-        <button className="secondary-button" type="button" onClick={() => { setFlipped(v => !v); setSelected(null); }}><ArrowLeftRight size={15} />Flip</button>
+        <button className="secondary-button" type="button" onClick={() => { setFlipped(v => !v); }}><ArrowLeftRight size={15} />Flip</button>
         <button className="secondary-button" type="button" onClick={() => update(moves.slice(0, -1))} disabled={!moves.length}><Undo2 size={15} />Undo</button>
         <button className="secondary-button" type="button" onClick={() => update([])} disabled={!moves.length}><RotateCcw size={15} />Reset board</button>
       </div>
     </div>
     <div className="position-search-layout">
-      <div className="position-search-board" ref={boardHost} role="group" aria-label="Chess position, use arrow keys to move focus and Enter or Space to select squares">
-        {ranks.flatMap(rank => files.map(file => {
-          const square = file + rank;
-          const piece = positionPiece(board, square);
-          const dark = (POSITION_FILES.indexOf(file) + rank) % 2 === 0;
-          const isSelected = selected === square;
-          const legal = targets.includes(square);
-          return <button key={square} data-square={square} type="button"
-            className={['position-square', dark ? 'dark' : 'light', isSelected ? 'selected' : '', legal ? 'legal' : ''].filter(Boolean).join(' ')}
-            tabIndex={keyboardSquare === square ? 0 : -1} aria-pressed={isSelected}
-            aria-label={`${square}, ${piece ? piece.color + ' ' + piece.role : 'empty'}${legal ? ', legal destination' : ''}`}
-            onKeyDown={event => keyboard(event, square)} onClick={() => choose(square)}>
-            <span aria-hidden="true">{piece ? pieces[`${piece.color}:${piece.role}`] : ''}</span>
-            {legal && <span className="position-square-target" aria-hidden="true" />}
-            {(file === files[0] || rank === ranks[7]) && <span className="position-square-coordinate" aria-hidden="true">{file === files[0] ? rank : file}</span>}
-          </button>;
-        }))}
+      <div className="position-search-board" role="group" aria-label="Position search chessboard">
+        <PgnBoard pgn="*" review configureBoard={configureBoard} />
       </div>
       <div className="position-search-details">
         <p className="position-turn" role="status">{board.turn === 'white' ? 'White' : 'Black'} to move{board.position.isEnd() ? ' · Game ended' : ''}</p>
@@ -124,6 +85,12 @@ export function PositionSearchBoard({ moves, onMovesChange, onSearch, onClear, a
               <span className="position-no-moves">Starting position</span>}
           </div>
         </div>
+        <form className="position-keyboard-move" onSubmit={event => { event.preventDefault(); playTypedMove(); }}>
+          <label className="field"><span>Move by coordinates</span><input value={moveInput} placeholder="e2e4" autoComplete="off"
+            disabled={!!promotion} onChange={event => setMoveInput(event.target.value)}
+            onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); playTypedMove(); } }} /></label>
+          <button className="secondary-button" type="submit" disabled={!!promotion || !moveInput.trim()}>Play move</button>
+        </form>
         {promotion && <div className="position-promotion" role="group" aria-label="Choose promotion piece">
           <strong>Promote pawn to</strong>
           <div>{promotions.map((role, index) =>

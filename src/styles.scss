@@ -460,8 +460,6 @@ button.personal-comment:focus-visible { outline: 2px solid #216e5d; outline-offs
 /* PS-06: the optional search board belongs to the browser, not the PGN
    reviewer/Piece mode. No active index is constructed by opening this panel. */
 .position-search-section { margin: 16px 0 22px; min-width: 0; }
-.position-search-heading, .position-search-heading > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.position-search-heading { justify-content: space-between; }
 .position-search-active { color: #27624a; font-size: 12px; font-weight: 680; }
 .position-variation-toggle { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 4px; font-size: 13px; font-weight: 700; color: #284c3c; cursor: pointer; }
 .position-variation-toggle input { width: 17px; height: 17px; accent-color: #267152; }
@@ -475,17 +473,11 @@ button.personal-comment:focus-visible { outline: 2px solid #216e5d; outline-offs
 .position-search-actions { display: flex; gap: 7px; flex-wrap: wrap; }
 .position-search-actions .secondary-button { padding: 7px 10px; }
 .position-search-layout { display: grid; grid-template-columns: minmax(220px, 340px) minmax(0, 1fr); gap: clamp(14px, 3vw, 32px); align-items: start; }
-.position-search-board { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); aspect-ratio: 1; width: 100%; overflow: hidden; border: 3px solid #5b695a; border-radius: 4px; box-shadow: 0 2px 7px #10291d18; }
-.position-square { position: relative; display: flex; align-items: center; justify-content: center; border: 0; padding: 0; min-width: 0; min-height: 0; aspect-ratio: 1; cursor: pointer; }
-.position-square.light { background: #ebefe4; color: #314637; }
-.position-square.dark { background: #90a98b; color: #233d2b; }
-.position-square:hover { filter: brightness(1.08); }
-.position-square.selected { background: #d5ca82; box-shadow: inset 0 0 0 3px #70591a; }
-.position-square:focus-visible { outline: 3px solid #1745bd; outline-offset: -3px; z-index: 2; }
-.position-square > span:first-child { position: relative; z-index: 1; font: clamp(22px, 3vw, 38px)/1 'DejaVu Sans', 'Segoe UI Symbol', sans-serif; text-shadow: 0 1px 1px #fff8; pointer-events: none; }
-.position-square-target { position: absolute; inset: 32%; border-radius: 50%; background: #276d4a7d; }
-.position-square:has(> span:first-child:not(:empty)) .position-square-target { inset: 3px; border: 3px solid #26714d; background: transparent; }
-.position-square-coordinate { position: absolute; bottom: 1px; left: 3px; font: 600 9px/1 system-ui, sans-serif; opacity: .7; pointer-events: none; }
+.position-search-board { width: 100%; min-width: 0; }
+.position-search-board .lpv { border-radius: 4px; overflow: hidden; }
+.position-keyboard-move { display: flex; align-items: end; gap: 8px; }
+.position-keyboard-move .field { flex: 1; min-width: 0; }
+.position-keyboard-move input { width: 100%; }
 .position-search-details { min-width: 0; display: grid; align-content: start; gap: 12px; }
 .position-turn { margin: 0; color: #315040; font-size: 14px; font-weight: 750; }
 .position-move-history { display: grid; gap: 5px; color: #3c5647; font-size: 12px; }

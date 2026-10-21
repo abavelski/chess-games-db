@@ -70,7 +70,7 @@ async function smoke() {
       await waitForOpening(() => gameCount(40));
       if (!document.querySelector('.opening-breadcrumb').textContent.includes('Open Game / Knight Line / Two Knights')) throw new Error('Missing full breadcrumb');
       document.querySelector('#opening-position-tab').click();
-      await waitForOpening(() => !document.querySelector('#opening-position-panel').hidden && document.querySelectorAll('.position-square').length === 64);
+      await waitForOpening(() => !document.querySelector('#opening-position-panel').hidden && !!document.querySelector('.position-search-board cg-board'));
       if (!document.querySelector('#opening-tree-panel').hidden) throw new Error('Only the selected tab panel should be visible');
       document.querySelector('#opening-tree-tab').click();
       await waitForOpening(() => !document.querySelector('#opening-tree-panel').hidden);
@@ -152,7 +152,7 @@ async function smoke() {
     window.setSize(920,650);
     await window.webContents.executeJavaScript(`(async () => {
       await new Promise(resolve => setTimeout(resolve,100));
-      const board = document.querySelector('cg-board').getBoundingClientRect();
+      const board = document.querySelector('.review-shell cg-board').getBoundingClientRect();
       const controls = document.querySelector('.review-controls').getBoundingClientRect();
       const score = document.querySelector('.review-score').getBoundingClientRect();
       if (board.width<300 || controls.bottom>innerHeight || score.right>innerWidth) throw new Error('Enriched review must fit minimum window');

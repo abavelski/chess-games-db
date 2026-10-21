@@ -42,7 +42,7 @@ export default function App() {
   const [openingSelection, setOpeningSelection] = useState<OpeningSelection | null>(null);
   const [results, setResults] = useState<Page<GameRow> | null>(null);
   const [openingTab, setOpeningTab] = useState<'tree' | 'position'>('tree');
-  const [positionPanelOpen, setPositionPanelOpen] = useState(false);
+  const [positionBoardMounted, setPositionBoardMounted] = useState(false);
   const [positionMoves, setPositionMoves] = useState<string[]>([]);
   const [includeSourceVariations, setIncludeSourceVariations] = useState(false);
   // Editing the board does not search. Only an explicit Search commits the FEN.
@@ -126,7 +126,7 @@ export default function App() {
         setReviewSessions([]); setActiveReviewKey(null); setOriginReviewKey(null);
         setOpeningGame(null); setGameError(null); setResults(null);
         setAppliedPositionFen(null); setPositionCoverage(null);
-        setPositionMoves([]); setOpeningTab('tree'); setPositionPanelOpen(false); setIncludeSourceVariations(false);
+        setPositionMoves([]); setOpeningTab('tree'); setPositionBoardMounted(false); setIncludeSourceVariations(false);
         resetFilters(); setFavouriteError(null); setCatalog(result.catalog);
       }
     } catch (error) { setOpenError(errorMessage(error)); }
@@ -177,7 +177,7 @@ export default function App() {
     setActiveReviewKey(null);
     setAppliedPositionFen(fen); setPositionSearchRevision(value => value + 1);
     setPositionCoverage(null); setResults(null); setIncludeSourceVariations(false);
-    setOpeningTab('position'); setPositionPanelOpen(false); setPage(1);
+    setOpeningTab('position'); setPositionBoardMounted(true); setPage(1);
     requestAnimationFrame(() => window.scrollTo(0, 0));
   };
   const originReview = reviewSessions.find(session => session.key === originReviewKey);
@@ -252,12 +252,12 @@ export default function App() {
               {(['tree', 'position'] as const).map(tab => <button key={tab} type="button" role="tab"
                 id={`opening-${tab}-tab`} aria-controls={`opening-${tab}-panel`} aria-selected={openingTab === tab}
                 tabIndex={openingTab === tab ? 0 : -1}
-                onClick={() => { setOpeningTab(tab); if (tab === 'position') setPositionPanelOpen(true); }}
+                onClick={() => { setOpeningTab(tab); if (tab === 'position') setPositionBoardMounted(true); }}
                 onKeyDown={event => {
                   if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                     event.preventDefault();
                     const next = event.key === 'Home' ? 'tree' : event.key === 'End' ? 'position' : openingTab === 'tree' ? 'position' : 'tree';
-                    setOpeningTab(next); if (next === 'position') setPositionPanelOpen(true);
+                    setOpeningTab(next); if (next === 'position') setPositionBoardMounted(true);
                     document.getElementById(`opening-${next}-tab`)?.focus();
                   }
                 }}>{tab === 'tree' ? 'Opening tree' : 'Search by position'}{(tab === 'tree' ? openingSelection : appliedPositionFen) && <span className="opening-tab-active"> (Active)</span>}</button>)}
@@ -268,14 +268,8 @@ export default function App() {
             <div id="opening-position-panel" role="tabpanel" aria-labelledby="opening-position-tab" hidden={openingTab !== 'position'}>
 
               <section className="position-search-section" aria-label="Position search">
-                <div className="position-search-heading">
-                  <div><button className="secondary-button" type="button" aria-expanded={positionPanelOpen} aria-controls="position-search-content"
-                    onClick={() => setPositionPanelOpen(value => !value)}><Search size={16} />Search by position</button>
-                    {appliedPositionFen && <span className="position-search-active">Exact position search active{includeSourceVariations ? " · Annotated variations included" : ""}</span>}
-                  </div>
-                  {appliedPositionFen && !positionPanelOpen && <button className="subtle-button" type="button" onClick={clearPositionSearch}><X size={15} />Clear position search</button>}
-                </div>
-                {positionPanelOpen && <div id="position-search-content">
+                {appliedPositionFen && <p className="position-search-active">Exact position search active{includeSourceVariations ? ' (Annotated variations included)' : ''}</p>}
+                {positionBoardMounted && <div id="position-search-content">
                    <label className="position-variation-toggle"><input type="checkbox" checked={includeSourceVariations}
                      onChange={event => toggleSourceVariations(event.target.checked)} />Include annotated variations</label>
                    <p className="position-variation-description">Search author-written alternatives as well as moves played in the game. Variation-only results are identified below.</p>

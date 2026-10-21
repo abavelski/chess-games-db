@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, dialog } from 'electron';
 import { desktopTestDirectory, finishDesktopTest } from './fixtures/desktop-test.mjs';
@@ -58,7 +58,7 @@ async function smoke() {
         const deadline = Date.now() + 10000;
         while (!predicate()) {
           if (Date.now() > deadline) throw new Error('PS-06 UI timeout at ' + (window.psStage || 'initial') +
-            ': ' + predicate + '; selected=' + document.querySelector('.position-square.selected')?.dataset.square +
+            ': ' + predicate + '; input=' + document.querySelector('.position-keyboard-move input')?.value +
             '; FEN=' + document.querySelector('.position-fen output')?.textContent +
             '; review=' + !!document.querySelector('.review-shell'));
           await new Promise(resolve => setTimeout(resolve, 25));
@@ -68,22 +68,12 @@ async function smoke() {
         n + (n === 1 ? ' game' : ' games') &&
         document.querySelector('.game-results')?.getAttribute('aria-busy') === 'false' &&
         document.querySelectorAll('.result-item').length === Math.min(n, 40);
-      window.psSquare = name => document.querySelector('.position-square[data-square="' + name + '"]');
       window.psMove = async (from, to) => {
-        if (psSquare(from).getAttribute('aria-pressed') !== 'true') psSquare(from).click();
-        await new Promise(resolve => setTimeout(resolve, 60));
-        if (psSquare(from).getAttribute('aria-pressed') !== 'true') {
-          const selected = document.querySelector('.position-square.selected')?.getAttribute('data-square');
-          throw new Error('Could not select ' + from + ' for ' + to + ' (selected ' +
-            selected + '; turn ' + document.querySelector('.position-turn').textContent +
-            '; FEN ' + document.querySelector('.position-fen output').textContent + ')');
-        }
-        psSquare(to).click();
-        await new Promise(resolve => setTimeout(resolve, 60));
-        if (psSquare(from).getAttribute('aria-pressed') !== 'false') {
-          throw new Error('Move ' + from + to + ' was not committed: ' +
-            document.querySelector('.position-board-error')?.textContent);
-        }
+        const before = document.querySelector('.position-fen output').textContent;
+        psField(document.querySelector('.position-keyboard-move input'), from + to);
+        await psWait(() => !document.querySelector('.position-keyboard-move button').disabled);
+        document.querySelector('.position-keyboard-move button').click();
+        await psWait(() => document.querySelector('.position-fen output').textContent !== before);
       };
       window.psField = (el, value) => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
@@ -94,23 +84,40 @@ async function smoke() {
       if (document.querySelector('.position-search-board')) throw new Error('Search board must be unobtrusive until opened');
       const trigger = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Search by position'));
       trigger.click();
-      await psWait(() => document.querySelectorAll('.position-square').length === 64);
+      await psWait(() => !!document.querySelector('.position-search-board cg-board'));
       document.querySelector('#opening-tree-tab').click();
       await psWait(() => document.querySelector('#opening-position-panel').hidden);
       if (document.querySelector('#opening-tree-tab').getAttribute('aria-selected') !== 'true') throw new Error('Opening tree tab must be selected');
       document.querySelector('#opening-tree-tab').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
       await psWait(() => !document.querySelector('#opening-position-panel').hidden);
       if (document.activeElement?.id !== 'opening-position-tab') throw new Error('Arrow key must focus position tab');
-      window.psStage = 'opening board and selecting e2';
-      const startFen = document.querySelector('.position-fen output').textContent;
-      psSquare('e2').click();
-      await psWait(() => psSquare('e2').getAttribute('aria-pressed') === 'true');
-      psSquare('e5').click();
-      await psWait(() => !!document.querySelector('.position-board-error'));
-      if (document.querySelector('.position-move-list').textContent.includes('e4') ||
-          document.querySelector('.position-fen output').textContent !== startFen ||
-          !document.querySelector('.position-board-error')) throw new Error('Illegal move changed the board');
-      psSquare('e4').click();
+      window.psStartFen = document.querySelector('.position-fen output').textContent;
+      if (document.querySelector('.position-search-heading button')) throw new Error('Redundant position toggle must be removed');
+    })()`);
+    const clickSquare = async square => {
+      const point = await window.webContents.executeJavaScript(`(async () => {
+        const board = document.querySelector('.position-search-board cg-board');
+        board.scrollIntoView({ block: 'center' });
+        await new Promise(resolve => setTimeout(resolve, 60));
+        const rect = board.getBoundingClientRect();
+        const black = !!board.closest('.orientation-black');
+        const file = '${square}'.charCodeAt(0) - 97, rank = Number('${square}'[1]) - 1;
+        return { x: Math.round(rect.x + ((black ? 7-file : file) + .5) * rect.width / 8),
+          y: Math.round(rect.y + ((black ? rank : 7-rank) + .5) * rect.height / 8) };
+      })()`);
+      window.webContents.sendInputEvent({ type: 'mouseDown', ...point, button: 'left', clickCount: 1 });
+      window.webContents.sendInputEvent({ type: 'mouseUp', ...point, button: 'left', clickCount: 1 });
+      await new Promise(resolve => setTimeout(resolve, 80));
+    };
+    await clickSquare('e2');
+    await clickSquare('e5');
+    await window.webContents.executeJavaScript(`(async () => {
+      if (document.querySelector('.position-fen output').textContent !== psStartFen) throw new Error('Illegal board move changed position');
+    })()`);
+    await clickSquare('e2');
+    await clickSquare('e4');
+    await window.webContents.executeJavaScript(`(async () => {
+      const startFen = psStartFen;
       await psWait(() => document.querySelector('.position-move-list').textContent.includes('e4'));
       if (!document.querySelector('.position-move-list').textContent.includes('e4') ||
           !document.querySelector('.position-turn').textContent.includes('Black')) throw new Error('Legal move or turn failed');
@@ -184,23 +191,25 @@ async function smoke() {
       await psWait(() => psCount(1) && !document.querySelector('.position-search-active'));
       if (document.querySelector('.position-fen output').textContent !== currentFen) throw new Error('Clearing search lost board setup');
       if (!document.querySelector('.favourites-filter input').checked || from.value !== '2000') throw new Error('Clearing position search removed unrelated filters');
-      window.psStage = 'keyboard navigation';
-      // Keyboard arrow navigation and Enter/Space square interaction.
+      window.psStage = 'keyboard move entry';
       document.querySelector('.position-search-actions button:nth-child(3)').click();
-      const e2 = psSquare('e2');
-      e2.focus();
-      e2.dispatchEvent(new KeyboardEvent('keydown', { key:'ArrowUp', bubbles:true, cancelable:true }));
-      if (document.activeElement !== psSquare('e3')) throw new Error('Arrow keys must move keyboard square focus');
-      psSquare('e2').focus();
+      await psWait(() => document.querySelector('.position-move-list').textContent.includes('Starting position'));
+      const input = document.querySelector('.position-keyboard-move input');
+      psField(input, 'e2e5');
+      await psWait(() => !document.querySelector('.position-keyboard-move button').disabled);
+      document.querySelector('.position-keyboard-move button').click();
+      await psWait(() => !!document.querySelector('.position-board-error'));
+      if (!document.querySelector('.position-move-list').textContent.includes('Starting position')) throw new Error('Illegal typed move changed position');
+      psField(input, 'e2e4'); input.focus();
     })()`);
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
     await window.webContents.executeJavaScript(`(async () => {
-      await psWait(() => psSquare('e2').getAttribute('aria-pressed') === 'true');
-      if (document.querySelectorAll('.position-square.legal').length !== 2) throw new Error('Keyboard selection lacks legal destinations');
-      psSquare('e4').click();
       await psWait(() => document.querySelector('.position-move-list').textContent.includes('e4'));
-      if (!document.querySelector('.position-move-list').textContent.includes('e4')) throw new Error('Keyboard-selected move did not play');
+      document.querySelector('.position-search-actions button:first-child').click();
+      await psWait(() => !!document.querySelector('.position-search-board .orientation-black'));
+      document.querySelector('.position-search-actions button:first-child').click();
+      await psWait(() => !!document.querySelector('.position-search-board .orientation-white'));
     })()`);
     window.setSize(920, 650);
     await window.webContents.executeJavaScript(`(async () => {
@@ -265,13 +274,42 @@ async function smoke() {
     })()`);
     window.setSize(1510,920);
     await window.webContents.executeJavaScript(`(async () => {
+      window.psStage = 'promotion';
+      document.querySelector('.position-search-actions button:nth-child(3)').click();
+      await psWait(() => document.querySelector('.position-move-list').textContent.includes('Starting position'));
+      for (const [from, to] of [['a2','a4'],['h7','h5'],['a4','a5'],['h5','h4'],['a5','a6'],['h4','h3'],['a6','b7'],['h3','g2']]) await psMove(from, to);
+      window.psBeforePromotion = document.querySelector('.position-fen output').textContent;
+    })()`);
+    await clickSquare('b7');
+    await clickSquare('a8');
+    await window.webContents.executeJavaScript(`(async () => {
+      window.psStage += ' choices';
+      await psWait(() => !!document.querySelector('.position-promotion'));
+      if (document.activeElement?.textContent !== 'queen') throw new Error('Promotion choices must receive keyboard focus');
+      document.querySelector('.position-promotion button:last-child').click();
+      await psWait(() => !document.querySelector('.position-promotion'));
+      if (document.querySelector('.position-fen output').textContent !== psBeforePromotion) throw new Error('Cancel promotion changed position');
+    })()`);
+    await clickSquare('b7');
+    await clickSquare('a8');
+    await window.webContents.executeJavaScript(`(async () => {
+      window.psStage += ' choices';
+      await psWait(() => !!document.querySelector('.position-promotion'));
+      [...document.querySelectorAll('.position-promotion button')].find(button => button.textContent === 'knight').click();
+      await psWait(() => !document.querySelector('.position-promotion') && document.querySelector('.position-move-list').textContent.includes('bxa8=N'));
+    })()`);
+    if (process.env.CHESS_SMOKE_SCREENSHOTS) {
+      mkdirSync(process.env.CHESS_SMOKE_SCREENSHOTS, { recursive: true });
+      writeFileSync(join(process.env.CHESS_SMOKE_SCREENSHOTS, 'position-board.png'), (await window.webContents.capturePage()).toPNG());
+    }
+    await window.webContents.executeJavaScript(`(async () => {
       window.psStage = 'switch to unindexed archive';
       document.querySelector('.browser-archive button').click();
       await psWait(() => document.querySelector('.browser-archive > span')?.title.endsWith('position-unindexed.sqlite3') &&
         psCount(1) && !document.querySelector('.position-search-active') &&
         !document.querySelector('.position-search-board'));
       document.querySelector('#opening-position-tab').click();
-      await psWait(() => document.querySelectorAll('.position-square').length === 64);
+      await psWait(() => !!document.querySelector('.position-search-board cg-board'));
       document.querySelector('.position-search-submit .primary-button').click();
       await psWait(() => !!document.querySelector('.position-coverage-notice'));
       if (!document.querySelector('.position-coverage-notice').textContent.includes('no position index') ||
