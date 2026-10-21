@@ -16,7 +16,7 @@ const path = join(directory, 'position-indexed.sqlite3');
 const unindexedPath = join(directory, 'position-unindexed.sqlite3');
 const scores = [
   ...Array(41).fill('1. e4 e5 2. Nf3 Nc6 *'),
-  '1. Nf3 {[%crit opening]} Nc6 2. e4 e5 *', '1. d4 d5 *',
+  '1. Nf3 {[%crit opening]} Nc6 2. e4 e5 *', '1. d4 (1. e4 e5 2. Nf3 Nc6) d5 *',
 ];
 const db = fixtureArchive(sourcePath, scores);
 upsertGame(db, { id: 1, year: 2000 });
@@ -29,7 +29,7 @@ await db.backup(path);
 db.close();
 const sourceChecksum = hash(readFileSync(sourcePath));
 await positionsCli(['init', '--database', path]);
-const built = await positionsCli(['build', '--database', path, '--batch-size', '10']);
+const built = await positionsCli(['build', '--database', path, '--batch-size', '10', '--include-variations']);
 assert.equal(built.coverage.coverage, 'complete');
 assert.equal((await positionsCli(['status', '--database', path])).complete, scores.length);
 assert.equal(hash(readFileSync(sourcePath)), sourceChecksum);
@@ -46,7 +46,7 @@ app.on('browser-window-created', (_event, window) => {
 });
 
 async function smoke() {
-  const timeout = setTimeout(() => { console.error('PS-06 desktop smoke timed out'); app.exit(1); }, 45000);
+  const timeout = setTimeout(() => { console.error('PS-10 desktop smoke timed out'); app.exit(1); }, 60000);
   let exitCode = 0;
   try {
     const created = once(app, 'browser-window-created');
@@ -198,6 +198,60 @@ async function smoke() {
       if (document.documentElement.scrollWidth > innerWidth) throw new Error('Position board overflows minimum desktop width');
       if (document.querySelector('.position-search-board').getBoundingClientRect().width < 220)
         throw new Error('Board too small at minimum window width');
+    })()`);
+
+    window.setSize(1510, 920);
+    await window.webContents.executeJavaScript(`(async () => {
+      window.psStage = 'variation opt-in';
+      // Restore the non-position filters retained after the earlier Back journey.
+      const from = [...document.querySelectorAll('label.field')].find(el => el.textContent.includes('Year from')).querySelector('input');
+      psField(from, '');
+      if (document.querySelector('.favourites-filter input').checked) document.querySelector('.favourites-filter input').click();
+      await psWait(() => psCount(43));
+      document.querySelector('.position-search-actions button:nth-child(3)').click();
+      await psWait(() => document.querySelector('.position-move-list').textContent.includes('No moves'));
+      for (const [a,b] of [['e2','e4'],['e7','e5'],['g1','f3'],['b8','c6']]) await psMove(a,b);
+      document.querySelector('.position-search-submit .primary-button').click();
+      await psWait(() => psCount(42));
+      const checkbox = document.querySelector('.position-variation-toggle input');
+      if (!checkbox || checkbox.checked) throw new Error('Variations must be an unchecked opt-in');
+      checkbox.focus();
+    })()`);
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Space' });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Space' });
+    await window.webContents.executeJavaScript(`(async () => {
+      window.psStage = 'variation path and Back';
+      await psWait(() => psCount(43));
+      if (!document.querySelector('.position-variation-toggle input').checked)
+        throw new Error('Keyboard Space must toggle annotated variations');
+      document.querySelector('[aria-label="Next page"]').click();
+      await psWait(() => document.querySelector('.pagination').textContent.includes('Page 2 of 2') &&
+        document.querySelectorAll('.result-item').length === 3);
+      const last = document.querySelectorAll('.result-item')[2];
+      if (!last.textContent.includes('Author’s annotation') || !last.textContent.includes('source variation'))
+        throw new Error('Branch-only match must be clearly labelled');
+      window.psVariationFen = document.querySelector('.position-fen output').textContent;
+      last.click();
+      await psWait(() => !!document.querySelector('.review-shell'));
+      await psWait(() => document.querySelector('.review-controls [aria-live="polite"]')?.textContent?.includes('Nc6'));
+      if (document.querySelector('.position-navigation-notice'))
+        throw new Error('Valid source branch must navigate without a fallback warning');
+    })()`);
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+    await window.webContents.executeJavaScript(`(async () => {
+      await psWait(() => !document.querySelector('.review-shell') &&
+        document.activeElement?.classList.contains('result-item'));
+      if (!document.querySelector('.pagination').textContent.includes('Page 2 of 2') ||
+          document.querySelector('.position-fen output').textContent !== psVariationFen ||
+          !document.querySelector('.position-variation-toggle input').checked)
+        throw new Error('Sideline review Back must preserve page, board and variation mode');
+      document.querySelector('.position-variation-toggle input').click();
+      await psWait(() => psCount(42));
+      if (document.querySelector('.position-variation-toggle input').checked)
+        throw new Error('Disabling variations must restore MVP results');
+      document.querySelector('.position-search-submit .subtle-button').click();
+      await psWait(() => psCount(43) && !document.querySelector('.position-search-active'));
     })()`);
     window.setSize(1510,920);
     await window.webContents.executeJavaScript(`(async () => {
