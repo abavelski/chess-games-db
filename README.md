@@ -217,3 +217,9 @@ account, token, or Explorer API is involved. The deepest named catalogue positio
 is an opening classification, not a claim about where chess theory ends.
 
 Future producers must use the [shared writer contract](docs/tasks/annotated-games-db/writer.md). Local PGN adapters, network fetching, name reconciliation and a new import UI are deferred. See [release verification](docs/tasks/annotated-games-db/verification.md) for migration, desktop and performance measurements. This release supersedes historical book-archive preservation and v3–v6 reader compatibility plans.
+
+## Unified local import
+
+Use `npm run import:games -- --help` for inspect/create/update of local PGN, CBH
+and legacy CBV sources. See [setup, identity protection, backups and recipes](docs/unified-import.md).
+Updates preserve favourites and saved analysis; close the desktop before updating.

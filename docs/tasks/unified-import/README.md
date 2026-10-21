@@ -251,21 +251,21 @@ rebuilds agree; unchanged derived rows survive and changed-PGN results cannot le
 
 Depends on UI-04–07.
 
-- [ ] Implement inspect/create/update, meaningful help, option validation and
+- [x] Implement inspect/create/update, meaningful help, option validation and
   read-only dry-run; publish the definitive examples and defaults.
-- [ ] Create mode stages on the destination filesystem and publishes exclusively
+- [x] Create mode stages on the destination filesystem and publishes exclusively
   after verification; refuse existing outputs, symlink/hardlink aliases and
   sidecars. An existing target requires explicit update mode.
-- [ ] Before update, make and verify a SQLite online backup including committed
+- [x] Before update, make and verify a SQLite online backup including committed
   WAL data. Require the desktop/other writers closed throughout the update window;
   add a shared maintenance guard to desktop write paths if needed to enforce this.
   Verify concurrent edits cannot be lost; do not replace a live target file with
   a stale staged copy. Document backup location and exact restore procedure.
-- [ ] Record run/source/profile/tool versions, source revision evidence, identities,
+- [x] Record run/source/profile/tool versions, source revision evidence, identities,
   counts, conflicts, failures, backup and derived coverage in a new local report.
   Exit nonzero on failures/conflicts with an explicit partial/completed status.
   Retry uses durable run identities, not overwritten human reports alone.
-- [ ] Resume completed sources safely, clean abandoned scratch files and terminate
+- [x] Resume completed sources safely, clean abandoned scratch files and terminate
   child processes on cancellation. Verify target integrity, foreign keys, checksums,
   cache equivalence and user-owned data before reporting success.
 

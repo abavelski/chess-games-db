@@ -1,3 +1,4 @@
+import { desktopLease } from '../lib/archive-access.mjs';
 import { emptyPersonal, validatePersonal } from '../src/personal.mjs';
 import Database from 'better-sqlite3';
 import { readFileSync } from 'node:fs';
@@ -20,13 +21,15 @@ export { decodePgn } from '../lib/game-policy.mjs';
 export class ChessArchive {
  constructor(path) {
   this.path=resolve(path);
-  const db=new Database(this.path,{readonly:true,fileMustExist:true});
+  this.releaseLease=desktopLease(this.path);
+  let db;
+  try { db=new Database(this.path,{readonly:true,fileMustExist:true}); } catch(error) {this.releaseLease();throw error;}
   try {
    const version=db.pragma('user_version',{simple:true});
    if(version!==7) throw new Error('This app supports database schema 7 (found '+version+'). Use npm run migrate:games -- --input OLD --output NEW for schemas 3–6.');
    db.pragma('foreign_keys=ON');db.function('unicode_key',{deterministic:true},searchKey);
    this.db=db; this.optionCache=new Map();
-  } catch(error) {db.close();throw error;}
+  } catch(error) {db.close();this.releaseLease();throw error;}
  }
  hasFavouriteColumn(){return this.db.pragma('table_info(games)').some(column=>column.name==='favourite');}
  gameColumns(){return GAME_COLUMNS+','+(this.hasFavouriteColumn()?'g.favourite':'0')+' favourite';}
@@ -67,7 +70,7 @@ export class ChessArchive {
    return personal;
   } finally {writer.close();}
  }
- close(){this.db.close();}
+ close(){try{this.db.close();}finally{this.releaseLease();}}
  catalog(){
   const sources=this.db.prepare('SELECT s.*,count(DISTINCT l.game_id) game_count FROM sources s LEFT JOIN game_sources l ON l.source_id=s.id GROUP BY s.id ORDER BY title,s.id').all();
   const games=this.db.prepare('SELECT count(*) n FROM games WHERE hidden=0').get().n;
