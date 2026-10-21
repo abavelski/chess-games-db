@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Chess } from 'chessops/chess';
 import { makeFen } from 'chessops/fen';
 import { parseSan } from 'chessops/san';
-import { extractMainlinePositions } from '../lib/position-mainline.mjs';
+import { extractMainlinePositions, extractAllPositions } from '../lib/position-mainline.mjs';
 import { positionFingerprint } from '../lib/position-hash.mjs';
 import { resolveReviewNavigation } from '../src/review-navigation.mjs';
 import { criticalReveal } from '../src/critical-positions.mjs';
@@ -103,4 +103,57 @@ test('PS-07 Study stops never reveals a target beyond the first hidden marker', 
   assert.equal(resolveReviewNavigation(pgn, visible, firstFen, true).path, visible.path);
   const none = '1. e4 e5 *', noneFen = fenAfter('e4', 'e5');
   assert.equal(resolveReviewNavigation(none, matchAt(none, noneFen), noneFen, true).notice, null);
+});
+
+test('PS-10 opens a verified author variation and rejects stale or superseded branches', () => {
+  const branch = '1. Nf3 (1. d4 d5 (1... Nf6)) Nf6 2. g3 g6 *';
+  const d4 = fenAfter('d4');
+  const replay = extractAllPositions(branch);
+  assert.equal(replay.status, 'complete', replay.diagnostic);
+  const variation = replay.occurrences.find(o => o.verificationKey === positionFingerprint(d4).verificationKey);
+  assert.ok(variation && !variation.is_mainline);
+  const match = { path: variation.path, ply: variation.ply, isMainline: false, type: 'sourceVariation' };
+  assert.deepEqual(resolveReviewNavigation(branch, match, d4), {
+    path: match.path, positionKey: positionFingerprint(d4).verificationKey, notice: null,
+  });
+  for (const stale of [
+    { ...match, ply: match.ply + 1 },
+    { ...match, path: 'bad' },
+    { ...match, type: 'playedGame' },
+  ]) {
+    const resolved = resolveReviewNavigation(branch, stale, d4);
+    assert.equal(resolved.path, '');
+    assert.ok(resolved.notice);
+  }
+  assert.equal(resolveReviewNavigation(branch, match, fenAfter('e4')).path, '');
+  assert.equal(resolveReviewNavigation('1. Nf3 (1. Ke9) Nf6 *', match, d4).path, '');
+
+  const both = '1. d4 (1. Nf3 Nf6 2. Ng1 Ng8 3. d4) (1. Nh3 Nh6 2. Ng1 Ng8 3. d4) d5 *';
+  const positions = extractAllPositions(both).occurrences
+    .filter(o => o.verificationKey === positionFingerprint(d4).verificationKey);
+  assert.equal(positions.length, 3);
+  const sideline = positions.find(o => !o.is_mainline);
+  assert.ok(sideline);
+  assert.equal(resolveReviewNavigation(both, {
+    path: sideline.path, ply: sideline.ply, isMainline: false, type: 'sourceVariation',
+  }, d4).path, '', 'a sideline cannot override the preferred mainline');
+  const mainline = positions.find(o => o.is_mainline);
+  assert.equal(resolveReviewNavigation(both, {
+    path: mainline.path, ply: mainline.ply, isMainline: true, type: 'playedGame',
+  }, d4).path, mainline.path);
+});
+
+test('PS-10 refuses sideline navigation when source variations cannot be verified', () => {
+  const valid = '1. Nf3 (1. d4) Nf6 *';
+  const bad = '1. Nf3 (1. d4 Ke9) Nf6 *';
+  const d4 = fenAfter('d4');
+  const variation = extractAllPositions(valid).occurrences.find(o =>
+    o.verificationKey === positionFingerprint(d4).verificationKey);
+  assert.ok(variation);
+  assert.equal(extractAllPositions(bad).status, 'partial');
+  const result = resolveReviewNavigation(bad, {
+    path: variation.path, ply: variation.ply, isMainline: false, type: 'sourceVariation',
+  }, d4);
+  assert.equal(result.path, '');
+  assert.match(result.notice, /verify/i);
 });
