@@ -9,8 +9,8 @@ import { resolveReviewNavigation, type ReviewNavigation } from './review-navigat
 import { OpeningFilter, type OpeningSelection } from './OpeningFilter';
 import type { Catalog, GameDetail, GameRow, Page, PositionSearchCoverage, PositionSearchResult, PositionSearchRow, PropertyKey, SearchFilters } from './types';
 
-const defaultFilters = { yearFrom: '', yearTo: '', sort: 'book', favouritesOnly: false, personalOnly: false };
-const propertyLabels: Array<[PropertyKey,string]> = [['source','Source'],['sourceType','Source type'],['event','Event'],['year','Year'],['result','Result'],['studyMarkers','Study markers']];
+const defaultFilters = { yearFrom: '', sort: 'book', favouritesOnly: false, personalOnly: false };
+const propertyLabels: Array<[PropertyKey,string]> = [['source','Source'],['sourceType','Source type'],['result','Result'],['studyMarkers','Study markers']];
 type Filters = typeof defaultFilters;
 const num = (value: number) => new Intl.NumberFormat().format(value);
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -231,8 +231,7 @@ export default function App() {
           <section className="browser-filters" aria-label="Filter games">
             <div className="game-filters-grid">
               {propertyLabels.map(([property,label])=><PropertyFilter key={property} property={property} label={label} selected={properties[property]??[]} filters={dropdownFilters} onChange={values=>{setProperties(previous=>({...previous,[property]:values}));setPage(1);}} />)}
-              <div className="year-filters"><FilterInput label="Year from" year value={filters.yearFrom} onChange={value => patchFilter('yearFrom', value)} />
-                <FilterInput label="Year to" year value={filters.yearTo} onChange={value => patchFilter('yearTo', value)} /></div>
+              <FilterInput label="Year from" year value={filters.yearFrom} onChange={value => patchFilter('yearFrom', value)} />
             </div>
             <div className="extra-game-filters">
               <label className="favourites-filter"><input type="checkbox" checked={filters.favouritesOnly} onChange={event => patchFilter('favouritesOnly', event.target.checked)} />Favourites only</label>
