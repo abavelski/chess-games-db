@@ -94,7 +94,9 @@ export class ChessArchive {
   */
  searchByPosition(fen,filters={}) {
   validatePositionSearchRequest(fen,filters);
-  const fingerprint=positionFingerprint(fen); // strict FEN validation in PS-01
+  let fingerprint;
+  try { fingerprint=positionFingerprint(fen); } // strict PS-01 FEN validation
+  catch(error) { throw new Error('Invalid standard-chess FEN: '+(error?.message??String(error))); }
   return this.db.transaction(() => {
    const coverage=positionSearchCoverage(this.db);
    const q=this.predicate(filters); // identical filters, opening hierarchy and sort to searchGames
