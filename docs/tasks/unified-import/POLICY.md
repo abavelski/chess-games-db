@@ -40,3 +40,10 @@ UI-01 validation: isolated v3–v6 and v7 capability fixtures reconcile without 
 changes. Read-only inventory of the supplied `megabase-games`, `megabase-all-ru-en`
 and `megabase-smoke` archives is retained locally in
 `.local-import-reports/ui-01-inventory.json`; no supplied archive was modified.
+
+Record reconciliation JSON uses incoming local keys mapped to
+`{"key":"existing-local-key","expectedSha256":"existing-pgn-sha256"}`.
+Changed records without evidence require this explicit review; checksums prevent
+reusing a stale reconciliation. A new source can use an explicit source key,
+including a legacy standalone key. Registry proposals are separate from loading;
+publication will be coordinated with durable run records in UI-08.

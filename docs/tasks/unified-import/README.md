@@ -159,13 +159,13 @@ after setup, offline reruns succeed and missing dependencies fail before writes.
 
 Depends on UI-01–02.
 
-- [ ] Discover individual CBH/CBV/PGN and book trees, validate mandatory CBH
+- [x] Discover individual CBH/CBV/PGN and book trees, validate mandatory CBH
   sidecars, list unsupported formats explicitly, and avoid importing both an
   archive and its unpacked equivalent. Surface uncertain filename heuristics.
-- [ ] Load the existing catalogue without reallocating keys; support preserving
+- [x] Load the existing catalogue without reallocating keys; support preserving
   keys through moves/renames and importing older standalone-source mappings.
   Make new registry entries atomic and recoverable with their import run.
-- [ ] Implement source/record reconciliation plans for PGN ordinal drift, CB
+- [x] Implement source/record reconciliation plans for PGN ordinal drift, CB
   renumbering and changed source editions. Refuse ambiguous updates by default.
 
 Acceptance: discovery/inspection is read-only; repeated discovery, a renamed book
