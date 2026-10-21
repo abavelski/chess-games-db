@@ -72,6 +72,28 @@ export interface GameDetail extends GameRow {
   created_at: string;
   updated_at: string;
 }
+/** Search coverage is archive-wide for visible games, not just the chosen FEN.
+ * A partial index can return valid hits, but zero results are not conclusive
+ * until isComplete is true. No PGN bytes or bigint hashes cross IPC.
+ */
+export interface PositionSearchCoverage {
+  status: 'unavailable' | 'incompatible' | 'partial' | 'complete';
+  isComplete: boolean;
+  total: number;
+  complete: number;
+  invalid: number;
+  building: number;
+  partial: number;
+  stale: number;
+  unsupported: number;
+  unindexed: number;
+}
+export interface PositionSearchRow extends GameRow {
+  match: { path: string; ply: number; isMainline: true };
+}
+export interface PositionSearchResult extends Page<PositionSearchRow> {
+  coverage: PositionSearchCoverage;
+}
 export interface Page<T> {
   rows: T[];
   total: number;
@@ -95,6 +117,7 @@ export interface ChessArchiveAPI {
   propertyOptions(request: {property: PropertyKey; query?: string; filters?: SearchFilters; cursor?: string | number; limit?: number}): Promise<{options: PropertyOption[]; cursor: string | null}>;
   getCatalog(): Promise<Catalog | null>;
   searchGames(f: SearchFilters): Promise<Page<GameRow>>;
+  searchByPosition(fen: string, filters?: SearchFilters): Promise<PositionSearchResult>;
   openingFacets(f: SearchFilters): Promise<OpeningFacets>;
   setFavourite(id: number, favourite: boolean): Promise<boolean>;
   savePersonal(id: number, personal: PersonalAnalysis): Promise<PersonalAnalysis>;
