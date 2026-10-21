@@ -65,6 +65,9 @@ async function smoke() {
       await wait(() => document.querySelector('.review-shell cg-board'));
       const reviewStar = document.querySelector('.review-shell .favourite-button');
       if (reviewStar.getAttribute('aria-pressed') !== 'true') throw new Error('Review lost favourite');
+      // Chessground can mount before GameReview has committed its ready state.
+      // Wait for enabled controls, rather than clicking a still-disabled button.
+      await wait(() => !document.querySelector('[aria-label="Next move"]')?.disabled);
       document.querySelector('[aria-label="Next move"]').click();
       await wait(() => document.querySelector('.review-move[aria-current="step"]'));
       reviewStar.click();
