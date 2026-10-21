@@ -231,16 +231,16 @@ injected failures leave no partial source updates or orphaned relations.
 
 Depends on UI-06.
 
-- [ ] Create new targets directly as v7. Refuse implicit in-place v3–v6 conversion;
+- [x] Create new targets directly as v7. Refuse implicit in-place v3–v6 conversion;
   direct users to explicit new-output migration, verifying any personal extensions
   before conversion rather than assuming the existing converter copies them.
-- [ ] Preserve valid opening revisions/classifications and unchanged position
+- [x] Preserve valid opening revisions/classifications and unchanged position
   indexes. Refresh changed games' annotation/critical/medal features and property
   caches using the existing writer; verify invalidation remains transactional.
-- [ ] Reuse a checksummed local opening catalogue (current pin
+- [x] Reuse a checksummed local opening catalogue (current pin
   `a6189a30dc273ccb21fc2536a9a2fefd5592a67a`); allow explicit unenriched import
   with coverage status rather than a hidden network download. Keep source ECO.
-- [ ] Leave position indexing opt-in; when requested, build/resume the installed
+- [x] Leave position indexing opt-in; when requested, build/resume the installed
   mainline/all-variation scope. Report absent/stale/failed/complete coverage without
   exposing stale hits. Do not bump base schema just because 008/009 exist.
 
