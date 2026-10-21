@@ -176,8 +176,11 @@ async function smoke() {
     })()`);
     window.setSize(1510,920);
     await window.webContents.executeJavaScript(`(async () => {
+      window.psStage = 'switch to unindexed archive';
       document.querySelector('.browser-archive button').click();
-      await psWait(() => psCount(1) && !document.querySelector('.position-search-active'));
+      await psWait(() => document.querySelector('.browser-archive > span')?.title.endsWith('position-unindexed.sqlite3') &&
+        psCount(1) && !document.querySelector('.position-search-active') &&
+        !document.querySelector('.position-search-board'));
       document.querySelector('.position-search-heading button').click();
       await psWait(() => document.querySelectorAll('.position-square').length === 64);
       document.querySelector('.position-search-submit .primary-button').click();
