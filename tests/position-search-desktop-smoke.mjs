@@ -209,7 +209,7 @@ async function smoke() {
       if (document.querySelector('.favourites-filter input').checked) document.querySelector('.favourites-filter input').click();
       await psWait(() => psCount(43));
       document.querySelector('.position-search-actions button:nth-child(3)').click();
-      await psWait(() => document.querySelector('.position-move-list').textContent.includes('No moves'));
+      await psWait(() => document.querySelector('.position-move-list').textContent.includes('Starting position'));
       for (const [a,b] of [['e2','e4'],['e7','e5'],['g1','f3'],['b8','c6']]) await psMove(a,b);
       document.querySelector('.position-search-submit .primary-button').click();
       await psWait(() => psCount(42));
