@@ -62,6 +62,11 @@ export function PositionSearchBoard({ moves, onMovesChange, onSearch, onClear, a
       setSelected(null); setError(null);
       return;
     }
+    if (event.key === 'Enter' || event.key === ' ') {
+      // Roving focus includes tabIndex=-1 squares. Handle activation directly
+      // rather than depending on the host platform's synthetic button click.
+      event.preventDefault(); choose(square); return;
+    }
     const delta: Record<string, [number, number]> = {
       ArrowRight: [flipped ? -1 : 1, 0],
       ArrowLeft: [flipped ? 1 : -1, 0],
