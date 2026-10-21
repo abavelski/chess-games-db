@@ -7,8 +7,14 @@ export interface Source {
   game_count: number;
   kind: string;
 }
+export interface PositionIndexCapability {
+  status: 'unavailable' | 'incompatible' | 'installed';
+  schemaVersion?: number;
+  hashAlgorithm?: string;
+  pawnAlgorithm?: string;
+}
 export interface Catalog {
-  capabilities?: { openings: boolean; criticalPositions?: boolean; studyMarkers?: boolean };
+  capabilities?: { openings: boolean; criticalPositions?: boolean; studyMarkers?: boolean; positionIndex?: PositionIndexCapability };
   path: string;
   sources: Source[];
   totals: { games: number };

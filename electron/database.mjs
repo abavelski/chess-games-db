@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { decodePgn, searchKey } from '../lib/game-policy.mjs';
 import { gameQuery, GAME_FROM, PROPERTIES, propertyClause, validateSelections } from './queries.mjs';
+import { positionIndexCapability as probePositionIndexCapability } from '../lib/position-index-storage.mjs';
 import { activeOpeningRevision, openingSelection, openingLabels, openingFacets } from './opening-read.mjs';
 
 function requiredId(value) {
@@ -44,6 +45,7 @@ export class ChessArchive {
    return favourite;
   } finally {writer.close();}
  }
+ positionIndexCapability(){return probePositionIndexCapability(this.db);}
  hasPersonalTable(){return !!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='game_personal_analysis'").get();}
  getPersonal(id){return this.hasPersonalTable()?JSON.parse(this.db.prepare('SELECT data_json FROM game_personal_analysis WHERE game_id=?').get(id)?.data_json || JSON.stringify(emptyPersonal())):emptyPersonal();}
  savePersonal(value,input){
@@ -67,7 +69,7 @@ export class ChessArchive {
  catalog(){
   const sources=this.db.prepare('SELECT s.*,count(DISTINCT l.game_id) game_count FROM sources s LEFT JOIN game_sources l ON l.source_id=s.id GROUP BY s.id ORDER BY title,s.id').all();
   const games=this.db.prepare('SELECT count(*) n FROM games WHERE hidden=0').get().n;
-  return {path:this.path,sources,capabilities:{openings:true,criticalPositions:true,studyMarkers:true},totals:{games}};
+  return {path:this.path,sources,capabilities:{openings:true,criticalPositions:true,studyMarkers:true,positionIndex:this.positionIndexCapability()},totals:{games}};
  }
  predicate(filters={}) {
   validateSelections(this.db,filters.properties);

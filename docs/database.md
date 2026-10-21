@@ -24,6 +24,8 @@ and checksum. The list never reads PGN blobs.
 | property_cache_state | Content/cache revisions and cache algorithm/build timestamp |
 | migration_manifest | Converter policy, input identity, verification status and summary |
 | opening_* / game_opening* | Revisioned offline Lichess taxonomy, classifications and matches |
+| position_index_meta / position_keys | Optional v7 derived position schema version and collision-verified Polyglot/pawn keys |
+| game_position_occurrences / game_position_index_state | Optional game/ply/viewer-path occurrences and per-game PGN hash, algorithm, scope and build status |
 
 Game-owned relations cascade on explicit game deletion; referenced dimensions and
 sources restrict deletion. Reverse indexes begin with game ID, with additional
@@ -112,3 +114,13 @@ previous app. Historical book/raw archive preservation plans are superseded.
 ## Position search hash contract (PS-01)
 
 The additive position-index tables are not yet implemented. PS-01 provides the shared, pure standard-chess Polyglot fingerprint in [`lib/position-hash.mjs`](../lib/position-hash.mjs), independent of the existing named-opening key. It returns unsigned 64-bit `bigint` hashes, explicit signed SQLite mappings, normalized four-field collision-verification keys, and exact two-color pawn signatures. See [PS-01 contract and validation rules](tasks/position-search/01-hash-contract.md). No archive migration or opening-query behavior changed.
+
+## Optional position-index extension (PS-02)
+
+`db/migrations/009_position_index.sql` is **not** part of schema 7 initialization and is never installed on archive open. With a backup, run `npm run position-index -- install --database PATH`; the explicit CLI checks schema 7, enables foreign keys, installs atomically, rejects incompatible partial installs, and keeps `user_version=7`. Existing archives without 009 remain fully usable. `ChessArchive.positionIndexCapability()` is read-only and reports `unavailable`, `incompatible`, or `installed`, also surfaced in `catalog().capabilities.positionIndex`. Installed means schema-compatible, **not** that any games are indexed. No index-building/search API or UI is delivered in PS-02.
+
+`position_keys` stores signed SQLite `zobrist_hash`, four-field `exact_key` (Polyglot EP rule), signed `pawn_hash`, and exact white:black pawn-bitboard signature. Its composite unique key `(zobrist_hash, exact_key)` permits forced hash collisions, and its `(pawn_hash,pawn_signature)` index supports independently verified pawn matching. Bind signed 64-bit `bigint` via `BigInt.asIntN(64, hash)`, read through `safeIntegers()`, reverse-map with `BigInt.asUintN(64, signed)`; never use JSON or `Number` for hashes.
+
+`game_position_occurrences` links games to position keys, recording nonnegative ply, mainline flag and a viewer path. `(game_id,path)` is unique, including the empty root path at ply 0; shared positions can occur in distinct editions or at multiple paths. Queries use indexed position and reverse-game lookups. `game_position_index_state` stores the input PGN SHA-256, algorithm ID, indexer version, scope (`mainline`/`all`), `building`/`partial`/`failed`/`complete`/`stale` status, diagnostic, and timestamps. `searchable_game_position_occurrences` exposes only **complete**, PGN-hash-current, Polyglot-v1 rows; the future query layer must additionally enforce indexer version and compatible scope. Trigger `game_position_index_invalidate_pgn` removes stale occurrences and marks the state stale **inside the same transaction** as any PGN SHA change (including reimports via `lib/game-writer.mjs`). Game deletion cascades to state/occurrences, but shared position keys are retained.
+
+Full contract: [PS-02](tasks/position-search/02-position-storage.md). No original records, personal analyses, opening classifications, migration version, or existing filter semantics are changed by installation.

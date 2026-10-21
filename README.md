@@ -84,13 +84,28 @@ See [docs/database.md](docs/database.md) for the schema, stable identifiers, PGN
 | `electron/queries.mjs` | Parameterized filtering, sort whitelists, safe paging |
 | `src/App.tsx` | Games-only browser, filters, and review navigation |
 | `lib/game-writer.mjs` | Shared transactional imports, features and property cache |
-| `lib/position-hash.mjs` | Pure Polyglot position/pawn fingerprint contract (PS-01; index and search still planned) |
+| `lib/position-hash.mjs` | Pure Polyglot position/pawn fingerprint contract (PS-01) |
+| `lib/position-index-storage.mjs` | Read-only detection of the optional position-index schema (PS-02) |
+| `scripts/position-index.mjs` | Explicit installation of derived position-index storage; no search UI yet |
 | `scripts/migrate-games.mjs` | Explicit read-only legacy snapshot conversion |
 | `src/PgnBoard.tsx` | Lichess viewer integration |
 | `db/migrations/` | Versioned schema migrations |
 | `scripts/init-db.py` | Fresh v7 initializer |
 
 The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lichess PGN Viewer license. No custom chess engine or full-game position index is included. Named opening matches are derived from the Lichess catalogue; live Explorer statistics are a separate future feature.
+
+## Optional position-search storage (PS-02)
+
+A local archive can optionally receive the **derived position-index tables**, without changing its original PGNs or schema version. **This does not yet build an index or enable position search**; the offline builder and search UI are later tasks. Neither opening an archive nor starting the desktop app installs this extension.
+
+From a development checkout with Node.js 22+ and dependencies installed, back up your archive and explicitly install the storage:
+
+```sh
+cp data/annotated-games.sqlite3 data/games.positions.sqlite3
+npm run position-index -- install --database data/games.positions.sqlite3
+```
+
+The command refuses missing, legacy, future-version and incompatible/partial extensions. It is idempotent and leaves `PRAGMA user_version` at 7; it also works on older schema-7 archives without personal analysis. Newly initialized archives are not automatically position-indexed. On existing archives, the extension is optional; `getCatalog().capabilities.positionIndex.status` is `unavailable` without it, `installed` when its schema is valid (not a claim about game coverage), or `incompatible` for a partial/unrecognized layout. Importing a changed PGN invalidates its derived occurrences transactionally. See [position-storage contract](docs/tasks/position-search/02-position-storage.md).
 
 ## Opening catalogue enrichment
 
