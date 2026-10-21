@@ -3,8 +3,9 @@ import { AlertCircle, ChevronLeft, ChevronRight, ChevronsUpDown, FolderOpen, Med
 import { FavouriteButton } from './FavouriteButton';
 import { PropertyFilter } from './PropertyFilter';
 import { GameReview } from './GameReview';
+import { PositionSearchBoard } from './PositionSearchBoard';
 import { OpeningFilter, type OpeningSelection } from './OpeningFilter';
-import type { Catalog, GameDetail, GameRow, Page, PropertyKey, SearchFilters } from './types';
+import type { Catalog, GameDetail, GameRow, Page, PositionSearchCoverage, PositionSearchRow, PropertyKey, SearchFilters } from './types';
 
 const defaultFilters = { yearFrom: '', yearTo: '', sort: 'book', favouritesOnly: false, personalOnly: false };
 const propertyLabels: Array<[PropertyKey,string]> = [['source','Source'],['sourceType','Source type'],['event','Event'],['year','Year'],['result','Result'],['studyMarkers','Study markers']];
@@ -12,6 +13,7 @@ type Filters = typeof defaultFilters;
 const num = (value: number) => new Intl.NumberFormat().format(value);
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
 const gameTitle = (game: GameRow) => `${game.white || 'Unknown'} vs ${game.black || 'Unknown'}`;
+const positionHit = (game: GameRow): game is PositionSearchRow => 'match' in game;
 
 function FilterInput({ label, value, onChange, year = false }: {
   label: string; value: string; onChange: (value: string) => void; year?: boolean;
@@ -34,6 +36,12 @@ export default function App() {
   const [page, setPage] = useState(1);
   const [openingSelection, setOpeningSelection] = useState<OpeningSelection | null>(null);
   const [results, setResults] = useState<Page<GameRow> | null>(null);
+  const [positionPanelOpen, setPositionPanelOpen] = useState(false);
+  const [positionMoves, setPositionMoves] = useState<string[]>([]);
+  // Editing the board does not search. Only an explicit Search commits the FEN.
+  const [appliedPositionFen, setAppliedPositionFen] = useState<string | null>(null);
+  const [positionSearchRevision, setPositionSearchRevision] = useState(0);
+  const [positionCoverage, setPositionCoverage] = useState<PositionSearchCoverage | null>(null);
   const [fetching, setFetching] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [gameError, setGameError] = useState<string | null>(null);
@@ -78,17 +86,20 @@ export default function App() {
     if (!catalog) return;
     let alive = true;
     setFetching(true); setQueryError(null); setGameError(null);
-    window.chessArchive.searchGames({
-      ...baseFilters, openingNodeId: openingSelection?.id, page, pageSize: 40,
-    }).then(value => { if (alive) {
+    const requestFilters = { ...baseFilters, openingNodeId: openingSelection?.id, page, pageSize: 40 };
+    const request = appliedPositionFen === null
+      ? window.chessArchive.searchGames(requestFilters)
+      : window.chessArchive.searchByPosition(appliedPositionFen, requestFilters);
+    request.then(value => { if (alive) {
       setResults(value);
+      setPositionCoverage('coverage' in value ? value.coverage : null);
       const lastPage = Math.max(1, Math.ceil(value.total / 40));
       if (page > lastPage) setPage(lastPage);
     } })
       .catch(error => { if (alive) setQueryError(errorMessage(error)); })
       .finally(() => { if (alive) setFetching(false); });
     return () => { alive = false; };
-  }, [catalog, baseFilters, openingSelection, page]);
+  }, [catalog, baseFilters, openingSelection, page, appliedPositionFen, positionSearchRevision]);
 
   const patchFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => {
     setFilters(previous => ({ ...previous, [key]: value })); setPage(1);
@@ -103,6 +114,8 @@ export default function App() {
       if (!result.canceled && result.catalog) {
         gameRequest.current++;
         setOpeningGame(null); setGameError(null); setResults(null);
+        setAppliedPositionFen(null); setPositionCoverage(null);
+        setPositionMoves([]); setPositionPanelOpen(false);
         resetFilters(); setFavouriteError(null); setCatalog(result.catalog);
       }
     } catch (error) { setOpenError(errorMessage(error)); }
@@ -143,6 +156,18 @@ export default function App() {
   const start = total ? ((results?.page ?? 1) - 1) * 40 + 1 : 0;
   const end = Math.min((results?.page ?? 1) * 40, total);
   const hasFilters = !!(search || Object.values(properties).some(values=>values?.length) || openingSelection || Object.entries(filters).some(([key, value]) => value !== defaultFilters[key as keyof Filters]));
+  const searchPosition = (fen: string) => {
+    setAppliedPositionFen(fen); setPositionSearchRevision(value => value + 1); setPage(1);
+  };
+  const clearPositionSearch = () => {
+    setAppliedPositionFen(null); setPositionCoverage(null); setPage(1);
+  };
+  const coverageIssue = appliedPositionFen !== null && positionCoverage !== null && !positionCoverage.isComplete;
+  const coverageMessage = positionCoverage?.status === 'unavailable'
+    ? 'This archive has no position index. On a backup, run npm run positions -- init --database PATH, then npm run positions -- build --database PATH.'
+    : positionCoverage?.status === 'incompatible'
+      ? 'This archive has an incompatible position index. Use a compatible archive or restore a backup.'
+      : positionCoverage ? `Position index incomplete: ${num(positionCoverage.complete)} of ${num(positionCoverage.total)} visible games indexed; ${num(positionCoverage.unindexed)} not indexed, ${num(positionCoverage.building + positionCoverage.partial)} in progress, ${num(positionCoverage.stale)} stale, ${num(positionCoverage.unsupported)} unsupported, ${num(positionCoverage.invalid)} invalid. Results below include only searchable games.` : '';
 
   return <>
     <div hidden={!!review}>
@@ -180,7 +205,21 @@ export default function App() {
             </div>
           </section>
           <OpeningFilter key={catalog.path} filters={baseFilters} selection={openingSelection} onChange={value => { setOpeningSelection(value); setPage(1); }} />
-          <div className="results-titlebar"><div><h2>Games</h2><span role="status">{fetching ? 'Searching…' : `${num(total)} ${total === 1 ? 'game' : 'games'}`}</span></div>
+          <section className="position-search-section" aria-label="Position search">
+            <div className="position-search-heading">
+              <div><button className="secondary-button" type="button" aria-expanded={positionPanelOpen} aria-controls="position-search-content"
+                onClick={() => setPositionPanelOpen(value => !value)}><Search size={16} />Search by position</button>
+                {appliedPositionFen && <span className="position-search-active">Exact position search active</span>}
+              </div>
+              {appliedPositionFen && !positionPanelOpen && <button className="subtle-button" type="button" onClick={clearPositionSearch}><X size={15} />Clear position search</button>}
+            </div>
+            {positionPanelOpen && <div id="position-search-content">
+              <PositionSearchBoard moves={positionMoves} onMovesChange={setPositionMoves} onSearch={searchPosition}
+                onClear={clearPositionSearch} activeFen={appliedPositionFen} />
+            </div>}
+          </section>
+          {coverageIssue && !fetching && !queryError && <div className="notice position-coverage-notice" role="status"><AlertCircle size={18} aria-hidden="true" /><span>{coverageMessage}</span></div>}
+          <div className="results-titlebar"><div><h2>{appliedPositionFen ? 'Games reaching this position' : 'Games'}</h2><span role="status">{fetching ? 'Searching…' : `${num(total)} ${total === 1 ? 'game' : 'games'}`}</span></div>
             <label className="sort-box"><ChevronsUpDown size={15} /><select aria-label="Sort games" value={filters.sort} onChange={event => patchFilter('sort', event.target.value)}>
               <option value="book">Source order</option><option value="year_desc">Year · newest</option><option value="year_asc">Year · oldest</option>
               <option value="white">White player A–Z</option><option value="source">Source title A–Z</option><option value="newest">Newest added</option>
@@ -192,7 +231,12 @@ export default function App() {
           <section className="results-panel game-results" aria-label="Games" aria-busy={fetching}>
             {queryError ? <div className="empty-results" role="alert"><AlertCircle size={28} /><h3>Unable to search games</h3><p>{queryError}</p></div>
               : fetching && !results ? <div className="empty-results"><RefreshCw className="spin" size={26} /><p>Loading games…</p></div>
-              : !results?.rows.length ? <div className="empty-results"><Search size={28} /><h3>No games found</h3><p>Try another source or adjust your filters.</p><button className="secondary-button" onClick={resetFilters}>Clear filters</button></div>
+              : !results?.rows.length ? <div className="empty-results"><Search size={28} />
+                <h3>{coverageIssue ? 'Position index not ready' : appliedPositionFen ? 'No games reached this position' : 'No games found'}</h3>
+                <p>{coverageIssue ? 'Matches can be missing until the archive index is complete. See index coverage above.' : appliedPositionFen ? 'No indexed games match this exact board and your current filters.' : 'Try another source or adjust your filters.'}</p>
+                {hasFilters && <button className="secondary-button" onClick={resetFilters}>Clear filters</button>}
+                {appliedPositionFen && <button className="secondary-button" onClick={clearPositionSearch}>Clear position search</button>}
+              </div>
               : <div className="results-list">{results.rows.map(game => <div key={game.id} className="game-result-row"><button className="result-item" disabled={openingGame !== null}
                 onClick={event => void openGame(game, event.currentTarget)}>
                 <span className="game-piece" aria-hidden="true">♟</span>
@@ -200,6 +244,7 @@ export default function App() {
                   {!!game.has_critical_positions && <span className="game-critical-badge">◆ {game.critical_position_count} critical {game.critical_position_count === 1 ? 'position' : 'positions'}</span>}
                   {!!game.has_medals && <span className="game-medal-badge"><Medal size={13} aria-hidden="true" /> {game.medal_count} {game.medal_count === 1 ? 'medal' : 'medals'}</span>}
                   <span className="item-small">{[game.event, game.year].filter(Boolean).join(' · ') || 'Event and date unavailable'}</span>
+                  {positionHit(game) && <span className="position-match-label">Exact position · {game.match.ply === 0 ? 'Starting position' : `Ply ${game.match.ply}`}</span>}
                   {(game.opening?.name || catalog.capabilities?.openings) && <span className="game-opening-name" title={game.opening?.name ?? undefined}>{game.opening?.name ? `${game.opening.name} · ${game.opening.eco}` : game.opening?.status === 'unenriched' ? 'Opening not enriched' : 'Unclassified opening'}</span>}
                   <small>{game.source_title} · {game.completeness === 'unknown' ? 'Completeness unknown' : game.completeness}{game.annotator ? ` · Annotated by ${game.annotator}` : ''}</small></span>
                 <span className="item-extra"><span className="result-val">{game.result || '—'}</span><ChevronRight size={17} /></span>
