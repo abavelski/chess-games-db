@@ -95,6 +95,12 @@ async function smoke() {
       const trigger = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Search by position'));
       trigger.click();
       await psWait(() => document.querySelectorAll('.position-square').length === 64);
+      document.querySelector('#opening-tree-tab').click();
+      await psWait(() => document.querySelector('#opening-position-panel').hidden);
+      if (document.querySelector('#opening-tree-tab').getAttribute('aria-selected') !== 'true') throw new Error('Opening tree tab must be selected');
+      document.querySelector('#opening-tree-tab').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      await psWait(() => !document.querySelector('#opening-position-panel').hidden);
+      if (document.activeElement?.id !== 'opening-position-tab') throw new Error('Arrow key must focus position tab');
       window.psStage = 'opening board and selecting e2';
       const startFen = document.querySelector('.position-fen output').textContent;
       psSquare('e2').click();
@@ -121,6 +127,10 @@ async function smoke() {
       for (const [a,b] of [['g1','f3'],['b8','c6'],['e2','e4'],['e7','e5']]) await psMove(a,b);
       if (!document.querySelector('.position-turn').textContent.includes('White')) throw new Error('Side to move is incorrect');
       const fen = document.querySelector('.position-fen output').textContent;
+      document.querySelector('#opening-tree-tab').click();
+      document.querySelector('#opening-position-tab').click();
+      await psWait(() => document.querySelector('.position-fen output').textContent === fen);
+
       document.querySelector('.position-search-submit .primary-button').click();
       await psWait(() => psCount(42) && document.querySelectorAll('.position-match-label').length === 40);
       if (!document.querySelector('.position-search-active')) throw new Error('Missing position search indicator');
@@ -260,7 +270,7 @@ async function smoke() {
       await psWait(() => document.querySelector('.browser-archive > span')?.title.endsWith('position-unindexed.sqlite3') &&
         psCount(1) && !document.querySelector('.position-search-active') &&
         !document.querySelector('.position-search-board'));
-      document.querySelector('.position-search-heading button').click();
+      document.querySelector('#opening-position-tab').click();
       await psWait(() => document.querySelectorAll('.position-square').length === 64);
       document.querySelector('.position-search-submit .primary-button').click();
       await psWait(() => !!document.querySelector('.position-coverage-notice'));

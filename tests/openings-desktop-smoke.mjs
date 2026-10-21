@@ -49,26 +49,33 @@ async function smoke() {
         Object.getOwnPropertyDescriptor(proto,'value').set.call(element,value);
         element.dispatchEvent(new Event(element.tagName === 'SELECT' ? 'change' : 'input', { bubbles:true }));
       };
-      window.openingSelect = label => [...document.querySelectorAll('.opening-filter label')].find(el => el.querySelector('span')?.textContent === label)?.querySelector('select');
+      window.openingSelect = label => [...document.querySelectorAll('.opening-combobox')].find(el => el.querySelector('label')?.textContent === label)?.querySelector('input');
+      window.selectOpening = async (label, query) => {
+        const input = openingSelect(label); input.focus(); changeField(input, query);
+        await waitForOpening(() => input.closest('.opening-combobox').querySelector('[role=option]'));
+        const option = [...input.closest('.opening-combobox').querySelectorAll('[role=option]')].find(el => el.textContent.includes(query));
+        if (!option) throw new Error('Missing opening option: ' + query);
+        option.click();
+      };
       window.gameCount = n => document.querySelector('.results-titlebar [role="status"]')?.textContent === n + (n === 1 ? ' game' : ' games') && document.querySelectorAll('.result-item').length === Math.min(n,40) && document.querySelector('.game-results')?.getAttribute('aria-busy') === 'false';
       await waitForOpening(() => gameCount(45) && openingSelect('Opening family') && document.querySelector('.opening-filter').getAttribute('aria-busy') === 'false');
       if (document.querySelector('cg-board, .book-open, .sidebar')) throw new Error('Must remain games-only');
       if (!document.querySelector('.game-opening-name').textContent.includes('Two Knights')) throw new Error('Missing game opening label');
-      changeField(document.querySelector('.opening-name-search input'),'Open Game');
-      await waitForOpening(() => document.querySelector('.opening-search-results button'));
-      if (document.querySelector('.opening-search-results button span').textContent !== 'Open Game') throw new Error('Name search must prioritize the family over its many descendants');
-      changeField(document.querySelector('.opening-name-search input'),'');
-      const family = openingSelect('Opening family');
-      const option = [...family.options].find(option => option.textContent.includes('Open Game'));
-      changeField(family,option.value);
+      if (document.querySelector('[aria-label="Search games"], .opening-name-search')) throw new Error('Unused text searches must be removed');
+      await selectOpening('Opening family', 'Open Game');
       await waitForOpening(() => gameCount(41) && openingSelect('Opening line'));
-      const line = openingSelect('Opening line');
-      changeField(line,[...line.options].find(option => option.textContent.includes('Knight Line')).value);
+      await selectOpening('Opening line', 'Knight Line');
       await waitForOpening(() => openingSelect('Opening subline'));
-      const subline = openingSelect('Opening subline');
-      changeField(subline,[...subline.options].find(option => option.textContent.includes('Two Knights')).value);
+      await selectOpening('Opening subline', 'Two Knights');
       await waitForOpening(() => gameCount(40));
       if (!document.querySelector('.opening-breadcrumb').textContent.includes('Open Game / Knight Line / Two Knights')) throw new Error('Missing full breadcrumb');
+      document.querySelector('#opening-position-tab').click();
+      await waitForOpening(() => !document.querySelector('#opening-position-panel').hidden && document.querySelectorAll('.position-square').length === 64);
+      if (!document.querySelector('#opening-tree-panel').hidden) throw new Error('Only the selected tab panel should be visible');
+      document.querySelector('#opening-tree-tab').click();
+      await waitForOpening(() => !document.querySelector('#opening-tree-panel').hidden);
+      if (openingSelect('Opening subline').value.indexOf('Two Knights') !== 0 || !gameCount(40)) throw new Error('Tab switching must preserve opening selection and results');
+
     })()`);
     window.setSize(920,650);
     await window.webContents.executeJavaScript(`(async () => {
@@ -80,25 +87,33 @@ async function smoke() {
       const select = openingSelect('Opening family');
       select.focus();
       if (document.activeElement !== select || select.tabIndex < 0 || !select.labels.length) throw new Error('Opening controls need focus and accessible labels');
-      const input = document.querySelector('.opening-name-search input');
+      const input = openingSelect('Opening family');
       changeField(input,'Knight'); input.focus();
     })()`);
     window.webContents.sendInputEvent({ type:'keyDown', keyCode:'Escape' });
     window.webContents.sendInputEvent({ type:'keyUp', keyCode:'Escape' });
-    await window.webContents.executeJavaScript('waitForOpening(() => document.querySelector(".opening-name-search input").value === "" && !document.querySelector(".opening-search-results"))');
+    await window.webContents.executeJavaScript('waitForOpening(() => openingSelect("Opening family").value === "Open Game" && !document.querySelector(".opening-combobox-options"))');
     if (process.env.CHESS_SMOKE_SCREENSHOTS) {
       mkdirSync(process.env.CHESS_SMOKE_SCREENSHOTS, { recursive: true });
       writeFileSync(join(process.env.CHESS_SMOKE_SCREENSHOTS, 'browser.png'), (await window.webContents.capturePage()).toPNG());
     }
     await window.webContents.executeJavaScript(`(async () => {
-      changeField(openingSelect('Opening family'),[...openingSelect('Opening family').options].find(option => option.textContent.includes('Queen Pawn')).value);
+      const input = openingSelect('Opening family');
+      input.focus(); changeField(input, 'no such opening');
+      await waitForOpening(() => input.closest('.opening-combobox').querySelector('[role=status]'));
+      if (!gameCount(40)) throw new Error('Typing must not change the selected opening');
+      changeField(input, 'Queen Pawn');
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       await waitForOpening(() => gameCount(1));
       if (openingSelect('Opening line')?.value) throw new Error('Changing family must clear descendants');
       document.querySelector('.opening-filter-heading button').click();
       await waitForOpening(() => gameCount(45));
-      changeField(document.querySelector('.opening-name-search input'),'two knights');
-      await waitForOpening(() => document.querySelectorAll('.opening-search-results button').length === 1);
-      document.querySelector('.opening-search-results button').click();
+      await selectOpening('Opening family', 'Open Game');
+      await waitForOpening(() => openingSelect('Opening line'));
+      await selectOpening('Opening line', 'Knight Line');
+      await waitForOpening(() => openingSelect('Opening subline'));
+      await selectOpening('Opening subline', 'Two Knights');
       await waitForOpening(() => gameCount(40));
       const source=[...document.querySelectorAll('.property-filter')].find(el=>el.querySelector(':scope > span')?.textContent==='Source');
       source.querySelector('.property-trigger').click();await waitForOpening(()=>source.querySelector('[role=option]'));
@@ -112,17 +127,17 @@ async function smoke() {
       await waitForOpening(() => gameCount(45) && document.querySelector('.opening-filter').getAttribute('aria-busy') === 'false');
       document.querySelector('.opening-unclassified-toggle input').click();
       await waitForOpening(() => gameCount(3));
-      if (openingSelect('Opening family').value !== 'unclassified') throw new Error('Unclassified checkbox must synchronize with the opening selector');
+      if (openingSelect('Opening family').value !== 'Unclassified') throw new Error('Unclassified checkbox must synchronize with the opening selector');
       document.querySelector('.opening-unclassified-toggle input').click();
       await waitForOpening(() => gameCount(45));
-      changeField(openingSelect('Opening family'),'unclassified');
+      await selectOpening('Opening family', 'Unclassified');
       await waitForOpening(() => gameCount(3));
       if (!document.querySelector('.opening-unclassified-toggle input').checked) throw new Error('Opening selector must synchronize with the unclassified checkbox');
       const labels = [...document.querySelectorAll('.game-opening-name')].map(el => el.textContent);
       if (!labels.includes('Opening not enriched') || labels.filter(label => label === 'Unclassified opening').length !== 2) throw new Error('Missing unmatched/invalid/stale states');
       document.querySelector('.opening-filter-heading button').click();
       await waitForOpening(() => gameCount(45));
-      changeField(openingSelect('Opening family'),[...openingSelect('Opening family').options].find(option => option.textContent.includes('Open Game')).value);
+      await selectOpening('Opening family', 'Open Game');
       await waitForOpening(() => gameCount(41));
       document.querySelector('[aria-label="Next page"]').click();
       await waitForOpening(() => document.querySelector('.pagination').textContent.includes('Page 2 of 2') && document.querySelectorAll('.result-item').length === 1);
@@ -167,7 +182,7 @@ async function smoke() {
     assert.equal(BrowserWindow.getAllWindows().length,1);
     assert.deepEqual(errors,[]);
     assert.deepEqual([path,legacy,empty].map(file=>hash(readFileSync(file))),originals);
-    console.log('Opening desktop smoke passed: hierarchy, name search, combined filters, states, pagination, review labels, return state, legacy/empty archives, offline and archive preservation.');
+    console.log('Opening desktop smoke passed: hierarchy, autocomplete, combined filters, states, pagination, review labels, return state, legacy/empty archives, offline and archive preservation.');
   } catch(error) { console.error(error); exitCode=1; }
   finally {
     clearTimeout(timeout);

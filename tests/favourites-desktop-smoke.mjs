@@ -55,10 +55,10 @@ async function smoke() {
       if (document.querySelector('.review-shell')) throw new Error('Star opened review');
       filter().click();
       await wait(() => idle() && document.querySelectorAll('.result-item').length === 1);
-      const search = document.querySelector('[aria-label="Search games"]');
-      setValue(search, 'no match');
+      const search = [...document.querySelectorAll('label.field')].find(el => el.querySelector('span')?.textContent === 'Year from').querySelector('input');
+      setValue(search, '9999');
       await wait(() => idle() && document.querySelector('.empty-results h3'));
-      if (!filter().checked) throw new Error('Search cleared favourites filter');
+      if (!filter().checked) throw new Error('Year filter cleared favourites filter');
       setValue(search, '');
       await wait(() => idle() && document.querySelectorAll('.result-item').length === 1);
       document.querySelector('.result-item').click();

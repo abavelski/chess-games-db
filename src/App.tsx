@@ -37,12 +37,11 @@ export default function App() {
   const [opening, setOpening] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
   const [properties, setProperties] = useState<Partial<Record<PropertyKey,string[]>>>({});
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [page, setPage] = useState(1);
   const [openingSelection, setOpeningSelection] = useState<OpeningSelection | null>(null);
   const [results, setResults] = useState<Page<GameRow> | null>(null);
+  const [openingTab, setOpeningTab] = useState<'tree' | 'position'>('tree');
   const [positionPanelOpen, setPositionPanelOpen] = useState(false);
   const [positionMoves, setPositionMoves] = useState<string[]>([]);
   const [includeSourceVariations, setIncludeSourceVariations] = useState(false);
@@ -67,7 +66,7 @@ export default function App() {
   const trigger = useRef<HTMLElement | null>(null);
   const scroll = useRef({ x: 0, y: 0 });
   const gameRequest = useRef(0);
-  const baseFilters = useMemo<SearchFilters>(() => ({...filters,properties,search:debouncedSearch}),[filters,properties,debouncedSearch,favouriteRevision]);
+  const baseFilters = useMemo<SearchFilters>(() => ({...filters,properties}),[filters,properties,favouriteRevision]);
   const dropdownFilters = useMemo<SearchFilters>(() => ({...baseFilters,openingNodeId:openingSelection?.id}),[baseFilters,openingSelection]);
 
   const closeReview = useCallback((key: number) => {
@@ -93,11 +92,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 250);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  useEffect(() => {
     if (!catalog) return;
     let alive = true;
     setFetching(true); setQueryError(null); setGameError(null);
@@ -121,7 +115,7 @@ export default function App() {
     setFilters(previous => ({ ...previous, [key]: value })); setPage(1);
   };
   const resetFilters = () => {
-    setOpeningSelection(null); setFilters(defaultFilters); setProperties({}); setSearch(''); setDebouncedSearch(''); setPage(1);
+    setOpeningSelection(null); setFilters(defaultFilters); setProperties({}); setPage(1);
   };
   const openArchive = async () => {
     setOpening(true); setOpenError(null);
@@ -132,7 +126,7 @@ export default function App() {
         setReviewSessions([]); setActiveReviewKey(null); setOriginReviewKey(null);
         setOpeningGame(null); setGameError(null); setResults(null);
         setAppliedPositionFen(null); setPositionCoverage(null);
-        setPositionMoves([]); setPositionPanelOpen(false); setIncludeSourceVariations(false);
+        setPositionMoves([]); setOpeningTab('tree'); setPositionPanelOpen(false); setIncludeSourceVariations(false);
         resetFilters(); setFavouriteError(null); setCatalog(result.catalog);
       }
     } catch (error) { setOpenError(errorMessage(error)); }
@@ -183,7 +177,7 @@ export default function App() {
     setActiveReviewKey(null);
     setAppliedPositionFen(fen); setPositionSearchRevision(value => value + 1);
     setPositionCoverage(null); setResults(null); setIncludeSourceVariations(false);
-    setPositionPanelOpen(false); setPage(1);
+    setOpeningTab('position'); setPositionPanelOpen(false); setPage(1);
     requestAnimationFrame(() => window.scrollTo(0, 0));
   };
   const originReview = reviewSessions.find(session => session.key === originReviewKey);
@@ -196,7 +190,7 @@ export default function App() {
   const pageCount = Math.max(1, Math.ceil(total / 40));
   const start = total ? ((results?.page ?? 1) - 1) * 40 + 1 : 0;
   const end = Math.min((results?.page ?? 1) * 40, total);
-  const hasFilters = !!(search || Object.values(properties).some(values=>values?.length) || openingSelection || Object.entries(filters).some(([key, value]) => value !== defaultFilters[key as keyof Filters]));
+  const hasFilters = !!(Object.values(properties).some(values=>values?.length) || openingSelection || Object.entries(filters).some(([key, value]) => value !== defaultFilters[key as keyof Filters]));
   const searchPosition = (fen: string) => {
     setAppliedPositionFen(fen); setPositionSearchRevision(value => value + 1); setPage(1);
   };
@@ -235,10 +229,6 @@ export default function App() {
           <button className="primary-button" onClick={openArchive} disabled={opening || !window.chessArchive}><FolderOpen size={17} />Choose database</button>
         </section> : <>
           <section className="browser-filters" aria-label="Filter games">
-            <label className="search-box"><Search size={18} /><input aria-label="Search games" value={search}
-              placeholder="Search games…" onChange={event => { setSearch(event.target.value); setPage(1); }} />
-              {search && <button aria-label="Clear search" onClick={() => { setSearch(''); setPage(1); }}><X size={15} /></button>}
-            </label>
             <div className="game-filters-grid">
               {propertyLabels.map(([property,label])=><PropertyFilter key={property} property={property} label={label} selected={properties[property]??[]} filters={dropdownFilters} onChange={values=>{setProperties(previous=>({...previous,[property]:values}));setPage(1);}} />)}
               <div className="year-filters"><FilterInput label="Year from" year value={filters.yearFrom} onChange={value => patchFilter('yearFrom', value)} />
@@ -251,7 +241,6 @@ export default function App() {
 
             </div>
           </section>
-          <OpeningFilter key={catalog.path} filters={baseFilters} selection={openingSelection} onChange={value => { setOpeningSelection(value); setPage(1); }} />
           {originReview && <section className="review-search-return" aria-label="Return to originating review">
             <button type="button" className="secondary-button" onClick={returnToOrigin}>
               <ChevronLeft size={16} />Return to reviewed game
@@ -259,21 +248,43 @@ export default function App() {
             <span>{gameTitle(originReview.game)} · Original review and analysis preserved</span>
             {appliedPositionFen && <span className="review-search-exact">Searching reviewed FEN: <code>{appliedPositionFen}</code></span>}
           </section>}
-          <section className="position-search-section" aria-label="Position search">
-            <div className="position-search-heading">
-              <div><button className="secondary-button" type="button" aria-expanded={positionPanelOpen} aria-controls="position-search-content"
-                onClick={() => setPositionPanelOpen(value => !value)}><Search size={16} />Search by position</button>
-                {appliedPositionFen && <span className="position-search-active">Exact position search active{includeSourceVariations ? " · Annotated variations included" : ""}</span>}
-              </div>
-              {appliedPositionFen && !positionPanelOpen && <button className="subtle-button" type="button" onClick={clearPositionSearch}><X size={15} />Clear position search</button>}
+          <section className="opening-search" aria-label="Search by opening">
+            <div className="opening-search-tabs" role="tablist" aria-label="Opening search method">
+              {(['tree', 'position'] as const).map(tab => <button key={tab} type="button" role="tab"
+                id={`opening-${tab}-tab`} aria-controls={`opening-${tab}-panel`} aria-selected={openingTab === tab}
+                tabIndex={openingTab === tab ? 0 : -1}
+                onClick={() => { setOpeningTab(tab); if (tab === 'position') setPositionPanelOpen(true); }}
+                onKeyDown={event => {
+                  if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                    event.preventDefault();
+                    const next = event.key === 'Home' ? 'tree' : event.key === 'End' ? 'position' : openingTab === 'tree' ? 'position' : 'tree';
+                    setOpeningTab(next); if (next === 'position') setPositionPanelOpen(true);
+                    document.getElementById(`opening-${next}-tab`)?.focus();
+                  }
+                }}>{tab === 'tree' ? 'Opening tree' : 'Search by position'}{(tab === 'tree' ? openingSelection : appliedPositionFen) && <span className="opening-tab-active"> (Active)</span>}</button>)}
             </div>
-            {positionPanelOpen && <div id="position-search-content">
-               <label className="position-variation-toggle"><input type="checkbox" checked={includeSourceVariations}
-                 onChange={event => toggleSourceVariations(event.target.checked)} />Include annotated variations</label>
-               <p className="position-variation-description">Search author-written alternatives as well as moves played in the game. Variation-only results are identified below.</p>
-              <PositionSearchBoard moves={positionMoves} onMovesChange={setPositionMoves} onSearch={searchPosition}
-                onClear={clearPositionSearch} activeFen={appliedPositionFen} />
-            </div>}
+            <div id="opening-tree-panel" role="tabpanel" aria-labelledby="opening-tree-tab" hidden={openingTab !== 'tree'}>
+              <OpeningFilter key={catalog.path} filters={baseFilters} selection={openingSelection} onChange={value => { setOpeningSelection(value); setPage(1); }} />
+            </div>
+            <div id="opening-position-panel" role="tabpanel" aria-labelledby="opening-position-tab" hidden={openingTab !== 'position'}>
+
+              <section className="position-search-section" aria-label="Position search">
+                <div className="position-search-heading">
+                  <div><button className="secondary-button" type="button" aria-expanded={positionPanelOpen} aria-controls="position-search-content"
+                    onClick={() => setPositionPanelOpen(value => !value)}><Search size={16} />Search by position</button>
+                    {appliedPositionFen && <span className="position-search-active">Exact position search active{includeSourceVariations ? " · Annotated variations included" : ""}</span>}
+                  </div>
+                  {appliedPositionFen && !positionPanelOpen && <button className="subtle-button" type="button" onClick={clearPositionSearch}><X size={15} />Clear position search</button>}
+                </div>
+                {positionPanelOpen && <div id="position-search-content">
+                   <label className="position-variation-toggle"><input type="checkbox" checked={includeSourceVariations}
+                     onChange={event => toggleSourceVariations(event.target.checked)} />Include annotated variations</label>
+                   <p className="position-variation-description">Search author-written alternatives as well as moves played in the game. Variation-only results are identified below.</p>
+                  <PositionSearchBoard moves={positionMoves} onMovesChange={setPositionMoves} onSearch={searchPosition}
+                    onClear={clearPositionSearch} activeFen={appliedPositionFen} />
+                </div>}
+              </section>
+            </div>
           </section>
           {coverageIssue && !fetching && !queryError && <div className="notice position-coverage-notice" role="status"><AlertCircle size={18} aria-hidden="true" /><span>{coverageMessage}</span></div>}
           <div className="results-titlebar"><div><h2>{appliedPositionFen ? 'Games reaching this position' : 'Games'}</h2><span role="status">{fetching ? 'Searching…' : `${num(total)} ${total === 1 ? 'game' : 'games'}`}</span></div>
