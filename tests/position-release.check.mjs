@@ -145,7 +145,8 @@ test('PS-12 disposable schema-7 release: all-lines scope, interruption, concurre
     db.prepare("DELETE FROM game_position_occurrences WHERE path='zz'").run();
     db.prepare('DELETE FROM position_keys WHERE id=?').run(inserted.lastInsertRowid);
 
-    assert.equal(reader.searchByPosition(d4, { ...scope, yearFrom: '2010' }).total, 2);
+    assert.equal(reader.searchByPosition(d4, { ...scope, yearFrom: '2010' }).total, 1,
+      'the 2000 edition and undated edition must be excluded by the year filter');
     assert.deepEqual(reader.searchByPosition(d4, { ...scope, favouritesOnly: true }).rows.map(row => row.id), [1]);
     assert.equal(reader.getGame(1).personal.comments[0].text, 'Private comment, not part of source PGN');
     assert.equal(reader.getGame(1).favourite, 1);
