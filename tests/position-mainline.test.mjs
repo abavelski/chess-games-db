@@ -138,6 +138,20 @@ test('mainline-only ignores nested sidelines but not their syntax', () => {
   assert.equal(complete('{ Only commentary. } *', 1)[0].hash, 0x463b96181691fc9cn);
 });
 
+
+test('pinned en-passant is fingerprinted using Polyglot even when viewer hides it', () => {
+  const fen = 'k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1';
+  const pgn = '[SetUp "1"]\n[FEN "' + fen + '"]\n\n*';
+  const [root] = complete(pgn, 1);
+  assert.equal(root.verificationKey.split(' ')[3], 'd6');
+  const viewer = makeGame(prepareDisplayPgn(pgn));
+  assert.equal(viewer.initial.fen.split(' ')[3], '-', 'review uses legal-EP normalization');
+  assert.equal(root.verificationKey.split(' ').slice(0, 3).join(' '),
+    viewer.initial.fen.split(' ').slice(0, 3).join(' '));
+  assert.notEqual(root.hash, shared.positionFingerprint(viewer.initial.fen).hash,
+    'pinned pawn still toggles the Polyglot en-passant key');
+});
+
 test('malformed PGNs never leak partial occurrences and diagnostics are deterministic', () => {
   const bad = [
     ['1. e4 e5 2. Ke5 *', /Illegal mainline move/],
@@ -150,7 +164,7 @@ test('malformed PGNs never leak partial occurrences and diagnostics are determin
     ['[SetUp "1"]\n\n1. e4 *', /requires a FEN/],
     ['[SetUp "0"]\n[FEN "8/8/8/8/8/8/4K3/7k b - - 0 24"]\n\n*', /contradicts/],
     ['[SetUp "maybe"]\n\n1.e4 *', /Invalid SetUp/],
-    ['[FEN "8/8/8/8/8/8/8/8 w - - 0 1"]\n\n*', /ERR_KINGS|kings/i],
+    ['[FEN "8/8/8/8/8/8/8/8 w - - 0 1"]\n\n*', /ERR_EMPTY|ERR_KINGS|kings/i],
     ['[Variant "Crazyhouse"]\n\n1. e4 *', /Only standard/],
     ['[Variant "Chess960"]\n\n1. e4 *', /Chess960/],
     ['[Result "1-0"]\n\n1. e4 0-1', /Result header/],
