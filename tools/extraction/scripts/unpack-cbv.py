@@ -29,7 +29,8 @@ def unpack(executable, archive, destination, charset):
         original = PureWindowsPath(name.decode("windows-1252"))
         decoded = PureWindowsPath(name.decode(charset))
         if (not decoded.parts or decoded.drive or decoded.root
-                or ".." in decoded.parts):
+                or ".." in decoded.parts or original.drive or original.root
+                or ".." in original.parts or any(":" in part for part in decoded.parts)):
             raise ValueError("Invalid archive member path")
         members.append((Path(*original.parts), Path(*decoded.parts), size))
 
@@ -52,11 +53,11 @@ def unpack(executable, archive, destination, charset):
             target = destination / decoded
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(staging / original, target)
-    print(destination / databases[0])
+    return destination / databases[0]
 
 
 if __name__ == "__main__":
     try:
-        unpack(*sys.argv[1:])
+        print(unpack(*sys.argv[1:]))
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         sys.exit(f"CBV extraction failed: {error}")

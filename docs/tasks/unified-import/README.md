@@ -175,16 +175,16 @@ and an archive/unpacked pair preserve identities; ambiguous drift is reported.
 
 Depends on UI-02–03.
 
-- [ ] Define versioned streaming records: stable source/local key, sequence,
+- [x] Define versioned streaming records: stable source/local key, sequence,
   original headers, PGN bytes/hash/compression, eligibility, extraction profile,
   provenance, recovery actions and diagnostics. Separate stdout data from logs.
-- [ ] Adapt CBH books, CBV temporary unpacking and direct PGN blocks; reuse the
+- [x] Adapt CBH books, CBV temporary unpacking and direct PGN blocks; reuse the
   annotation converter rather than the lossy En Croissant exporter. Preserve
   Unicode, CRLF/BOM and whitespace for UTF-8 PGN; record legacy decoding choices.
-- [ ] Support count/year/annotation/language parameters with the existing
+- [x] Support count/year/annotation/language parameters with the existing
   MegaBase semantics, explicit full-scan mode, bounded memory and cancellation.
   Record scan completeness and all skipped/failed categories.
-- [ ] Validate archive members and extraction destinations, keep sources read-only,
+- [x] Validate archive members and extraction destinations, keep sources read-only,
   constrain recovery to disposable copies, and detect changes to all relevant
   source sidecars during extraction, not only CBH size/mtime.
 
