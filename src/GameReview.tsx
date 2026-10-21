@@ -258,8 +258,8 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
           disabled={!searchTarget.fen || !!pieceMode || !!promotion || !!merged.error || !!model.error || !!model.data?.positionError || savingPersonal || suspended}
           title={pieceMode ? 'Return from Piece mode before searching a legal position.' : searchTarget.reason ?? 'Search other games at the current review position'}
           onClick={findPosition}><Search size={16} />Find games with this position</button>
-        <button className="secondary-button" disabled={savingPersonal} onClick={() => void closeReview()} autoFocus><ArrowLeft size={16} /> Back to games</button>
       </div>
+      <button className="secondary-button" disabled={savingPersonal} onClick={() => void closeReview()} autoFocus><ArrowLeft size={16} /> Back to games</button>
     </header>
     {favouriteError && <div role="alert" className="notice error">{favouriteError}</div>}
     {navigationWarning && <div role="status" className="notice position-navigation-notice">{navigationWarning}</div>}
