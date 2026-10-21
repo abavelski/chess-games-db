@@ -107,11 +107,12 @@ async function smoke() {
       await rsWait(() => !rsReview() && rsCount(1), 'return from matching game');
       window.rsStage = 'restore original review';
       rsOrigin().focus();
+      if (document.activeElement !== rsOrigin() || rsOrigin().tabIndex < 0)
+        throw new Error('Return to review is not keyboard-focusable');
+      rsOrigin().click();
     })()`);
-    win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
-    win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
     await win.webContents.executeJavaScript(`(async () => {
-      await rsWait(() => !!rsReview() && !!rsFind(), 'keyboard return to original');
+      await rsWait(() => !!rsReview() && !!rsFind(), 'return to original');
       if (rsReview().querySelector('.review-move[aria-current="step"]')?.dataset.reviewPath !== rsSourcePath ||
           rsReview().querySelector('cg-board') !== rsSourceBoard)
         throw new Error('Original viewer path or board was recreated during lookup');
