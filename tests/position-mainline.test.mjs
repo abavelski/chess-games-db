@@ -3,8 +3,20 @@ import assert from 'node:assert/strict';
 import { Chess } from 'chessops/chess';
 import { parseSan } from 'chessops/san';
 import { scalachessCharPair } from 'chessops/compat';
-import { makeGame } from '@lichess-org/pgn-viewer/pgn';
-import { Path } from '@lichess-org/pgn-viewer/path';
+import { build } from 'esbuild';
+
+// Pgn-viewer's ESM distribution has extensionless internal imports, supported
+// by the app's bundler but not Node's direct ESM loader. Bundle just the
+// pure viewer game/path modules in memory to cross-check real viewer paths.
+const viewerBundle = await build({
+  stdin: {
+    contents: "export { makeGame } from '@lichess-org/pgn-viewer/pgn'; export { Path } from '@lichess-org/pgn-viewer/path';",
+    resolveDir: process.cwd(), sourcefile: 'position-viewer-harness.mjs', loader: 'js',
+  },
+  bundle: true, platform: 'node', format: 'esm', write: false, logLevel: 'silent',
+});
+const { makeGame, Path } = await import('data:text/javascript;base64,' +
+  Buffer.from(viewerBundle.outputFiles[0].contents).toString('base64'));
 import { reviewPgn, prepareDisplayPgn } from '../src/pgn.mjs';
 import { MAINLINE_EXTRACTOR_VERSION, extractMainlinePositions } from '../lib/position-mainline.mjs';
 
