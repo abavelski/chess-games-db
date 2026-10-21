@@ -40,3 +40,7 @@ playwright-report/
 *.sqlite3-journal
 *.db-journal
 .games-*.tmp
+
+.local-import-reports/
+tools/extraction/.deps/
+tools/extraction/target/

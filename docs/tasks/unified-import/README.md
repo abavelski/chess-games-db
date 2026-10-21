@@ -1,7 +1,7 @@
 # Unified local game import plan
 
-Status: planned, 2026-10-21. This commit contains planning only; it does not run
-extractors, install dependencies, migrate databases, or change application code.
+Status: implementation in progress, 2026-10-21. See POLICY.md for the frozen
+import policy and the task checkboxes below for implementation status.
 Tasks below are ordered implementation/review units with acceptance criteria.
 
 ## Goal
@@ -118,15 +118,15 @@ files but must leave source, target and durable manifest unchanged.
 
 ### UI-01 — Inventory archives, identities and import policy
 
-- [ ] Add read-only inventory of schema versions, optional extensions, source/key
+- [x] Add read-only inventory of schema versions, optional extensions, source/key
   conventions, legacy catalogue identities, personal-data coverage and unknown
   schema objects. Include supplied v7 archives and legacy fixtures, not a presumed
   single canonical local filename.
-- [ ] Freeze eligibility, training/deleted behavior, null-move/parser failures,
+- [x] Freeze eligibility, training/deleted behavior, null-move/parser failures,
   genuine FEN-start games, completeness, language transformation and partial-scan
   semantics. Preserve exact PGN blocks for PGN input and supported full-fidelity
   ChessBase annotations. Report every exclusion and its reason.
-- [ ] Define source revision evidence and extraction-profile identity: a different
+- [x] Define source revision evidence and extraction-profile identity: a different
   language policy can change PGN bytes for the same CB record. Default to conflict
   on an unrequested profile change; require an explicit source-update choice or
   a separately identified edition. Filters are not evidence of source deletion.
