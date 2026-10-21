@@ -155,6 +155,14 @@ Click **Search position** to search; moving a piece by itself never runs a datab
 
 If the archive has no index, the browser shows how to explicitly build one; incomplete indexes show complete/unindexed/building/stale/invalid counts and never mistake an unindexed zero for a definite no-match. A fully indexed zero is labelled as no games reaching this exact position under the filters. The interactive board remains separate from the free-move **Piece mode**. Opening a matching row now verifies the stored occurrence against the original PGN and jumps to that exact position. A missing/stale index path or viewer mismatch produces a notice and safely opens at game start. If **Study stops** hides the target, review opens at the nearest revealed mainline ancestor with an explanation, without revealing hidden continuations. Back preserves filters, page, board, moves, scroll and focus.
 
+## Find games from the current review position (PS-11)
+
+In **Game review**, navigate to any legal played move, original author variation or saved personal sideline, then select **Find games with this position**. The browser switches to an exact-position search from the current viewer replay, retaining existing game filters and sorting. Search starts in played-game **mainline** mode; open **Search by position** to enable **Include annotated variations**. If the optional index is absent or incomplete, an explicit coverage warning appears rather than a false zero. The original game can appear naturally among matches, and different annotated editions remain separate.
+
+The browser shows **Return to reviewed game**. It returns to the same still-mounted review at the original variation path, preserving editor state, transcript scroll, focus, board orientation and analysis settings. Opening other matching games does not destroy the originating session. Separately saved personal lines may be the **query input**, but are not inserted into source index tables.
+
+If personal notes are unsaved when you search, the existing **Save / Discard / Cancel** dialog appears first. Cancel stays in review, Save persists edits before searching, and Discard restores the saved version. Searching is disabled while free-move **Piece mode** is open; return to a legal review position first. The browser's separate setup board may have different history, so the exact reviewed FEN is shown beside the return control.
+
 ## Opening catalogue enrichment
 
 The desktop app writes favourites and personal lines/comments into the same database. Enrichment is an explicit, offline-capable
