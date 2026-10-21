@@ -22,7 +22,7 @@ export function resolveReviewNavigation(pgn, match, searchedFen, studyStops = fa
     // shortest and lexically stable path. Reject stale or superseded hits.
     const earliest = replay.occurrences.filter(item => item.verificationKey === positionKey)
       .sort((a, b) => b.is_mainline - a.is_mainline || a.ply - b.ply ||
-        a.path.length - b.path.length || a.path.localeCompare(b.path, 'en'))[0];
+        a.path.length - b.path.length || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))[0];
     if (!earliest || earliest.path !== match.path || earliest.ply !== match.ply ||
         Boolean(earliest.is_mainline) !== match.isMainline) {
       return fallback('The indexed move no longer matches this position in the original PGN. Opened at game start.');
