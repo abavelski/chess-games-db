@@ -5,6 +5,8 @@ import { resolve } from 'node:path';
 import { decodePgn, searchKey } from '../lib/game-policy.mjs';
 import { gameQuery, GAME_FROM, PROPERTIES, propertyClause, validateSelections } from './queries.mjs';
 import { positionIndexCapability as probePositionIndexCapability } from '../lib/position-index-storage.mjs';
+import { positionFingerprint } from '../lib/position-hash.mjs';
+import { positionSearchCoverage, validatePositionSearchRequest, POSITION_HITS_CTE, POSITION_HIT_PARAMS } from './position-search.mjs';
 import { activeOpeningRevision, openingSelection, openingLabels, openingFacets } from './opening-read.mjs';
 
 function requiredId(value) {
@@ -84,6 +86,41 @@ export class ChessArchive {
   const rows=this.db.prepare(`SELECT ${this.gameColumns()}${GAME_FROM}${q.where} ORDER BY ${q.orderBy} LIMIT @limit OFFSET @offset`).all({...q.params,limit:q.pageSize,offset:q.offset});
   return {rows:openingLabels(this.db,activeOpeningRevision(this.db,true),rows),total,page:q.page,pageSize:q.pageSize};
  }
+ /**
+  * Exact mainline position search. No source PGN is decompressed during this
+  * query and no schema changes occur when opening or searching an archive.
+  * For partial coverage, rows/total describe *indexed* games only; consumers
+  * must inspect coverage.isComplete before treating an empty page as no hits.
+  */
+ searchByPosition(fen,filters={}) {
+  validatePositionSearchRequest(fen,filters);
+  const fingerprint=positionFingerprint(fen); // strict FEN validation in PS-01
+  return this.db.transaction(() => {
+   const coverage=positionSearchCoverage(this.db);
+   const q=this.predicate(filters); // identical filters, opening hierarchy and sort to searchGames
+   const empty={rows:[],total:0,page:q.page,pageSize:q.pageSize,coverage};
+   if(coverage.status==='unavailable'||coverage.status==='incompatible')return empty;
+   // Match BOTH the Polyglot 64-bit hash and exact normalized four-field key.
+   const key=this.db.prepare('SELECT id FROM position_keys WHERE zobrist_hash=? AND exact_key=?')
+    .get(fingerprint.sqliteHash,fingerprint.verificationKey);
+   if(!key)return empty;
+   const from=GAME_FROM.replace(' FROM games g',
+    ' FROM position_hits hit JOIN games g ON g.id=hit.game_id AND hit.hit_rank=1');
+   const params={...q.params,...POSITION_HIT_PARAMS,positionId:key.id};
+   const total=this.db.prepare(POSITION_HITS_CTE+' SELECT count(*) n'+from+q.where).get(params).n;
+   if(!total)return empty;
+   const raw=this.db.prepare(POSITION_HITS_CTE+
+    ` SELECT ${this.gameColumns()},hit.path AS match_path,hit.ply AS match_ply`+
+    from+q.where+` ORDER BY ${q.orderBy} LIMIT @limit OFFSET @offset`)
+    .all({...params,limit:q.pageSize,offset:q.offset});
+   const rows=openingLabels(this.db,activeOpeningRevision(this.db,true),raw)
+    .map(({match_path,match_ply,...game})=>({
+     ...game,match:{path:match_path,ply:match_ply,isMainline:true},
+    }));
+   return {rows,total,page:q.page,pageSize:q.pageSize,coverage};
+  })();
+ }
+
  openingFacets(filters){validateSelections(this.db,filters?.properties);return openingFacets(this.db,true,filters,{favouriteColumn:this.hasFavouriteColumn(),personalTable:this.hasPersonalTable()});}
  getGame(id){
   const row=this.db.prepare(`SELECT ${this.gameColumns()},g.headers_json,g.extras_json,g.pgn_sha256,g.pgn_zstd,g.created_at,g.updated_at,s.source_key${GAME_FROM} WHERE g.id=?`).get(requiredId(id));
