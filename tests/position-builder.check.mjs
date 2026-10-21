@@ -58,6 +58,10 @@ test('offline fixture: install, bounded resume, repeat, rebuild and exact source
     assert.equal(resumed.complete, 1);
     assert.equal(positionBuildStatus(db).coverage, 'complete');
     assert.equal(positionBuildStatus(db).occurrences, 8);
+    // A real zero-match result in a fully indexed archive is different from
+    // the 'unavailable' capability reported before optional installation.
+    assert.equal(db.prepare('SELECT count(*) AS n FROM searchable_game_position_occurrences WHERE position_id=?').get(-1).n, 0);
+    assert.equal(positionBuildStatus(db).coverage, 'complete');
     assert.equal(positionBuildStatus(db).invalid, 0);
     assert.equal(positionBuildStatus(db).stale, 0);
     assert.equal(positionBuildStatus(db).unindexed, 0);
