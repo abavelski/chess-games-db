@@ -16,6 +16,11 @@ const num = (value: number) => new Intl.NumberFormat().format(value);
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
 const gameTitle = (game: GameRow) => `${game.white || 'Unknown'} vs ${game.black || 'Unknown'}`;
 const positionHit = (game: GameRow): game is PositionSearchRow => 'match' in game;
+interface ReviewSession {
+  key: number;
+  game: GameDetail;
+  navigation: ReviewNavigation | null;
+}
 
 function FilterInput({ label, value, onChange, year = false }: {
   label: string; value: string; onChange: (value: string) => void; year?: boolean;
@@ -49,8 +54,12 @@ export default function App() {
   const [queryError, setQueryError] = useState<string | null>(null);
   const [gameError, setGameError] = useState<string | null>(null);
   const [openingGame, setOpeningGame] = useState<number | null>(null);
-  const [review, setReview] = useState<GameDetail | null>(null);
-  const [reviewNavigation, setReviewNavigation] = useState<ReviewNavigation | null>(null);
+  // A review that initiates search stays mounted (but suspended) so returning
+  // restores its exact viewer path, personal editor, focus, scroll and settings.
+  const [reviewSessions, setReviewSessions] = useState<ReviewSession[]>([]);
+  const [activeReviewKey, setActiveReviewKey] = useState<number | null>(null);
+  const [originReviewKey, setOriginReviewKey] = useState<number | null>(null);
+  const nextReviewKey = useRef(0);
   const [savingFavourites, setSavingFavourites] = useState<Set<number>>(new Set());
   const pendingFavourites = useRef(new Set<number>());
   const [favouriteError, setFavouriteError] = useState<string | null>(null);
@@ -61,9 +70,10 @@ export default function App() {
   const baseFilters = useMemo<SearchFilters>(() => ({...filters,properties,search:debouncedSearch}),[filters,properties,debouncedSearch,favouriteRevision]);
   const dropdownFilters = useMemo<SearchFilters>(() => ({...baseFilters,openingNodeId:openingSelection?.id}),[baseFilters,openingSelection]);
 
-  const closeReview = useCallback(() => {
-    setReview(null);
-    setReviewNavigation(null);
+  const closeReview = useCallback((key: number) => {
+    setReviewSessions(previous => previous.filter(session => session.key !== key));
+    setActiveReviewKey(null);
+    setOriginReviewKey(previous => previous === key ? null : previous);
     requestAnimationFrame(() => {
       window.scrollTo(scroll.current.x, scroll.current.y);
       const target = trigger.current?.isConnected ? trigger.current : document.querySelector<HTMLInputElement>('.favourites-filter input');
@@ -119,6 +129,7 @@ export default function App() {
       const result = await window.chessArchive.openDatabase();
       if (!result.canceled && result.catalog) {
         gameRequest.current++;
+        setReviewSessions([]); setActiveReviewKey(null); setOriginReviewKey(null);
         setOpeningGame(null); setGameError(null); setResults(null);
         setAppliedPositionFen(null); setPositionCoverage(null);
         setPositionMoves([]); setPositionPanelOpen(false); setIncludeSourceVariations(false);
@@ -136,10 +147,12 @@ export default function App() {
       const detail = await window.chessArchive.getGame(game.id);
       if (request !== gameRequest.current) return;
       if (!detail) throw new Error('This game is no longer available in the archive.');
-      setReviewNavigation(positionHit(game) && appliedPositionFen !== null
+      const navigation = positionHit(game) && appliedPositionFen !== null
         ? resolveReviewNavigation(detail.pgn, game.match, appliedPositionFen, readReviewPreferences().display.criticalStudy)
-        : null);
-      setReview(detail);
+        : null;
+      const key = ++nextReviewKey.current;
+      setReviewSessions(previous => [...previous, { key, game: detail, navigation }]);
+      setActiveReviewKey(key);
     } catch (error) { if (request === gameRequest.current) setGameError(errorMessage(error)); }
     finally { if (request === gameRequest.current) setOpeningGame(null); }
   };
@@ -152,7 +165,8 @@ export default function App() {
       const favourite = await window.chessArchive.setFavourite(game.id, !game.favourite);
       if (archivePath !== catalogPath.current) return;
       setResults(previous => previous && ({ ...previous, rows: previous.rows.map(row => row.id === game.id ? { ...row, favourite: Number(favourite) } : row) }));
-      setReview(previous => previous?.id === game.id ? { ...previous, favourite: Number(favourite) } : previous);
+      setReviewSessions(previous => previous.map(session => session.game.id === game.id
+        ? { ...session, game: { ...session.game, favourite: Number(favourite) } } : session));
       setFavouriteRevision(value => value + 1);
     } catch (error) { if (archivePath === catalogPath.current) setFavouriteError('Could not save favourite: ' + errorMessage(error)); }
     finally {
@@ -160,6 +174,19 @@ export default function App() {
       setSavingFavourites(new Set(pendingFavourites.current));
     }
   };
+  const findFromReview = (key: number, fen: string) => {
+    if (!catalog || !reviewSessions.some(session => session.key === key)) return;
+    // Compare with the same archive and filters already active in the browser.
+    // Drop older search origins, but never remount the selected review session.
+    setReviewSessions(previous => previous.filter(session => session.key === key));
+    setOriginReviewKey(key);
+    setActiveReviewKey(null);
+    setAppliedPositionFen(fen); setPositionSearchRevision(value => value + 1);
+    setPositionCoverage(null); setResults(null); setIncludeSourceVariations(false);
+    setPositionPanelOpen(false); setPage(1);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
+  };
+  const originReview = reviewSessions.find(session => session.key === originReviewKey);
   const total = results?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / 40));
   const start = total ? ((results?.page ?? 1) - 1) * 40 + 1 : 0;
@@ -185,7 +212,7 @@ export default function App() {
         : positionCoverage ? `Position index incomplete: ${num(positionCoverage.complete)} of ${num(positionCoverage.total)} visible games indexed; ${num(positionCoverage.unindexed)} not indexed, ${num(positionCoverage.building + positionCoverage.partial)} in progress, ${num(positionCoverage.stale)} stale, ${num(positionCoverage.unsupported)} unsupported, ${num(positionCoverage.invalid)} invalid. Results below include only searchable games.` : '';
 
   return <>
-    <div hidden={!!review}>
+    <div hidden={activeReviewKey !== null}>
       <main className="game-browser">
         <header className="browser-header">
           <div className="browser-brand"><span aria-hidden="true">♞</span><div><h1>Games</h1><p>Browse a game. Explore every move.</p></div></div>
@@ -220,6 +247,12 @@ export default function App() {
             </div>
           </section>
           <OpeningFilter key={catalog.path} filters={baseFilters} selection={openingSelection} onChange={value => { setOpeningSelection(value); setPage(1); }} />
+          {originReview && <section className="review-search-return" aria-label="Return to originating review">
+            <button type="button" className="secondary-button" onClick={() => setActiveReviewKey(originReview.key)}>
+              <ChevronLeft size={16} />Return to reviewed game
+            </button>
+            <span>{gameTitle(originReview.game)} · Original review and analysis preserved</span>
+          </section>}
           <section className="position-search-section" aria-label="Position search">
             <div className="position-search-heading">
               <div><button className="secondary-button" type="button" aria-expanded={positionPanelOpen} aria-controls="position-search-content"
@@ -275,8 +308,14 @@ export default function App() {
         </>}
       </main>
     </div>
-    {review && <GameReview game={review} onPersonalSaved={() => setFavouriteRevision(value => value + 1)} initialPath={reviewNavigation?.path ?? ''} matchedPositionKey={reviewNavigation?.positionKey ?? null}
-      navigationNotice={reviewNavigation?.notice ?? null} positionSearchNavigation={!!reviewNavigation} onClose={closeReview} onToggleFavourite={() => void toggleFavourite(review)} savingFavourite={savingFavourites.has(review.id)} favouriteError={favouriteError} />}
+    {reviewSessions.map(session => <div key={session.key} className="review-session" hidden={activeReviewKey !== session.key}>
+      <GameReview game={session.game} onPersonalSaved={() => setFavouriteRevision(value => value + 1)}
+        initialPath={session.navigation?.path ?? ''} matchedPositionKey={session.navigation?.positionKey ?? null}
+        navigationNotice={session.navigation?.notice ?? null} positionSearchNavigation={!!session.navigation}
+        suspended={activeReviewKey !== session.key} onFindPosition={fen => findFromReview(session.key, fen)}
+        onClose={() => closeReview(session.key)} onToggleFavourite={() => void toggleFavourite(session.game)}
+        savingFavourite={savingFavourites.has(session.game.id)} favouriteError={favouriteError} />
+    </div>)}}
 
   </>;
 }
