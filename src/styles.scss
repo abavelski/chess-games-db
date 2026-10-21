@@ -172,6 +172,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 .review-shell { --review-board-size: min(calc(100dvh - 170px), calc(64vw - 20px)); padding: 8px; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 .review-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; padding: 0 4px; flex-shrink: 0; }
+.review-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+.review-header-actions button { white-space: nowrap; }
+.review-search-return { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 14px; border: 1px solid #c9ddcf; border-radius: 8px; margin: 12px 0 16px; background: #f3f8f2; }
+.review-search-return span { font-size: 12px; color: #395b47; }
+@media (max-width: 850px) { .review-header-actions { flex-direction: column-reverse; align-items: stretch; } }
+
 .review-header>div { min-width: 0; }
 .review-header .eyebrow { font-size: 9px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .review-header h1 { font: 500 clamp(18px, 1.7vw, 24px)/1.15 Georgia,serif; margin: 4px 0; color: #233631; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
