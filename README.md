@@ -90,16 +90,17 @@ See [docs/database.md](docs/database.md) for the schema, stable identifiers, PGN
 | `scripts/position-index.mjs` | Legacy explicit position-storage installer (PS-02) |
 | `scripts/positions.mjs` / `lib/position-builder.mjs` | Offline position index build, rebuild, resume, status and per-game atomic publication (PS-04) |
 | `electron/position-search.mjs` / `electron/database.mjs` | Collision-safe mainline position lookup, coverage and shared game filters (PS-05) |
+| `src/PositionSearchBoard.tsx` / `src/position-search-board.mjs` | Keyboard-accessible legal-move board, undo/reset and explicit search in the browser (PS-06) |
 | `scripts/migrate-games.mjs` | Explicit read-only legacy snapshot conversion |
 | `src/PgnBoard.tsx` | Lichess viewer integration |
 | `db/migrations/` | Versioned schema migrations |
 | `scripts/init-db.py` | Fresh v7 initializer |
 
-The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lichess PGN Viewer license. No custom chess engine or GUI position-search interface is included; an optional offline mainline position index can be built explicitly. Named opening matches are derived from the Lichess catalogue; live Explorer statistics are a separate future feature.
+The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lichess PGN Viewer license. No custom chess engine is included; the optional exact-position search UI uses a separately built offline mainline index. Named opening matches are derived from the Lichess catalogue; live Explorer statistics are a separate future feature.
 
 ## Optional offline position-search index (PS-02–PS-04)
 
-A local archive can optionally receive the **derived position-index tables**, without changing its original PGNs or schema version. The PS-03 extractor computes per-ply hashes and reviewer paths; the offline PS-04 builder persists complete, checksum-verified mainlines. **There is still no position-search UI** (PS-05 onward). Neither opening an archive nor starting the desktop app installs or builds the extension.
+A local archive can optionally receive the **derived position-index tables**, without changing its original PGNs or schema version. The PS-03 extractor computes per-ply hashes and reviewer paths; the offline PS-04 builder persists complete, checksum-verified mainlines. **Position search UI is available from PS-06**, but only backed by an explicitly built index. Review-at-matching-move navigation remains PS-07. Neither opening an archive nor starting the desktop app installs or builds the extension.
 
 From a development checkout with Node.js 22+ and dependencies installed, back up your archive and explicitly install the storage:
 
@@ -117,7 +118,15 @@ All commands require an explicit existing schema-7 archive path. `init` is idemp
 
 With an explicitly built index (`npm run positions -- build --database PATH`), the app's read-only archive API supports `searchByPosition(fen, filters)` over the Electron preload/IPC boundary. The query accepts a validated four- or six-field standard-chess FEN, computes Polyglot keys on the trusted side, checks the full position key against collisions, and combines matches with the **same** filters and sorting as `searchGames`. It returns `{ rows, total, page, pageSize, coverage }`; each row includes `match: { path, ply, isMainline: true }` for later reviewer navigation.
 
-`coverage.status` is `unavailable`, `incompatible`, `partial`, or `complete`; `coverage.isComplete` and the visible-game counts `complete`, `invalid`, `building`, `partial`, `stale`, `unsupported`, `unindexed` are essential. In incomplete coverage, `rows` and `total` reflect **indexed games only**, so a zero result is not conclusive. Hidden games are excluded and repeated positions yield just one preferred occurrence per game (earliest ply then stable path). Neither searching nor opening the archive installs an extension, scans/decompresses source PGN, or starts any background indexing. The interactive search board and opening search navigation are separate PS-06/PS-07 tasks.
+`coverage.status` is `unavailable`, `incompatible`, `partial`, or `complete`; `coverage.isComplete` and the visible-game counts `complete`, `invalid`, `building`, `partial`, `stale`, `unsupported`, `unindexed` are essential. In incomplete coverage, `rows` and `total` reflect **indexed games only**, so a zero result is not conclusive. Hidden games are excluded and repeated positions yield just one preferred occurrence per game (earliest ply then stable path). Neither searching nor opening the archive installs an extension, scans/decompresses source PGN, or starts any background indexing. The interactive search board is implemented in PS-06; opening review at the matched move remains PS-07.
+
+## Search by position in the games browser (PS-06)
+
+Open an archive with an offline index and select **Search by position** below the opening filter. The board starts at the normal chess setup; click a piece, then a highlighted legal destination. Square buttons can also be operated with keyboard arrow keys and Enter/Space (Escape cancels a selection). The board supports castling, en passant, explicit promotion choices, **Undo**, **Reset board** and **Flip**. It shows SAN move history, the side to move, and the current FEN.
+
+Click **Search position** to search; moving a piece by itself never runs a database query. Exact-position matches appear in the existing game list with a ply label and combine with all currently selected source, year, opening, favourites and personal filters. Pagination resets when the searched position or a filter changes. Changing the board after a search shows a reminder until you search again. The board, search results, pagination and browser scroll remain intact when opening a review and returning. **Clear position search** returns to normal games while preserving all unrelated filters and the board's move history.
+
+If the archive has no index, the browser shows how to explicitly build one; incomplete indexes show complete/unindexed/building/stale/invalid counts and never mistake an unindexed zero for a definite no-match. A fully indexed zero is labelled as no games reaching this exact position under the filters. The interactive board remains separate from the free-move **Piece mode**. PS-07 will make opening a matching row jump to its saved review path; in PS-06 game review still opens at the start.
 
 ## Opening catalogue enrichment
 
