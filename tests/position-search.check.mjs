@@ -210,6 +210,25 @@ test('PS-05 coverage reports absent, unindexed, building, partial, invalid, stal
     assert.ok(id1 > 0);
   }));
 
+test('PS-05 preserves exact en-passant semantics, including pinned adjacent pawns', () =>
+  fixture(async ({ db, archive }) => {
+    const legal = upsertGame(db, input('1. e4 a6 2. e5 d5 3. exd6 *'));
+    const pinnedFen = 'k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1';
+    const pinned = upsertGame(db, input(
+      '[SetUp "1"]\n[FEN "' + pinnedFen + '"]\n\n*',
+      { white: 'Pinned en passant' },
+    ));
+    installPositionIndex(db);
+    await buildPositions(db);
+    const legalFen = fenAfter('e4', 'a6', 'e5', 'd5');
+    assert.match(legalFen, / d6 /);
+    assert.deepEqual(archive.searchByPosition(legalFen).rows.map(r => r.id), [legal]);
+    assert.equal(archive.searchByPosition(legalFen.replace(' d6 ', ' - ')).total, 0);
+    assert.deepEqual(archive.searchByPosition(pinnedFen).rows.map(r => r.id), [pinned]);
+    assert.equal(archive.searchByPosition(pinnedFen.replace(' d6 ', ' - ')).total, 0,
+      'Polyglot EP hashes pinned adjacent pawns even when the reviewer omits legal EP');
+  }));
+
 test('PS-05 strict FEN/filter validation, collision verification, indexed plan and no PGN decode', () =>
   fixture(async ({ db, archive }) => {
     const good = upsertGame(db, input('1.e4 *'));
