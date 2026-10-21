@@ -42,3 +42,9 @@ export function resolveReviewNavigation(pgn, match, searchedFen, studyStops = fa
     return fallback('The indexed position could not be verified against the original PGN. Opened at game start.');
   }
 }
+
+// Used after the Lichess viewer mounts to verify the *actual* board as well as
+// the original PGN. Keep exact-position semantics in one shared implementation.
+export function reviewPositionKey(position) {
+  return positionFingerprint(position).verificationKey;
+}

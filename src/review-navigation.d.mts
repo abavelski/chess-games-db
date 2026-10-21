@@ -1,3 +1,4 @@
+import type { Position } from 'chessops/chess';
 export interface ReviewNavigation {
   path: string;
   positionKey: string | null;
@@ -9,3 +10,5 @@ export function resolveReviewNavigation(
   searchedFen: string,
   studyStops?: boolean,
 ): ReviewNavigation;
+
+export function reviewPositionKey(position: Position): string;

@@ -21,7 +21,7 @@ import { emptyPersonal, mergePersonal, personalPath, personalReviewTokens } from
 import { Chess } from 'chessops/chess';
 import { parseFen } from 'chessops/fen';
 import { reviewPgn } from './pgn.mjs';
-import { positionFingerprint } from '../lib/position-hash.mjs';
+import { reviewPositionKey } from './review-navigation.mjs';
 import type { GameDetail } from './types';
 
 export function GameReview({ game, initialPath, matchedPositionKey = null, navigationNotice = null, positionSearchNavigation = false, onClose, onToggleFavourite, savingFavourite, favouriteError, onPersonalSaved }: {
@@ -119,7 +119,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
         setNavigationWarning('The indexed path is unavailable in the game viewer. Opened at game start.');
       } else if (matchedPositionKey !== null) {
         try {
-          if (positionFingerprint(sourcePosition(value).position).verificationKey !== matchedPositionKey) {
+          if (reviewPositionKey(sourcePosition(value).position) !== matchedPositionKey) {
             throw new Error('Position mismatch');
           }
         } catch {
