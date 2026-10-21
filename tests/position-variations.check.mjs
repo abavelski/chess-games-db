@@ -26,7 +26,7 @@ function fenAfter(...sans) {
   return makeFen(position.toSetup());
 }
 const occurrences = (db, gameId) => db.prepare(
-  'SELECT o.path,o.ply,o.is_mainline,k.exact_key,k.pawn_hash,k.pawn_signature' +
+  'SELECT o.path,o.ply,o.is_mainline,k.exact_key,CAST(k.pawn_hash AS TEXT) AS pawn_hash,k.pawn_signature' +
   ' FROM game_position_occurrences o JOIN position_keys k ON k.id=o.position_id' +
   ' WHERE game_id=? ORDER BY o.path'
 ).all(gameId);
@@ -72,7 +72,7 @@ test('PS-09 offline CLI upgrades mainline-only state without changing mainline s
     const d4 = occurrences(db, 1).find(row => !row.is_mainline && row.ply === 1);
     assert.equal(d4.exact_key, positionFingerprint(fenAfter('d4')).verificationKey);
     assert.equal(d4.pawn_signature, positionFingerprint(fenAfter('d4')).pawnSignature);
-    assert.equal(d4.pawn_hash, positionFingerprint(fenAfter('d4')).sqlitePawnHash);
+    assert.equal(BigInt(d4.pawn_hash), positionFingerprint(fenAfter('d4')).sqlitePawnHash);
     // PS-10 will expose the all-lines UI/API. PS-09 must not leak variations.
     assert.equal(archive.searchByPosition(fenAfter('d4')).total, 0);
     assert.equal(archive.searchByPosition(fenAfter('Nf3','Nf6','g3','g6')).total, 1);
