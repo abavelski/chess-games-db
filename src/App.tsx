@@ -4,6 +4,8 @@ import { FavouriteButton } from './FavouriteButton';
 import { PropertyFilter } from './PropertyFilter';
 import { GameReview } from './GameReview';
 import { PositionSearchBoard } from './PositionSearchBoard';
+import { readReviewPreferences } from './EnginePanel';
+import { resolveReviewNavigation, type ReviewNavigation } from './review-navigation.mjs';
 import { OpeningFilter, type OpeningSelection } from './OpeningFilter';
 import type { Catalog, GameDetail, GameRow, Page, PositionSearchCoverage, PositionSearchResult, PositionSearchRow, PropertyKey, SearchFilters } from './types';
 
@@ -47,6 +49,7 @@ export default function App() {
   const [gameError, setGameError] = useState<string | null>(null);
   const [openingGame, setOpeningGame] = useState<number | null>(null);
   const [review, setReview] = useState<GameDetail | null>(null);
+  const [reviewNavigation, setReviewNavigation] = useState<ReviewNavigation | null>(null);
   const [savingFavourites, setSavingFavourites] = useState<Set<number>>(new Set());
   const pendingFavourites = useRef(new Set<number>());
   const [favouriteError, setFavouriteError] = useState<string | null>(null);
@@ -59,6 +62,7 @@ export default function App() {
 
   const closeReview = useCallback(() => {
     setReview(null);
+    setReviewNavigation(null);
     requestAnimationFrame(() => {
       window.scrollTo(scroll.current.x, scroll.current.y);
       const target = trigger.current?.isConnected ? trigger.current : document.querySelector<HTMLInputElement>('.favourites-filter input');
@@ -130,6 +134,9 @@ export default function App() {
       const detail = await window.chessArchive.getGame(game.id);
       if (request !== gameRequest.current) return;
       if (!detail) throw new Error('This game is no longer available in the archive.');
+      setReviewNavigation(positionHit(game) && appliedPositionFen !== null
+        ? resolveReviewNavigation(detail.pgn, game.match, appliedPositionFen, readReviewPreferences().display.criticalStudy)
+        : null);
       setReview(detail);
     } catch (error) { if (request === gameRequest.current) setGameError(errorMessage(error)); }
     finally { if (request === gameRequest.current) setOpeningGame(null); }
@@ -257,7 +264,8 @@ export default function App() {
         </>}
       </main>
     </div>
-    {review && <GameReview game={review} onPersonalSaved={() => setFavouriteRevision(value => value + 1)} initialPath="" onClose={closeReview} onToggleFavourite={() => void toggleFavourite(review)} savingFavourite={savingFavourites.has(review.id)} favouriteError={favouriteError} />}
+    {review && <GameReview game={review} onPersonalSaved={() => setFavouriteRevision(value => value + 1)} initialPath={reviewNavigation?.path ?? ''} matchedPositionKey={reviewNavigation?.positionKey ?? null}
+      navigationNotice={reviewNavigation?.notice ?? null} positionSearchNavigation={!!reviewNavigation} onClose={closeReview} onToggleFavourite={() => void toggleFavourite(review)} savingFavourite={savingFavourites.has(review.id)} favouriteError={favouriteError} />}
 
   </>;
 }

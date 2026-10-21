@@ -1,6 +1,6 @@
 # PS-07 — Jump from a search result to the matching mainline move
 
-Status: **planned**. Depends on: PS-03, PS-05. May use a mocked result list initially.
+Status: **completed** (2026-10-21). Depends on: PS-03, PS-05. Uses real PS-05 results.
 
 ## Deliver
 
@@ -15,3 +15,10 @@ Status: **planned**. Depends on: PS-03, PS-05. May use a mocked result list init
 - Custom `SetUp/FEN` game and root occurrence navigate correctly; repeated occurrence picks deterministic earliest match.
 - Invalid/stale path and restricted Study stops fail gracefully; original PGN and personal work remain unchanged.
 - Return-to-list preservation and engine/keyboard/regression desktop checks; `npm test`, `npm run build`.
+
+## Implementation and verification
+
+- `src/review-navigation.mjs` verifies the full PS-01 four-field position key, deterministic earliest mainline occurrence, path and ply by strictly replaying the **original** PGN with PS-03 before entering review; it never trusts an index hit based on a ply number alone. Absent, invalid, mismatched and stale paths report a notice and open at the game root.
+- `src/App.tsx` passes the validated path to `GameReview`/`PgnBoard`. After the viewer mounts, `GameReview` additionally checks the actual selected position against the expected key, safely returning to root with a notice if the viewer cannot reproduce it. No source or personal data is written. Normal review behavior, engine controls, keyboard shortcuts and Back's preserved filters/page/board/scroll/focus are retained.
+- When **Study stops** is enabled, review starts at initial reveal stage and a hidden target opens at the nearest currently visible *mainline ancestor*, with an explicit notice. It never silently exposes future moves or disables Study stops. The reader can reveal more through the existing controls.
+- `tests/review-navigation.test.mjs` covers distinct matching plies reached through transpositions, custom FEN root, repeat-earliest selection, mismatched boards/ply/paths, invalid PGN and Study stops. The position-search desktop smoke asserts landing on the matching review move and restricted Study-stops navigation, plus Back/focus/page and keyboard regressions. CI runs `npm test`, `npm run build` and this desktop smoke in an isolated fixture.

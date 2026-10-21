@@ -16,7 +16,7 @@ const path = join(directory, 'position-indexed.sqlite3');
 const unindexedPath = join(directory, 'position-unindexed.sqlite3');
 const scores = [
   ...Array(41).fill('1. e4 e5 2. Nf3 Nc6 *'),
-  '1. Nf3 Nc6 2. e4 e5 *', '1. d4 d5 *',
+  '1. Nf3 {[%crit opening]} Nc6 2. e4 e5 *', '1. d4 d5 *',
 ];
 const db = fixtureArchive(path, scores);
 upsertGame(db, { id: 1, year: 2000 });
@@ -126,6 +126,8 @@ async function smoke() {
       window.psSavedScroll = scrollY;
       document.querySelector('.result-item').click();
       await psWait(() => document.querySelector('.review-shell'));
+      if (!document.querySelector('.review-controls [aria-live="polite"]')?.textContent?.includes('Nc6'))
+        throw new Error('PS-07 search hit must open on the matching mainline move, not the root');
     })()`);
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
@@ -137,6 +139,22 @@ async function smoke() {
           document.querySelector('.position-fen output').textContent !== psFenBeforeReview ||
           !document.querySelector('.position-move-list').textContent.includes('Nf3') ||
           Math.abs(scrollY - psSavedScroll) > 1) throw new Error('Search page, board, history or scroll lost on Back');
+      // The other page-two hit contains a study stop before the searched position.
+      localStorage.setItem('review-analysis-v1', JSON.stringify({ criticalStudy: true }));
+      document.querySelectorAll('.result-item')[1].click();
+      await psWait(() => document.querySelector('.review-shell'));
+      if (!document.querySelector('.position-navigation-notice')?.textContent?.includes('Study stops hides') ||
+          !document.querySelector('.review-controls [aria-live="polite"]')?.textContent?.includes('Nf3') ||
+          document.querySelector('.review-transcript')?.textContent?.includes('Nc6'))
+        throw new Error('Study stops must return to revealed ancestor without spoiling subsequent moves');
+    })()`);
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+    await window.webContents.executeJavaScript(`(async () => {
+      window.psStage = 'return from Study stops';
+      await psWait(() => !document.querySelector('.review-shell') &&
+        document.activeElement?.classList.contains('result-item'));
+      localStorage.removeItem('review-analysis-v1');
       const years = [...document.querySelectorAll('label.field')];
       const from = years.find(el => el.textContent.includes('Year from')).querySelector('input');
       psField(from, '2000');

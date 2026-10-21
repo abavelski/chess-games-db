@@ -1,12 +1,12 @@
 # Position search — implementation phase
 
-Status: **in progress** (2026-10-21). PS-01–PS-06 are implemented; PS-07 onward remain proposed. Source baseline: schema 7, `master` on 2026-10-20. Keep this folder as the implementation/review checklist and record completed task verification here.
+Status: **in progress** (2026-10-21). PS-01–PS-07 are implemented; PS-08 onward remain proposed. Source baseline: schema 7, `master` on 2026-10-20. Keep this folder as the implementation/review checklist and record completed task verification here.
 
 ## Goal
 
 Let the student construct an opening position by playing legal moves from the initial board, find **all library games that reached the position** (including transpositions and unnamed opening sublines), combine this with existing game filters, and enter each game at its matching move. Index **exact pawn structures from the beginning**, but defer the pawn-structure search UI.
 
-PS-03 supplies a pure, validated mainline extractor in [`lib/position-mainline.mjs`](../../../lib/position-mainline.mjs): root + every legal mainline position with exact PS-01 keys and PGN Viewer-compatible paths. Invalid scores return diagnostics and no partial search hits. See [PS-03](03-mainline-replay.md) for validation and tests; PS-04 adds the explicit offline index builder; PS-05 adds a validated read-only search API with coverage and existing filters. PS-06 provides the browser board and filtered search results; navigating a review to an exact matched path remains PS-07.
+PS-03 supplies a pure, validated mainline extractor in [`lib/position-mainline.mjs`](../../../lib/position-mainline.mjs): root + every legal mainline position with exact PS-01 keys and PGN Viewer-compatible paths. Invalid scores return diagnostics and no partial search hits. See [PS-03](03-mainline-replay.md) for validation and tests; PS-04 adds the explicit offline index builder; PS-05 adds a validated read-only search API with coverage and existing filters. PS-06 provides the browser board and filtered search results; PS-07 validates the exact match against the original PGN and opens the matching review position, or safely explains and falls back.
 
 The PS-02 schema is available by explicit `npm run position-index -- install --database PATH` only; the installer does not build a search index and archives without it remain supported. See [PS-02](02-position-storage.md) for its verification and status.
 
@@ -35,7 +35,7 @@ Tasks are small independently reviewable increments. **MVP:** PS-01–PS-08. **F
 | [PS-04 — implemented](04-index-builder.md) | Offline CLI build/rebuild/resume and write invalidation | PS-02, PS-03 | Safe repeated build and changed-PGN rebuild |
 | [PS-05 — implemented](05-search-api.md) | Search API + existing filters and paging | PS-02 | Indexed exact-position hits, proper no-index states |
 | [PS-06 — implemented](06-search-board.md) | Search board and filter integration | PS-05 | Play moves, undo, search, see filtered results |
-| [PS-07](07-review-navigation.md) | Open game at matching mainline path | PS-03, PS-05 | Result click lands at matching position |
+| [PS-07 — completed](07-review-navigation.md) | Open game at matching mainline path | PS-03, PS-05 | Result click lands at matching position |
 | [PS-08](08-mvp-verification.md) | MVP regression, benchmarks, user guide | PS-04–PS-07 | End-to-end verified first release |
 | [PS-09](09-variation-indexing.md) | Index author PGN variations | PS-03, PS-04 | Indexed mainlines + valid nested sidelines |
 | [PS-10](10-variation-search.md) | Mainline/all-lines mode in API and browser | PS-05, PS-09 | Mode-dependent correct results |
@@ -54,7 +54,7 @@ Tasks are small independently reviewable increments. **MVP:** PS-01–PS-08. **F
 
 1. Search for a position reached by two different legal move orders; both games appear, even without an opening name.
 2. Apply year/source/opening filters and a favourite flag; totals, pages and results stay consistent, with no duplicate game cards.
-3. Open a hit and find the board **already showing that occurrence**; Back returns to the same search position and list state.
+3. Open a hit and find the board **already showing that verified occurrence**; Back returns to the same search position and list state. With Study stops enabled, hidden matches open at the nearest visible ancestor with a notice.
 4. Open an unindexed archive: the app still works and explains how to build the index. A stale index never reports a misleading zero.
 5. After follow-up: enable **Include annotations' variations** and find a position present only in a sideline; distinguish it from the historical game.
 

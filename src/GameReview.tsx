@@ -21,15 +21,21 @@ import { emptyPersonal, mergePersonal, personalPath, personalReviewTokens } from
 import { Chess } from 'chessops/chess';
 import { parseFen } from 'chessops/fen';
 import { reviewPgn } from './pgn.mjs';
+import { positionFingerprint } from '../lib/position-hash.mjs';
 import type { GameDetail } from './types';
 
-export function GameReview({ game, initialPath, onClose, onToggleFavourite, savingFavourite, favouriteError, onPersonalSaved }: { onPersonalSaved: () => void; game: GameDetail; initialPath: string; onClose: () => void; onToggleFavourite: () => void; savingFavourite: boolean; favouriteError: string | null }) {
+export function GameReview({ game, initialPath, matchedPositionKey = null, navigationNotice = null, positionSearchNavigation = false, onClose, onToggleFavourite, savingFavourite, favouriteError, onPersonalSaved }: {
+  onPersonalSaved: () => void; game: GameDetail; initialPath: string;
+  matchedPositionKey?: string | null; navigationNotice?: string | null; positionSearchNavigation?: boolean;
+  onClose: () => void; onToggleFavourite: () => void; savingFavourite: boolean; favouriteError: string | null;
+}) {
   const viewer = useRef<Viewer | null>(null);
   const commentEditor = useRef<HTMLTextAreaElement>(null);
   const [showCommentEditor, setShowCommentEditor] = useState(false);
   useEffect(() => { if (showCommentEditor) commentEditor.current?.focus(); }, [showCommentEditor]);
   const transcript = useRef<HTMLDivElement>(null);
   const [path, setPath] = useState(initialPath);
+  const [navigationWarning, setNavigationWarning] = useState(navigationNotice);
   const [personal, setPersonal] = useState(() => game.personal || emptyPersonal());
   const [saved, setSaved] = useState(() => JSON.stringify(game.personal || emptyPersonal()));
   const [savingPersonal, setSavingPersonal] = useState(false);
@@ -82,7 +88,9 @@ export function GameReview({ game, initialPath, onClose, onToggleFavourite, savi
     try { return { data: reviewPgn(merged.pgn), error: null }; }
     catch (error) { return { data: null, error: error instanceof Error ? error.message : String(error) }; }
   }, [merged.pgn]);
-  const [revealStage, setRevealStage] = useState(() => criticalRevealStage(model.data?.tokens || [], initialPath));
+  const [revealStage, setRevealStage] = useState(() =>
+    positionSearchNavigation && preferences.display.criticalStudy
+      ? 0 : criticalRevealStage(model.data?.tokens || [], initialPath));
   const updateDisplay = useCallback((action: React.SetStateAction<ReviewDisplay>) => {
     const next = typeof action === 'function' ? action(display) : action;
     if (next.criticalStudy && !display.criticalStudy) {
@@ -104,10 +112,24 @@ export function GameReview({ game, initialPath, onClose, onToggleFavourite, savi
     viewer.current = value; setReady(!!value);
     if (value) {
       const target = selectedPath.current;
-      if (value.game.nodeAt(new Path(target))) value.toPath(new Path(target), false);
+      if (target && value.game.nodeAt(new Path(target))) value.toPath(new Path(target), false);
+      if (value.path.path !== target) {
+        // A viewer/parser mismatch can reject a path after strict original replay.
+        value.toPath(new Path(''), false);
+        setNavigationWarning('The indexed path is unavailable in the game viewer. Opened at game start.');
+      } else if (matchedPositionKey !== null) {
+        try {
+          if (positionFingerprint(sourcePosition(value).position).verificationKey !== matchedPositionKey) {
+            throw new Error('Position mismatch');
+          }
+        } catch {
+          value.toPath(new Path(''), false);
+          setNavigationWarning('The viewer could not reproduce the indexed position. Opened at game start.');
+        }
+      }
       setPath(value.path.path);
     }
-  }, []);
+  }, [matchedPositionKey]);
   const onPathChange = useCallback((value: string) => { selectedPath.current = value; setPromotion(null); setPath(value); }, []);
   const source = useMemo(() => {
     if (!ready || !viewer.current) return null;
@@ -194,6 +216,7 @@ export function GameReview({ game, initialPath, onClose, onToggleFavourite, savi
       <button className="secondary-button" disabled={savingPersonal} onClick={() => void closeReview()} autoFocus><ArrowLeft size={16} /> Back to games</button>
     </header>
     {favouriteError && <div role="alert" className="notice error">{favouriteError}</div>}
+    {navigationWarning && <div role="status" className="notice position-navigation-notice">{navigationWarning}</div>}
     <div className={"review-workspace" + (resize.resizing ? " resizing-board" : "")} ref={resize.workspace}>
       <section ref={resize.board} className="review-board" aria-label="Game review board">
         <div className={"analysis-board-frame" + (display.bar && analysisOptions.stockfish ? " with-bar" : "")}><div className="review-board-surface"><PgnBoard pgn={merged.pgn} reviewPath={selectedPath.current} review initialPath={initialPath} canSelectPath={canSelectPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} /><button {...resize.handle} data-board-resize className="board-resize-handle" title="Drag to resize board. Double-click to reset." /></div>{display.bar && analysisOptions.stockfish && <EvaluationBar state={engines.stockfish} enabled={analysisOptions.stockfish} flipped={flipped} />}</div>
