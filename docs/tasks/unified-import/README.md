@@ -195,13 +195,13 @@ producer errors/truncated streams cannot appear as a successful complete import.
 
 Depends on UI-03–04.
 
-- [ ] Resolve target source/local mappings before assigning new game keys, including
+- [x] Resolve target source/local mappings before assigning new game keys, including
   migrated `legacy:` keys and existing MegaBase keys. Handle multiple source links
   without contradictory remapping or duplicated list rows.
-- [ ] Implement exact-byte and likely-encounter candidate reports under the policy
+- [x] Implement exact-byte and likely-encounter candidate reports under the policy
   above. Persist/version any fingerprint index with checksum invalidation; avoid
   decompressing the entire archive on every small update or making hashes unique.
-- [ ] Produce deterministic insert/no-op/update/conflict/duplicate-candidate plans;
+- [x] Produce deterministic insert/no-op/update/conflict/duplicate-candidate plans;
   support explicit confirmed same-edition aliases, with no automatic cross-source
   merging. Annotated variants and ambiguous identical PGN occurrences stay distinct.
 
