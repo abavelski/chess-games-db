@@ -257,7 +257,7 @@ export default function App() {
               <ChevronLeft size={16} />Return to reviewed game
             </button>
             <span>{gameTitle(originReview.game)} · Original review and analysis preserved</span>
-            {appliedPositionFen && <span className="review-search-exact">Searching reviewed FEN: <code>{appliedPositionFen}</code></span>
+            {appliedPositionFen && <span className="review-search-exact">Searching reviewed FEN: <code>{appliedPositionFen}</code></span>}
           </section>}
           <section className="position-search-section" aria-label="Position search">
             <div className="position-search-heading">
