@@ -1,10 +1,12 @@
 # Position search — implementation phase
 
-Status: **in progress** (2026-10-20). PS-01 and PS-02 are complete; PS-03 onward are proposed, not completed features. Source baseline: schema 7, `master` on 2026-10-20. Keep this folder as the implementation/review checklist and record completed task verification here.
+Status: **in progress** (2026-10-21). PS-01–PS-03 are complete; PS-04 onward are proposed, not completed features. Source baseline: schema 7, `master` on 2026-10-20. Keep this folder as the implementation/review checklist and record completed task verification here.
 
 ## Goal
 
 Let the student construct an opening position by playing legal moves from the initial board, find **all library games that reached the position** (including transpositions and unnamed opening sublines), combine this with existing game filters, and enter each game at its matching move. Index **exact pawn structures from the beginning**, but defer the pawn-structure search UI.
+
+PS-03 supplies a pure, validated mainline extractor in [`lib/position-mainline.mjs`](../../../lib/position-mainline.mjs): root + every legal mainline position with exact PS-01 keys and PGN Viewer-compatible paths. Invalid scores return diagnostics and no partial search hits. See [PS-03](03-mainline-replay.md) for validation and tests; PS-04 will add the actual index builder.
 
 The PS-02 schema is available by explicit `npm run position-index -- install --database PATH` only; the installer does not build a search index and archives without it remain supported. See [PS-02](02-position-storage.md) for its verification and status.
 
@@ -29,7 +31,7 @@ Tasks are small independently reviewable increments. **MVP:** PS-01–PS-08. **F
 | --- | --- | --- | --- |
 | [PS-01 — completed](01-hash-contract.md) | Zobrist/position/pawn signatures | None | Published vector + transposition tests |
 | [PS-02 — completed](02-position-storage.md) | Additive derived schema and capability | PS-01 | Fixture DB accepts/queries indexed rows; old DB opens |
-| [PS-03](03-mainline-replay.md) | Mainline extractor, reviewer paths, diagnostics | PS-01 | Mainline occurrences from fixture PGNs |
+| [PS-03 — completed](03-mainline-replay.md) | Mainline extractor, reviewer paths, diagnostics | PS-01 | Mainline occurrences from fixture PGNs |
 | [PS-04](04-index-builder.md) | Offline CLI build/rebuild/resume and write invalidation | PS-02, PS-03 | Safe repeated build and changed-PGN rebuild |
 | [PS-05](05-search-api.md) | Search API + existing filters and paging | PS-02 | Indexed exact-position hits, proper no-index states |
 | [PS-06](06-search-board.md) | Search board and filter integration | PS-05 | Play moves, undo, search, see filtered results |
