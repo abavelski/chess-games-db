@@ -212,15 +212,15 @@ with different commentary survive; contradictory and drifted mappings fail safel
 
 Depends on UI-05.
 
-- [ ] Inspect optional favourites and personal-analysis storage, snapshot expected
+- [x] Inspect optional favourites and personal-analysis storage, snapshot expected
   user-owned values and apply only producer-owned changes through the shared writer.
   Preserve unknown extensions; fail safely where compatibility cannot be established.
-- [ ] Validate personal move histories/comment anchors before PGN replacement;
+- [x] Validate personal move histories/comment anchors before PGN replacement;
   implement the conflict behavior above, with no personal-data mutation on failure.
-- [ ] Use bounded per-source transactions after staging extraction. A failed source
+- [x] Use bounded per-source transactions after staging extraction. A failed source
   rolls back its writes; earlier successful sources may remain committed and are
   listed in a partial report. Do not hold a database write lock during extraction.
-- [ ] Detect target edits since planning under the apply transaction. Never apply
+- [x] Detect target edits since planning under the apply transaction. Never apply
   a stale dry-run plan over newer notes/favourites; revalidate or stop with conflict.
 
 Acceptance: unchanged/changed reimports preserve personal JSON/timestamps,
