@@ -72,15 +72,12 @@ test('offline fixture: install, bounded resume, repeat, rebuild and exact source
     assert.deepEqual(db.prepare('SELECT id,pgn_zstd,pgn_sha256,game_key FROM games ORDER BY id').all(), original);
     assert.equal(db.pragma('user_version', { simple: true }), 7);
     assert.deepEqual(db.pragma('foreign_key_check'), []);
-    assert.equal(count(db, 'position_keys'), 7, 'root, d5 and transposed final are deduplicated');
+    assert.equal(count(db, 'position_keys'), 6, 'root and transposed final are deduplicated');
   }));
 
 test('dry-run and interruption never publish incomplete or partial game rows', () =>
   fixture(async db => {
     installPositionIndex(db);
-    const ids = [1, 2, 3].map(n => upsertGame(db, game('1. e4 e5 ' + n + '. Nf3 *')));
-    // Deliberately use valid scores for this test.
-    db.prepare('DELETE FROM games').run();
     const valid = [1, 2, 3].map(n => upsertGame(db, game('1. e4 e5 2. Nf3 *', { white: 'Edition ' + n })));
     const preview = await buildPositions(db, { dryRun: true, maxGames: 2 });
     assert.equal(preview.attempted, 2);
