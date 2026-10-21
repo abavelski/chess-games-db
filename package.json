@@ -20,6 +20,7 @@
     "openings": "node scripts/run-archive-tool.mjs scripts/openings.mjs",
     "position-index": "node scripts/run-archive-tool.mjs scripts/position-index.mjs",
     "positions": "node scripts/run-archive-tool.mjs scripts/positions.mjs",
+    "benchmark:positions": "node scripts/run-archive-tool.mjs scripts/benchmark-positions.mjs",
     "test:desktop": "npm run build && node scripts/start-electron.mjs tests/desktop-smoke.mjs && node scripts/start-electron.mjs tests/openings-desktop-smoke.mjs && node scripts/start-electron.mjs tests/engine-desktop-smoke.mjs && node scripts/start-electron.mjs tests/critical-positions-desktop-smoke.mjs && node scripts/start-electron.mjs tests/favourites-desktop-smoke.mjs && node scripts/start-electron.mjs tests/personal-desktop-smoke.mjs && node scripts/start-electron.mjs tests/position-search-desktop-smoke.mjs",
     "postinstall": "electron-builder install-app-deps",
     "engines:verify": "node scripts/verify-local-engines.mjs",

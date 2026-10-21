@@ -6,28 +6,35 @@ import { app, BrowserWindow, dialog } from 'electron';
 import { desktopTestDirectory, finishDesktopTest } from './fixtures/desktop-test.mjs';
 import { fixtureArchive, hash } from './fixtures/opening-archive.mjs';
 import { upsertGame } from '../lib/game-writer.mjs';
-import { installPositionIndex } from '../scripts/position-index.mjs';
-import { buildPositions } from '../lib/position-builder.mjs';
+import { main as positionsCli } from '../scripts/positions.mjs';
 
 // Only disposable archives are written. The app itself only reads the index.
 const directory = desktopTestDirectory();
 app.setPath('userData', directory);
+const sourcePath = join(directory, 'position-original.sqlite3');
 const path = join(directory, 'position-indexed.sqlite3');
 const unindexedPath = join(directory, 'position-unindexed.sqlite3');
 const scores = [
   ...Array(41).fill('1. e4 e5 2. Nf3 Nc6 *'),
   '1. Nf3 {[%crit opening]} Nc6 2. e4 e5 *', '1. d4 d5 *',
 ];
-const db = fixtureArchive(path, scores);
+const db = fixtureArchive(sourcePath, scores);
 upsertGame(db, { id: 1, year: 2000 });
 upsertGame(db, { id: 2, year: 2020 });
 db.exec("ALTER TABLE games ADD COLUMN favourite INTEGER NOT NULL DEFAULT 0 CHECK(favourite IN (0,1))");
 db.prepare('UPDATE games SET favourite=1 WHERE id=1').run();
-installPositionIndex(db);
-await buildPositions(db, { batchSize: 10 });
+// PS-08 exercises the full opt-in CLI on a disposable SQLite backup, never
+// installing anything into the source archive.
+await db.backup(path);
 db.close();
+const sourceChecksum = hash(readFileSync(sourcePath));
+await positionsCli(['init', '--database', path]);
+const built = await positionsCli(['build', '--database', path, '--batch-size', '10']);
+assert.equal(built.coverage.coverage, 'complete');
+assert.equal((await positionsCli(['status', '--database', path])).complete, scores.length);
+assert.equal(hash(readFileSync(sourcePath)), sourceChecksum);
 fixtureArchive(unindexedPath, ['1.e4 *']).close();
-const originals = [path, unindexedPath].map(file => hash(readFileSync(file)));
+const originals = [sourcePath, path, unindexedPath].map(file => hash(readFileSync(file)));
 writeFileSync(join(directory, 'archive.json'), JSON.stringify({ path }));
 dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [unindexedPath] });
 const errors = [];
@@ -209,9 +216,9 @@ async function smoke() {
     })()`);
     assert.equal(BrowserWindow.getAllWindows().length, 1);
     assert.deepEqual(errors, []);
-    assert.deepEqual([path, unindexedPath].map(file => hash(readFileSync(file))), originals,
+    assert.deepEqual([sourcePath, path, unindexedPath].map(file => hash(readFileSync(file))), originals,
       'browser position search must not write either archive');
-    console.log('PS-06 desktop smoke passed: legal and illegal moves, undo/reset, transposition search, paging, filters, review return, keyboard, compact screen, absent index and immutable archives.');
+    console.log('PS-08 desktop smoke passed: legal and illegal moves, undo/reset, transposition search, paging, filters, review return, keyboard, compact screen, absent index and immutable archives.');
   } catch (error) { console.error(error); exitCode = 1; }
   finally { clearTimeout(timeout); finishDesktopTest(app, exitCode); }
 }

@@ -16,4 +16,7 @@ jobs:
       - run: sudo chown root:root node_modules/electron/dist/chrome-sandbox && sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - run: xvfb-run -a npm test
       - run: npm run build
-      - run: xvfb-run -a node scripts/start-electron.mjs tests/position-search-desktop-smoke.mjs
+      # PS-08 release gate: all desktop smoke journeys, not just position search.
+      - run: xvfb-run -a npm run test:desktop
+      # Isolated deterministic fixture only; emits reproducible machine-readable measurements.
+      - run: npm run benchmark:positions -- --games 240 --samples 80
