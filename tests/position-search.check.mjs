@@ -131,7 +131,7 @@ test('PS-05 applies existing opening hierarchy and filters without duplicate tot
       properties: { source: ['1'], sourceType: ['other'], eco: ['A00'] },
     }).total, 2);
     assert.equal(archive.searchByPosition(fen, {
-      properties: { source: ['1'], year: ['2000'], result: ['unfinished'] },
+      properties: { source: ['1'], year: ['2000'], result: ['unknown'] },
       openingNodeId: family.id, search: 'White 0', yearFrom: '1990',
     }).total, 1);
     assert.equal(archive.searchByPosition(fen, { personalOnly: true }).total, 0);
