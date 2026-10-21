@@ -6,7 +6,7 @@ export interface ReviewNavigation {
 }
 export function resolveReviewNavigation(
   pgn: string,
-  match: { path: string; ply: number; isMainline: true } | null,
+  match: { path: string; ply: number; isMainline: boolean; type?: 'playedGame' | 'sourceVariation' } | null,
   searchedFen: string,
   studyStops?: boolean,
 ): ReviewNavigation;
