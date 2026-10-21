@@ -37,7 +37,8 @@ npm start          # run the built desktop app without a development server
 npm run dist:dir   # unpacked desktop app
 npm run dist       # installer/DMG/AppImage (depends on platform)
 npm test           # SQL filter/query unit tests
-npm run test:desktop # games and opening-filter desktop smoke tests (requires a graphical session)
+npm run test:desktop # full offline Electron regression suite (requires a graphical session)
+npm run benchmark:positions -- --games 240 --samples 80 # disposable fixture only
 ```
 
 The app opens the previously selected database if present, and during development also looks for `data/annotated-games.sqlite3`. Otherwise, click **Open database** to select an existing SQLite file. **The database is not included in Git or any installer.** The app never writes to the archive and does not create an empty replacement if a file is missing.
@@ -103,17 +104,30 @@ The source code is licensed under **GPL-3.0-or-later**, in keeping with the Lich
 
 A local archive can optionally receive the **derived position-index tables**, without changing its original PGNs or schema version. The PS-03 extractor computes per-ply hashes and reviewer paths; the offline PS-04 builder persists complete, checksum-verified mainlines. **Position search UI is available from PS-06**, but only backed by an explicitly built index. PS-07 verifies stored paths against original PGN and opens matching review positions, safely handling stale indexes and Study stops. Neither opening an archive nor starting the desktop app installs or builds the extension.
 
-From a development checkout with Node.js 22+ and dependencies installed, back up your archive and explicitly install the storage:
+From a development checkout with Node.js 22+ and dependencies installed, **make a consistent copy** and opt in explicitly. Close other writers; SQLite's online backup command also captures committed WAL transactions. Use a *new destination file*, then select that copy using **Change database** in the app:
 
 ```sh
-cp data/annotated-games.sqlite3 data/games.positions.sqlite3
+sqlite3 data/annotated-games.sqlite3 ".backup 'data/games.positions.sqlite3'"
 npm run positions -- init --database data/games.positions.sqlite3
-npm run positions -- status --database data/games.positions.sqlite3
 npm run positions -- build --database data/games.positions.sqlite3 --batch-size 25
+npm run positions -- status --database data/games.positions.sqlite3
 npm run positions -- rebuild --database data/games.positions.sqlite3 --dry-run
+# Optional full replay after troubleshooting or an algorithm update:
+npm run positions -- rebuild --database data/games.positions.sqlite3
+npm run positions -- status --database data/games.positions.sqlite3
 ```
 
-All commands require an explicit existing schema-7 archive path. `init` is idempotent; `build` resumes by skipping current completed games, and `rebuild` replays them without dropping valid old results ahead of publication. `build --dry-run` checks PGNs and reports prospective counts without writing. `--max-games N` bounds attempted games per invocation; `--batch-size N` limits the scan window (1–1000). Repeat `build` to resume after interruption. `status` distinguishes absent schema, unindexed, stale, invalid and complete coverage, including database size and stored occurrence totals. A failed or corrupt PGN gets a per-game diagnostic and no partial hits. Indexing is local and never starts engines or network calls. Hidden games and separately annotated editions are stored individually; the future search API must filter hidden games. PGN changes invalidate rows in the writer transaction, and deletions cascade; orphaned keys are reclaimed after builds. `getCatalog().capabilities.positionIndex.status` reports schema capability only, not coverage. See [PS-04](docs/tasks/position-search/04-index-builder.md).
+If the `sqlite3` command-line tool is unavailable, use another SQLite-compatible *online backup* tool; only use a filesystem copy after all database connections, including WAL writers, are closed. Neither the installer nor the app makes a backup for you.
+
+All commands require an explicit existing schema-7 archive path. `init` is idempotent; `build` resumes by skipping current completed games, and `rebuild` replays them without dropping valid old results ahead of publication. `build --dry-run` checks PGNs and reports prospective counts without writing. `--max-games N` bounds attempted games per invocation; `--batch-size N` limits the scan window (1–1000). Repeat `build` to resume after interruption. `status` distinguishes absent schema, unindexed, stale, invalid and complete coverage, including database size and stored occurrence totals. A failed or corrupt PGN gets a per-game diagnostic and no partial hits. Indexing is local and never starts engines or network calls. Hidden games and separately annotated editions are stored individually; search excludes hidden games and returns one earliest matching occurrence per visible game. PGN changes invalidate rows in the writer transaction, and deletions cascade; orphaned keys are reclaimed after builds. `getCatalog().capabilities.positionIndex.status` reports schema capability only, not coverage. See [PS-04](docs/tasks/position-search/04-index-builder.md) and the [PS-08 release measurements](docs/tasks/position-search/08-mvp-verification.md).
+
+### Recovery and index scope
+
+The optional index contains exact **standard-chess root and mainline** positions; it does **not** yet search annotated PGN variations (PS-09/10), nor expose stored pawn signatures as a pawn-structure search UI. Keys include side to move, castling and Polyglot en-passant semantics; equivalent transpositions match even when move orders or matching plies differ. Repeated occurrences of the same position within one game produce one result (earliest ply), while different annotated editions remain separate.
+
+If `status` reports `unindexed` or `stale`, repeat `build` on the **copy**. Use `rebuild --dry-run` to preview a full replay, then `rebuild` to regenerate derived rows. Invalid source PGNs or checksum failures are reported, not silently skipped as conclusive no-matches; correcting an invalid PGN requires fixing/reimporting its source separately. If the extension is incompatible or a copy becomes damaged, restore a **fresh verified archive copy** from the original and rerun `init → build → status`. You can always reopen the original unindexed archive. Neither searching nor starting Electron automatically installs, repairs or updates the index. Explicit favourite and personal-note actions remain the only review/browser writes.
+
+To measure your own archive **without modifying it**, run `npm run benchmark:positions -- --database /path/to/archive.sqlite3 --samples 80`. The benchmark opens the supplied schema-7 archive read-only, makes a temporary SQLite backup, performs indexing on that copy, and removes it afterward. Omitting `--database` benchmarks a deterministic, generated fixture (240 games by default). For example, a measured **240-game fixture copy** increased from **520,192 to 847,872 bytes** after indexing (**+327,680 bytes / 320 KiB**); real archive sizes depend on its scores. Results include hardware, build/rebuild time, additional file size, query plans, duplicate occurrences, coverage and warmed p50/p95 latency; do not treat [fixture measurements](docs/tasks/position-search/08-mvp-verification.md) as performance guarantees for your archive.
 
 ## Position search API (PS-05)
 

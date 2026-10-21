@@ -1,6 +1,6 @@
 # Position search — implementation phase
 
-Status: **in progress** (2026-10-21). PS-01–PS-07 are implemented; PS-08 onward remain proposed. Source baseline: schema 7, `master` on 2026-10-20. Keep this folder as the implementation/review checklist and record completed task verification here.
+Status: **mainline MVP verified** (2026-10-21). PS-01–PS-08 are complete; PS-09–PS-12 remain planned. Source baseline: schema 7, `master` on 2026-10-20. Keep this folder as the implementation/review checklist and record completed task verification here.
 
 ## Goal
 
@@ -10,7 +10,7 @@ PS-03 supplies a pure, validated mainline extractor in [`lib/position-mainline.m
 
 The PS-02 schema is available by explicit `npm run position-index -- install --database PATH` only; the installer does not build a search index and archives without it remain supported. See [PS-02](02-position-storage.md) for its verification and status.
 
-The PS-01 hash contract is implemented in [`lib/position-hash.mjs`](../../../lib/position-hash.mjs); this does **not** yet make position search available in the app. See [PS-01](01-hash-contract.md) for its test coverage, pinned constants and FEN/EP semantics.
+The PS-01 hash contract is implemented in [`lib/position-hash.mjs`](../../../lib/position-hash.mjs); search in the app also requires the explicit PS-04-built position index. See [PS-01](01-hash-contract.md) for its test coverage, pinned constants and FEN/EP semantics.
 
 ## Technical decisions / invariants
 
@@ -32,15 +32,17 @@ Tasks are small independently reviewable increments. **MVP:** PS-01–PS-08. **F
 | [PS-01 — completed](01-hash-contract.md) | Zobrist/position/pawn signatures | None | Published vector + transposition tests |
 | [PS-02 — completed](02-position-storage.md) | Additive derived schema and capability | PS-01 | Fixture DB accepts/queries indexed rows; old DB opens |
 | [PS-03 — completed](03-mainline-replay.md) | Mainline extractor, reviewer paths, diagnostics | PS-01 | Mainline occurrences from fixture PGNs |
-| [PS-04 — implemented](04-index-builder.md) | Offline CLI build/rebuild/resume and write invalidation | PS-02, PS-03 | Safe repeated build and changed-PGN rebuild |
-| [PS-05 — implemented](05-search-api.md) | Search API + existing filters and paging | PS-02 | Indexed exact-position hits, proper no-index states |
-| [PS-06 — implemented](06-search-board.md) | Search board and filter integration | PS-05 | Play moves, undo, search, see filtered results |
+| [PS-04 — completed](04-index-builder.md) | Offline CLI build/rebuild/resume and write invalidation | PS-02, PS-03 | Safe repeated build and changed-PGN rebuild |
+| [PS-05 — completed](05-search-api.md) | Search API + existing filters and paging | PS-02 | Indexed exact-position hits, proper no-index states |
+| [PS-06 — completed](06-search-board.md) | Search board and filter integration | PS-05 | Play moves, undo, search, see filtered results |
 | [PS-07 — completed](07-review-navigation.md) | Open game at matching mainline path | PS-03, PS-05 | Result click lands at matching position |
-| [PS-08](08-mvp-verification.md) | MVP regression, benchmarks, user guide | PS-04–PS-07 | End-to-end verified first release |
+| [PS-08 — completed](08-mvp-verification.md) | MVP regression, benchmarks, user guide | PS-04–PS-07 | End-to-end verified first release |
 | [PS-09](09-variation-indexing.md) | Index author PGN variations | PS-03, PS-04 | Indexed mainlines + valid nested sidelines |
 | [PS-10](10-variation-search.md) | Mainline/all-lines mode in API and browser | PS-05, PS-09 | Mode-dependent correct results |
 | [PS-11](11-search-from-review.md) | Search from currently selected review position | PS-07, PS-10 | One-click cross-game lookup and return |
 | [PS-12](12-final-verification.md) | Follow-up verification, benchmarking, documentation | PS-09–PS-11 | Verified release with variation search |
+
+PS-08 adds a disposable archive-copy acceptance test, extends desktop smoke to exercise the opt-in offline installer, and records reproducible fixture benchmarks (including actual index footprint, query plans and p50/p95). See [PS-08 evidence](08-mvp-verification.md). No private archive was available for real-database measurements.
 
 ## Definition of done for *each* task
 
