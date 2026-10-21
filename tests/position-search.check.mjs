@@ -226,8 +226,10 @@ test('PS-05 strict FEN/filter validation, collision verification, indexed plan a
     assert.deepEqual(root.rows.map(row => row.id), [good],
       'equal 64-bit hashes with distinct verification keys must not match');
     assert.equal(root.coverage.isComplete, true);
-    assert.equal(archive.searchByPosition(start.replace(' w ', ' b ')).total, 1,
-      'the forged indexed key represents a distinct exact position');
+    assert.equal(db.prepare('SELECT count(*) n FROM position_keys WHERE zobrist_hash=?')
+      .get(fp.sqliteHash).n, 2, 'both exact keys share the forced collision');
+    assert.equal(archive.searchByPosition(start.replace(' w ', ' b ')).total, 0,
+      'a client FEN computes its own turn-dependent hash; no hash is trusted from storage');
 
     const lookup = db.prepare('EXPLAIN QUERY PLAN SELECT id FROM position_keys WHERE zobrist_hash=? AND exact_key=?')
       .all(fp.sqliteHash, fp.verificationKey).map(r => r.detail).join(' ');
