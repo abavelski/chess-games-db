@@ -1,5 +1,13 @@
 # Implementation tasks
 
+## Unified local game import (planned)
+
+The [unified import plan](unified-import/README.md) covers a common book/CBH/CBV/PGN
+pipeline, fresh v7 archives and incremental updates, historical schema handling,
+stable source identities, duplicate candidates, and preservation of favourites
+and personal analysis. Its nine ordered tasks include acceptance criteria;
+this is planning only.
+
 The implemented current release is the [annotated games database](annotated-games-db/README.md):
 source-neutral schema, explicit legacy conversion, cached property options,
 searchable multiselect filters, and unchanged game review. Its release-specific
