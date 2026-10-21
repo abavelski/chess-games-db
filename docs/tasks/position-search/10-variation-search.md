@@ -24,3 +24,6 @@ Status: **completed** (2026-10-21). Depends on: PS-05, PS-09.
 - Tests: `tests/position-variation-search.check.mjs` covers mainline-only/full/partial scope, duplicate games, mainline preference, nested variation paths, filters and paging; `tests/review-navigation.test.mjs` covers variation safety; `tests/position-search-desktop-smoke.mjs` exercises keyboard toggling, labelled source-only hit, review entry, Back, clear and scope reset. Existing PS-05/PS-09 regressions continue to exercise old default behavior.
 
 No source PGNs, personal variations, schema versions or opening-classification data are changed. Build author variations only on an archive **copy** with `npm run positions -- build --database PATH --include-variations`.
+
+
+**Automated verification:** [GitHub Actions run 39585226131](https://github.com/abavelski/chess-games-db/actions/runs/39585226131) passed `npm test` (pure and archive fixtures), `npm run build`, the disposable position benchmark and `npm run test:desktop` (including keyboard opt-in, exact sideline review, paging, clearing and Back) on 2026-10-21.
