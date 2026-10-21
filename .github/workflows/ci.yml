@@ -18,5 +18,7 @@ jobs:
       - run: npm run build
       # Isolated deterministic fixture only; emits reproducible machine-readable measurements.
       - run: npm run benchmark:positions -- --games 240 --samples 80
+      # PS-12: compare mainline and fully indexed nested author variations on separate disposable copies.
+      - run: npm run benchmark:position-variations -- --games 120 --samples 40
       # PS-08 release gate: all desktop smoke journeys, not just position search.
       - run: xvfb-run -a npm run test:desktop
