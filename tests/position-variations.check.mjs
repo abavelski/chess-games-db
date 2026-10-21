@@ -68,6 +68,7 @@ test('PS-09 offline CLI upgrades mainline-only state without changing mainline s
     assert.match(state.get(2).diagnostic, /Variation indexing incomplete/);
     assert.ok(occurrences(db, 1).some(row => !row.is_mainline));
     assert.ok(occurrences(db, 3).some(row => !row.is_mainline), 'custom-FEN promotion variation indexed');
+    assert.ok(occurrences(db, 2).length > 0, 'a malformed sideline must retain verified mainline hits');
     assert.ok(occurrences(db, 2).every(row => row.is_mainline), 'malformed sideline never published');
     const d4 = occurrences(db, 1).find(row => !row.is_mainline && row.ply === 1);
     assert.equal(d4.exact_key, positionFingerprint(fenAfter('d4')).verificationKey);
