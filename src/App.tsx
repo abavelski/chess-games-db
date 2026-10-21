@@ -187,6 +187,11 @@ export default function App() {
     requestAnimationFrame(() => window.scrollTo(0, 0));
   };
   const originReview = reviewSessions.find(session => session.key === originReviewKey);
+  const returnToOrigin = () => {
+    if (!originReview) return;
+    setActiveReviewKey(originReview.key);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
+  };
   const total = results?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / 40));
   const start = total ? ((results?.page ?? 1) - 1) * 40 + 1 : 0;
@@ -248,10 +253,11 @@ export default function App() {
           </section>
           <OpeningFilter key={catalog.path} filters={baseFilters} selection={openingSelection} onChange={value => { setOpeningSelection(value); setPage(1); }} />
           {originReview && <section className="review-search-return" aria-label="Return to originating review">
-            <button type="button" className="secondary-button" onClick={() => setActiveReviewKey(originReview.key)}>
+            <button type="button" className="secondary-button" onClick={returnToOrigin}>
               <ChevronLeft size={16} />Return to reviewed game
             </button>
             <span>{gameTitle(originReview.game)} · Original review and analysis preserved</span>
+            {appliedPositionFen && <span className="review-search-exact">Searching reviewed FEN: <code>{appliedPositionFen}</code></span>
           </section>}
           <section className="position-search-section" aria-label="Position search">
             <div className="position-search-heading">
