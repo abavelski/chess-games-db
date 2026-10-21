@@ -164,6 +164,7 @@ async function smoke() {
       await psWait(() => psSquare('e2').getAttribute('aria-pressed') === 'true');
       if (document.querySelectorAll('.position-square.legal').length !== 2) throw new Error('Keyboard selection lacks legal destinations');
       psSquare('e4').click();
+      await psWait(() => document.querySelector('.position-move-list').textContent.includes('e4'));
       if (!document.querySelector('.position-move-list').textContent.includes('e4')) throw new Error('Keyboard-selected move did not play');
     })()`);
     window.setSize(920, 650);
