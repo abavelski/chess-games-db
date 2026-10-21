@@ -6,6 +6,7 @@ import { app, BrowserWindow, dialog } from 'electron';
 import { desktopTestDirectory, finishDesktopTest } from './fixtures/desktop-test.mjs';
 import { fixtureArchive, hash } from './fixtures/opening-archive.mjs';
 import { upsertGame } from '../lib/game-writer.mjs';
+import { INITIAL_POSITION_FEN, positionBoard, playPositionMove } from '../src/position-search-board.mjs';
 import { main as positionsCli } from '../scripts/positions.mjs';
 
 // Only disposable archives are written. The app itself only reads the index.
@@ -45,6 +46,21 @@ app.on('browser-window-created', (_event, window) => {
   window.webContents.on('preload-error', (_event, _path, error) => errors.push(error.message));
 });
 
+// FEN fixtures can be pasted directly without playing a game in the UI.
+const nextFens = {};
+for (const sequence of [
+  ['e2e4', 'e7e5', 'g1f3', 'b8c6'],
+  ['g1f3', 'b8c6', 'e2e4', 'e7e5'],
+  ['a2a4', 'h7h5', 'a4a5', 'h5h4', 'a5a6', 'h4h3', 'a6b7', 'h3g2'],
+]) {
+  let moves = [];
+  for (const move of sequence) {
+    const before = positionBoard(moves).fen;
+    moves = playPositionMove(moves, move.slice(0, 2), move.slice(2, 4));
+    (nextFens[before] ??= {})[move] = positionBoard(moves).fen;
+  }
+}
+
 async function smoke() {
   const timeout = setTimeout(() => { console.error('PS-10 desktop smoke timed out'); app.exit(1); }, 60000);
   let exitCode = 0;
@@ -58,8 +74,8 @@ async function smoke() {
         const deadline = Date.now() + 10000;
         while (!predicate()) {
           if (Date.now() > deadline) throw new Error('PS-06 UI timeout at ' + (window.psStage || 'initial') +
-            ': ' + predicate + '; input=' + document.querySelector('.position-keyboard-move input')?.value +
-            '; FEN=' + document.querySelector('.position-fen output')?.textContent +
+            ': ' + predicate + '; FEN validity=' + document.querySelector('.position-fen textarea')?.getAttribute('aria-invalid') +
+            '; FEN=' + document.querySelector('.position-fen textarea')?.value +
             '; review=' + !!document.querySelector('.review-shell'));
           await new Promise(resolve => setTimeout(resolve, 25));
         }
@@ -68,15 +84,17 @@ async function smoke() {
         n + (n === 1 ? ' game' : ' games') &&
         document.querySelector('.game-results')?.getAttribute('aria-busy') === 'false' &&
         document.querySelectorAll('.result-item').length === Math.min(n, 40);
-      window.psMove = async (from, to) => {
-        const before = document.querySelector('.position-fen output').textContent;
-        psField(document.querySelector('.position-keyboard-move input'), from + to);
-        await psWait(() => !document.querySelector('.position-keyboard-move button').disabled);
-        document.querySelector('.position-keyboard-move button').click();
-        await psWait(() => document.querySelector('.position-fen output').textContent !== before);
+      window.psInitialFen = ${JSON.stringify(INITIAL_POSITION_FEN)};
+      window.psNextFens = ${JSON.stringify(nextFens)};
+      window.psPasteNextPosition = async (from, to) => {
+        const input = document.querySelector('.position-fen textarea');
+        const next = psNextFens[input.value]?.[from + to];
+        if (!next) throw new Error('Missing FEN fixture for ' + from + to);
+        psField(input, next);
+        await psWait(() => input.value === next && input.getAttribute('aria-invalid') === 'false');
       };
       window.psField = (el, value) => {
-        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        const setter = Object.getOwnPropertyDescriptor(el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value').set;
         setter.call(el,value); el.dispatchEvent(new Event('input', { bubbles:true }));
       };
       window.psStage = 'initial loading';
@@ -91,7 +109,7 @@ async function smoke() {
       document.querySelector('#opening-tree-tab').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
       await psWait(() => !document.querySelector('#opening-position-panel').hidden);
       if (document.activeElement?.id !== 'opening-position-tab') throw new Error('Arrow key must focus position tab');
-      window.psStartFen = document.querySelector('.position-fen output').textContent;
+      window.psStartFen = document.querySelector('.position-fen textarea').value;
       if (document.querySelector('.position-search-heading button')) throw new Error('Redundant position toggle must be removed');
     })()`);
     const clickSquare = async square => {
@@ -112,31 +130,31 @@ async function smoke() {
     await clickSquare('e2');
     await clickSquare('e5');
     await window.webContents.executeJavaScript(`(async () => {
-      if (document.querySelector('.position-fen output').textContent !== psStartFen) throw new Error('Illegal board move changed position');
+      if (document.querySelector('.position-fen textarea').value !== psStartFen) throw new Error('Illegal board move changed position');
     })()`);
     await clickSquare('e2');
     await clickSquare('e4');
     await window.webContents.executeJavaScript(`(async () => {
       const startFen = psStartFen;
-      await psWait(() => document.querySelector('.position-move-list').textContent.includes('e4'));
-      if (!document.querySelector('.position-move-list').textContent.includes('e4') ||
+      await psWait(() => document.querySelector('.position-fen textarea').value !== psInitialFen);
+      if (document.querySelector('.position-fen textarea').value === psInitialFen ||
           !document.querySelector('.position-turn').textContent.includes('Black')) throw new Error('Legal move or turn failed');
       if (!psCount(43)) throw new Error('Playing a move must not silently invoke the search API');
       document.querySelector('.position-search-actions button:nth-child(2)').click();
-      await psWait(() => document.querySelector('.position-fen output').textContent === startFen);
-      if (document.querySelector('.position-fen output').textContent !== startFen) throw new Error('Undo must restore FEN');
-      await psMove('e2', 'e4');
+      await psWait(() => document.querySelector('.position-fen textarea').value === startFen);
+      if (document.querySelector('.position-fen textarea').value !== startFen) throw new Error('Undo must restore FEN');
+      await psPasteNextPosition('e2', 'e4');
       document.querySelector('.position-search-actions button:nth-child(3)').click();
-      await psWait(() => document.querySelector('.position-fen output').textContent === startFen);
-      if (document.querySelector('.position-fen output').textContent !== startFen) throw new Error('Reset must restore FEN');
+      await psWait(() => document.querySelector('.position-fen textarea').value === startFen);
+      if (document.querySelector('.position-fen textarea').value !== startFen) throw new Error('Reset must restore FEN');
       window.psStage = 'transposed order';
       // Transposed order, no opening-name selection or PGN scan.
-      for (const [a,b] of [['g1','f3'],['b8','c6'],['e2','e4'],['e7','e5']]) await psMove(a,b);
+      for (const [a,b] of [['g1','f3'],['b8','c6'],['e2','e4'],['e7','e5']]) await psPasteNextPosition(a,b);
       if (!document.querySelector('.position-turn').textContent.includes('White')) throw new Error('Side to move is incorrect');
-      const fen = document.querySelector('.position-fen output').textContent;
+      const fen = document.querySelector('.position-fen textarea').value;
       document.querySelector('#opening-tree-tab').click();
       document.querySelector('#opening-position-tab').click();
-      await psWait(() => document.querySelector('.position-fen output').textContent === fen);
+      await psWait(() => document.querySelector('.position-fen textarea').value === fen);
 
       document.querySelector('.position-search-submit .primary-button').click();
       await psWait(() => psCount(42) && document.querySelectorAll('.position-match-label').length === 40);
@@ -160,8 +178,7 @@ async function smoke() {
       await psWait(() => !document.querySelector('.review-shell') &&
         document.activeElement?.classList.contains('result-item'));
       if (!document.querySelector('.pagination').textContent.includes('Page 2 of 2') ||
-          document.querySelector('.position-fen output').textContent !== psFenBeforeReview ||
-          !document.querySelector('.position-move-list').textContent.includes('Nf3') ||
+          document.querySelector('.position-fen textarea').value !== psFenBeforeReview ||
           Math.abs(scrollY - psSavedScroll) > 1) throw new Error('Search page, board, history or scroll lost on Back');
       // The other page-two hit contains a study stop before the searched position.
       localStorage.setItem('review-analysis-v1', JSON.stringify({ criticalStudy: true }));
@@ -186,30 +203,46 @@ async function smoke() {
       document.querySelector('.favourites-filter input').click();
       await psWait(() => psCount(1));
       if (!document.querySelector('.position-search-active')) throw new Error('Other filters cleared position search');
-      const currentFen = document.querySelector('.position-fen output').textContent;
+      const currentFen = document.querySelector('.position-fen textarea').value;
       document.querySelector('.position-search-submit .subtle-button').click();
       await psWait(() => psCount(1) && !document.querySelector('.position-search-active'));
-      if (document.querySelector('.position-fen output').textContent !== currentFen) throw new Error('Clearing search lost board setup');
+      if (document.querySelector('.position-fen textarea').value !== currentFen) throw new Error('Clearing search lost board setup');
       if (!document.querySelector('.favourites-filter input').checked || from.value !== '2000') throw new Error('Clearing position search removed unrelated filters');
-      window.psStage = 'keyboard move entry';
+      window.psStage = 'editable FEN';
       document.querySelector('.position-search-actions button:nth-child(3)').click();
-      await psWait(() => document.querySelector('.position-move-list').textContent.includes('Starting position'));
-      const input = document.querySelector('.position-keyboard-move input');
-      psField(input, 'e2e5');
-      await psWait(() => !document.querySelector('.position-keyboard-move button').disabled);
-      document.querySelector('.position-keyboard-move button').click();
-      await psWait(() => !!document.querySelector('.position-board-error'));
-      if (!document.querySelector('.position-move-list').textContent.includes('Starting position')) throw new Error('Illegal typed move changed position');
-      psField(input, 'e2e4'); input.focus();
-    })()`);
-    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
-    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
-    await window.webContents.executeJavaScript(`(async () => {
-      await psWait(() => document.querySelector('.position-move-list').textContent.includes('e4'));
+      await psWait(() => document.querySelector('.position-fen textarea').value === psInitialFen);
+      const input = document.querySelector('.position-fen textarea');
+      psField(input, 'invalid fen');
+      await psWait(() => input.getAttribute('aria-invalid') === 'true');
+      if (!document.querySelector('.position-search-submit .primary-button').disabled ||
+          !document.querySelector('#position-fen-error')) throw new Error('Invalid FEN must be explained and block search');
+      psField(input, '8/8/8/8/8/8/8/8 w - - 0 1');
+      await psWait(() => input.getAttribute('aria-invalid') === 'true');
+      // A position with missing kings must not replace the valid board.
+      if (document.querySelectorAll('.position-search-board piece:not(.ghost)').length !== 32) throw new Error('Invalid FEN changed the board');
+      const sparse = '4k3/8/8/8/8/8/4P3/4K3 w - - 7 42';
+      psField(input, sparse);
+      await psWait(() => input.getAttribute('aria-invalid') === 'false' && document.querySelectorAll('.position-search-board piece:not(.ghost)').length === 3);
+      if (!psCount(1)) throw new Error('Pasting FEN must not search automatically');
+      const imported = psNextFens[psInitialFen].e2e4;
+      psField(input, imported);
+      await psWait(() => input.value === imported && input.getAttribute('aria-invalid') === 'false' && document.querySelector('.position-turn').textContent.includes('Black'));
+      if (!document.querySelector('.position-search-actions button:nth-child(2)').disabled) throw new Error('Pasted FEN must begin a fresh undo history');
+      if (document.querySelector('.position-move-list, .position-keyboard-move')) throw new Error('Move history and coordinate entry must be removed');
+      if (!document.querySelector('.position-search-actions button:first-child svg path')) throw new Error('Flip must use the shared review icon');
       document.querySelector('.position-search-actions button:first-child').click();
       await psWait(() => !!document.querySelector('.position-search-board .orientation-black'));
       document.querySelector('.position-search-actions button:first-child').click();
       await psWait(() => !!document.querySelector('.position-search-board .orientation-white'));
+    })()`);
+    await clickSquare('e7');
+    await clickSquare('e5');
+    await window.webContents.executeJavaScript(`(async () => {
+      const imported = psNextFens[psInitialFen].e2e4;
+      await psWait(() => document.querySelector('.position-fen textarea').value === psNextFens[imported].e7e5);
+      document.querySelector('.position-search-actions button:nth-child(2)').click();
+      await psWait(() => document.querySelector('.position-fen textarea').value === imported);
+      if (!document.querySelector('.position-search-actions button:nth-child(2)').disabled) throw new Error('Undo must stop at imported FEN');
     })()`);
     window.setSize(920, 650);
     await window.webContents.executeJavaScript(`(async () => {
@@ -228,8 +261,8 @@ async function smoke() {
       if (document.querySelector('.favourites-filter input').checked) document.querySelector('.favourites-filter input').click();
       await psWait(() => psCount(43));
       document.querySelector('.position-search-actions button:nth-child(3)').click();
-      await psWait(() => document.querySelector('.position-move-list').textContent.includes('Starting position'));
-      for (const [a,b] of [['e2','e4'],['e7','e5'],['g1','f3'],['b8','c6']]) await psMove(a,b);
+      await psWait(() => document.querySelector('.position-fen textarea').value === psInitialFen);
+      for (const [a,b] of [['e2','e4'],['e7','e5'],['g1','f3'],['b8','c6']]) await psPasteNextPosition(a,b);
       document.querySelector('.position-search-submit .primary-button').click();
       await psWait(() => psCount(42));
       const checkbox = document.querySelector('.position-variation-toggle input');
@@ -249,7 +282,7 @@ async function smoke() {
       const last = document.querySelectorAll('.result-item')[2];
       if (!last.textContent.includes('Author’s annotation') || !last.textContent.includes('source variation'))
         throw new Error('Branch-only match must be clearly labelled');
-      window.psVariationFen = document.querySelector('.position-fen output').textContent;
+      window.psVariationFen = document.querySelector('.position-fen textarea').value;
       last.click();
       await psWait(() => !!document.querySelector('.review-shell'));
       await psWait(() => document.querySelector('.review-controls [aria-live="polite"]')?.textContent?.includes('Nc6'));
@@ -262,7 +295,7 @@ async function smoke() {
       await psWait(() => !document.querySelector('.review-shell') &&
         document.activeElement?.classList.contains('result-item'));
       if (!document.querySelector('.pagination').textContent.includes('Page 2 of 2') ||
-          document.querySelector('.position-fen output').textContent !== psVariationFen ||
+          document.querySelector('.position-fen textarea').value !== psVariationFen ||
           !document.querySelector('.position-variation-toggle input').checked)
         throw new Error('Sideline review Back must preserve page, board and variation mode');
       document.querySelector('.position-variation-toggle input').click();
@@ -276,9 +309,9 @@ async function smoke() {
     await window.webContents.executeJavaScript(`(async () => {
       window.psStage = 'promotion';
       document.querySelector('.position-search-actions button:nth-child(3)').click();
-      await psWait(() => document.querySelector('.position-move-list').textContent.includes('Starting position'));
-      for (const [from, to] of [['a2','a4'],['h7','h5'],['a4','a5'],['h5','h4'],['a5','a6'],['h4','h3'],['a6','b7'],['h3','g2']]) await psMove(from, to);
-      window.psBeforePromotion = document.querySelector('.position-fen output').textContent;
+      await psWait(() => document.querySelector('.position-fen textarea').value === psInitialFen);
+      for (const [from, to] of [['a2','a4'],['h7','h5'],['a4','a5'],['h5','h4'],['a5','a6'],['h4','h3'],['a6','b7'],['h3','g2']]) await psPasteNextPosition(from, to);
+      window.psBeforePromotion = document.querySelector('.position-fen textarea').value;
     })()`);
     await clickSquare('b7');
     await clickSquare('a8');
@@ -288,7 +321,7 @@ async function smoke() {
       if (document.activeElement?.textContent !== 'queen') throw new Error('Promotion choices must receive keyboard focus');
       document.querySelector('.position-promotion button:last-child').click();
       await psWait(() => !document.querySelector('.position-promotion'));
-      if (document.querySelector('.position-fen output').textContent !== psBeforePromotion) throw new Error('Cancel promotion changed position');
+      if (document.querySelector('.position-fen textarea').value !== psBeforePromotion) throw new Error('Cancel promotion changed position');
     })()`);
     await clickSquare('b7');
     await clickSquare('a8');
@@ -296,7 +329,7 @@ async function smoke() {
       window.psStage += ' choices';
       await psWait(() => !!document.querySelector('.position-promotion'));
       [...document.querySelectorAll('.position-promotion button')].find(button => button.textContent === 'knight').click();
-      await psWait(() => !document.querySelector('.position-promotion') && document.querySelector('.position-move-list').textContent.includes('bxa8=N'));
+      await psWait(() => !document.querySelector('.position-promotion') && document.querySelector('.position-fen textarea').value.startsWith('Nnbqkbnr/'));
     })()`);
     if (process.env.CHESS_SMOKE_SCREENSHOTS) {
       mkdirSync(process.env.CHESS_SMOKE_SCREENSHOTS, { recursive: true });
@@ -320,7 +353,7 @@ async function smoke() {
     assert.deepEqual(errors, []);
     assert.deepEqual([sourcePath, path, unindexedPath].map(file => hash(readFileSync(file))), originals,
       'browser position search must not write either archive');
-    console.log('PS-08 desktop smoke passed: legal and illegal moves, undo/reset, transposition search, paging, filters, review return, keyboard, compact screen, absent index and immutable archives.');
+    console.log('PS-08 desktop smoke passed: legal and illegal moves, undo/reset, pasted FEN, validation, transposition search, paging, filters, review return, promotion, compact screen, absent index and immutable archives.');
   } catch (error) { console.error(error); exitCode = 1; }
   finally { clearTimeout(timeout); finishDesktopTest(app, exitCode); }
 }

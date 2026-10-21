@@ -92,6 +92,7 @@ async function smoke() {
       await rsWait(() => rsCount(1) && !!rsOrigin() && !rsReview(), 'source variation lookup');
       if (rsFrom.value !== '2015' || document.querySelector('.position-coverage-notice')) throw new Error('Filters/coverage incorrect after review lookup');
       if (!document.querySelector('.position-search-active')) throw new Error('Reviewed FEN not applied to search');
+      if (document.querySelector('.position-fen textarea')?.value.split(' ').slice(0, 4).join(' ') !== document.querySelector('.review-search-exact code')?.textContent) throw new Error('Search board must display the reviewed FEN');
       await rsWait(() => !!document.querySelector('.position-variation-toggle input'), 'showing variation scope toggle');
       const scope = document.querySelector('.position-variation-toggle input');
       if (scope.checked) throw new Error('Review lookup must default to mainline');

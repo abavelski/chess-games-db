@@ -58,3 +58,20 @@ test('position-search model refuses invalid histories or promotion choices', () 
   assert.equal(positionNeedsPromotion(positionBoard(), 'e2', 'e8'), false);
   assert.deepEqual(positionLegalTargets(positionBoard(), 'a8'), []);
 });
+
+
+test('position board imports arbitrary FEN and plays from that position', () => {
+  const fen = '4k3/8/8/8/8/8/4P3/4K3 w - - 7 42';
+  const board = positionBoard([], fen);
+  assert.equal(board.fen, fen);
+  assert.equal(board.position.board.occupied.size(), 3);
+  const moves = playPositionMove([], 'e2', 'e4', 'queen', fen);
+  const after = positionBoard(moves, fen);
+  assert.equal(after.turn, 'black');
+  assert.equal(positionPiece(after, 'e4').role, 'pawn');
+  assert.equal(after.fen.split(' ')[5], '42');
+  assert.equal(positionBoard(moves.slice(0, -1), fen).fen, fen);
+  for (const invalid of ['invalid fen', '8/8/8/8/8/8/8/8 w - - 0 1']) {
+    assert.throws(() => positionBoard([], invalid));
+  }
+});

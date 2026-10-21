@@ -8,12 +8,12 @@ import { appendMove, replayPosition } from './analysis.mjs';
 export const INITIAL_POSITION_FEN = makeFen(Chess.default().toSetup());
 export const POSITION_FILES = 'abcdefgh';
 
-export function positionBoard(moves = []) {
+export function positionBoard(moves = [], initialFen = INITIAL_POSITION_FEN) {
   if (!Array.isArray(moves) || moves.length > 2048 || moves.some(move =>
     typeof move !== 'string' || !/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move))) {
     throw new Error('Invalid position-search move history');
   }
-  return replayPosition(INITIAL_POSITION_FEN, moves);
+  return replayPosition(initialFen.trim(), moves);
 }
 
 export function positionPiece(board, square) {
@@ -40,11 +40,11 @@ export function positionNeedsPromotion(board, from, to) {
     positionLegalTargets(board, from).includes(to);
 }
 
-export function playPositionMove(moves, from, to, promotion = 'queen') {
+export function playPositionMove(moves, from, to, promotion = 'queen', initialFen = INITIAL_POSITION_FEN) {
   if (!['queen', 'rook', 'bishop', 'knight'].includes(promotion)) {
     throw new Error('Invalid promotion piece');
   }
-  const current = positionBoard(moves);
+  const current = positionBoard(moves, initialFen);
   if (!positionLegalTargets(current, from).includes(to)) throw new Error('Illegal move');
   // appendMove normalizes castling and verifies legality again before replay.
   return appendMove(current, from, to, promotion).moves;

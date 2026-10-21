@@ -475,17 +475,10 @@ button.personal-comment:focus-visible { outline: 2px solid #216e5d; outline-offs
 .position-search-layout { display: grid; grid-template-columns: minmax(220px, 340px) minmax(0, 1fr); gap: clamp(14px, 3vw, 32px); align-items: start; }
 .position-search-board { width: 100%; min-width: 0; }
 .position-search-board .lpv { border-radius: 4px; overflow: hidden; }
-.position-keyboard-move { display: flex; align-items: end; gap: 8px; }
-.position-keyboard-move .field { flex: 1; min-width: 0; }
-.position-keyboard-move input { width: 100%; }
 .position-search-details { min-width: 0; display: grid; align-content: start; gap: 12px; }
 .position-turn { margin: 0; color: #315040; font-size: 14px; font-weight: 750; }
-.position-move-history { display: grid; gap: 5px; color: #3c5647; font-size: 12px; }
-.position-move-list { display: flex; flex-wrap: wrap; gap: 5px 9px; max-height: 100px; overflow: auto; padding: 8px; border: 1px solid #d8dfd4; background: #fff; border-radius: 5px; font: 13px/1.5 system-ui, sans-serif; }
-.position-move-list span { white-space: nowrap; }
-.position-no-moves { opacity: .65; }
 .position-fen { display: grid; gap: 5px; font-size: 12px; color: #56705f; }
-.position-fen output { display: block; background: #f1f4ed; border: 1px solid #dce3d7; padding: 8px; border-radius: 5px; color: #2e4a35; font: 11px/1.6 monospace; overflow-wrap: anywhere; user-select: text; }
+.position-fen textarea { width: 100%; min-width: 0; resize: vertical; display: block; background: #f1f4ed; border: 1px solid #dce3d7; padding: 8px; border-radius: 5px; color: #2e4a35; font: 11px/1.6 monospace; overflow-wrap: anywhere; user-select: text; }
 .position-search-submit { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .position-search-dirty { margin: 0; font-size: 12px; color: #825c24; }
 .position-promotion { padding: 10px; background: #e7efe1; border-radius: 5px; }

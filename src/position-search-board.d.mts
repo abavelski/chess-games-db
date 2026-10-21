@@ -11,8 +11,9 @@ export interface PositionBoardState {
   sans: string[];
   position: Chess;
 }
-export function positionBoard(moves?: string[]): PositionBoardState;
+export interface PositionSearchSetup { initialFen: string; moves: string[] }
+export function positionBoard(moves?: string[], initialFen?: string): PositionBoardState;
 export function positionPiece(board: PositionBoardState, square: string): { color: Color; role: Role } | undefined;
 export function positionLegalTargets(board: PositionBoardState, from: string): string[];
 export function positionNeedsPromotion(board: PositionBoardState, from: string, to: string): boolean;
-export function playPositionMove(moves: string[], from: string, to: string, promotion?: Role): string[];
+export function playPositionMove(moves: string[], from: string, to: string, promotion?: Role, initialFen?: string): string[];

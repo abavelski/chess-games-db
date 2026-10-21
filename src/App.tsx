@@ -4,6 +4,7 @@ import { FavouriteButton } from './FavouriteButton';
 import { PropertyFilter } from './PropertyFilter';
 import { GameReview } from './GameReview';
 import { PositionSearchBoard } from './PositionSearchBoard';
+import { INITIAL_POSITION_FEN, type PositionSearchSetup } from './position-search-board.mjs';
 import { readReviewPreferences } from './EnginePanel';
 import { resolveReviewNavigation, type ReviewNavigation } from './review-navigation.mjs';
 import { OpeningFilter, type OpeningSelection } from './OpeningFilter';
@@ -43,7 +44,7 @@ export default function App() {
   const [results, setResults] = useState<Page<GameRow> | null>(null);
   const [openingTab, setOpeningTab] = useState<'tree' | 'position'>('tree');
   const [positionBoardMounted, setPositionBoardMounted] = useState(false);
-  const [positionMoves, setPositionMoves] = useState<string[]>([]);
+  const [positionSetup, setPositionSetup] = useState<PositionSearchSetup>({ initialFen: INITIAL_POSITION_FEN, moves: [] });
   const [includeSourceVariations, setIncludeSourceVariations] = useState(false);
   // Editing the board does not search. Only an explicit Search commits the FEN.
   const [appliedPositionFen, setAppliedPositionFen] = useState<string | null>(null);
@@ -126,7 +127,7 @@ export default function App() {
         setReviewSessions([]); setActiveReviewKey(null); setOriginReviewKey(null);
         setOpeningGame(null); setGameError(null); setResults(null);
         setAppliedPositionFen(null); setPositionCoverage(null);
-        setPositionMoves([]); setOpeningTab('tree'); setPositionBoardMounted(false); setIncludeSourceVariations(false);
+        setPositionSetup({ initialFen: INITIAL_POSITION_FEN, moves: [] }); setOpeningTab('tree'); setPositionBoardMounted(false); setIncludeSourceVariations(false);
         resetFilters(); setFavouriteError(null); setCatalog(result.catalog);
       }
     } catch (error) { setOpenError(errorMessage(error)); }
@@ -177,6 +178,7 @@ export default function App() {
     setActiveReviewKey(null);
     setAppliedPositionFen(fen); setPositionSearchRevision(value => value + 1);
     setPositionCoverage(null); setResults(null); setIncludeSourceVariations(false);
+    setPositionSetup({ initialFen: fen, moves: [] });
     setOpeningTab('position'); setPositionBoardMounted(true); setPage(1);
     requestAnimationFrame(() => window.scrollTo(0, 0));
   };
@@ -273,7 +275,7 @@ export default function App() {
                    <label className="position-variation-toggle"><input type="checkbox" checked={includeSourceVariations}
                      onChange={event => toggleSourceVariations(event.target.checked)} />Include annotated variations</label>
                    <p className="position-variation-description">Search author-written alternatives as well as moves played in the game. Variation-only results are identified below.</p>
-                  <PositionSearchBoard moves={positionMoves} onMovesChange={setPositionMoves} onSearch={searchPosition}
+                  <PositionSearchBoard key={catalog.path} setup={positionSetup} onSetupChange={setPositionSetup} onSearch={searchPosition}
                     onClear={clearPositionSearch} activeFen={appliedPositionFen} />
                 </div>}
               </section>
