@@ -59,7 +59,12 @@ async function smoke() {
         document.querySelector('.game-results')?.getAttribute('aria-busy') === 'false' &&
         document.querySelectorAll('.result-item').length === Math.min(n, 40);
       window.psSquare = name => document.querySelector('.position-square[data-square="' + name + '"]');
-      window.psMove = (from, to) => { psSquare(from).click(); psSquare(to).click(); };
+      window.psMove = async (from, to) => {
+        psSquare(from).click();
+        await psWait(() => psSquare(from).getAttribute('aria-pressed') === 'true');
+        psSquare(to).click();
+        await psWait(() => psSquare(from).getAttribute('aria-pressed') === 'false');
+      };
       window.psField = (el, value) => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
         setter.call(el,value); el.dispatchEvent(new Event('input', { bubbles:true }));
@@ -70,21 +75,25 @@ async function smoke() {
       trigger.click();
       await psWait(() => document.querySelectorAll('.position-square').length === 64);
       const startFen = document.querySelector('.position-fen output').textContent;
-      psMove('e2', 'e5');
+      psSquare('e2').click();
+      await psWait(() => psSquare('e2').getAttribute('aria-pressed') === 'true');
+      psSquare('e5').click();
+      await psWait(() => !!document.querySelector('.position-board-error'));
       if (document.querySelector('.position-move-list').textContent.includes('e4') ||
           document.querySelector('.position-fen output').textContent !== startFen ||
           !document.querySelector('.position-board-error')) throw new Error('Illegal move changed the board');
-      psMove('e2', 'e4');
+      psSquare('e4').click();
+      await psWait(() => document.querySelector('.position-move-list').textContent.includes('e4'));
       if (!document.querySelector('.position-move-list').textContent.includes('e4') ||
           !document.querySelector('.position-turn').textContent.includes('Black')) throw new Error('Legal move or turn failed');
       if (!psCount(43)) throw new Error('Playing a move must not silently invoke the search API');
       document.querySelector('.position-search-actions button:nth-child(2)').click();
       if (document.querySelector('.position-fen output').textContent !== startFen) throw new Error('Undo must restore FEN');
-      psMove('e2', 'e4');
+      await psMove('e2', 'e4');
       document.querySelector('.position-search-actions button:nth-child(3)').click();
       if (document.querySelector('.position-fen output').textContent !== startFen) throw new Error('Reset must restore FEN');
       // Transposed order, no opening-name selection or PGN scan.
-      for (const [a,b] of [['g1','f3'],['b8','c6'],['e2','e4'],['e7','e5']]) psMove(a,b);
+      for (const [a,b] of [['g1','f3'],['b8','c6'],['e2','e4'],['e7','e5']]) await psMove(a,b);
       if (!document.querySelector('.position-turn').textContent.includes('White')) throw new Error('Side to move is incorrect');
       const fen = document.querySelector('.position-fen output').textContent;
       document.querySelector('.position-search-submit .primary-button').click();
