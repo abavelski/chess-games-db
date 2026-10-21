@@ -1,4 +1,4 @@
-import { extractMainlinePositions } from '../lib/position-mainline.mjs';
+import { extractMainlinePositions, extractAllPositions } from '../lib/position-mainline.mjs';
 import { positionFingerprint } from '../lib/position-hash.mjs';
 import { criticalReveal } from './critical-positions.mjs';
 import { reviewPgn } from './pgn.mjs';
@@ -7,20 +7,24 @@ import { reviewPgn } from './pgn.mjs';
 // PGN and verify its exact four-field position key, not just the indexed ply.
 export function resolveReviewNavigation(pgn, match, searchedFen, studyStops = false) {
   const fallback = reason => ({ path: '', positionKey: null, notice: reason });
-  if (!match || match.isMainline !== true || typeof match.path !== 'string' ||
-      !Number.isSafeInteger(match.ply) || match.ply < 0) {
+  if (!match || typeof match.isMainline !== 'boolean' || typeof match.path !== 'string' ||
+      !Number.isSafeInteger(match.ply) || match.ply < 0 ||
+      (match.type !== undefined && match.type !== (match.isMainline ? 'playedGame' : 'sourceVariation'))) {
     return fallback('The indexed match is missing or invalid. Opened at game start.');
   }
   try {
     const positionKey = positionFingerprint(searchedFen).verificationKey;
-    const replay = extractMainlinePositions(pgn);
+    const replay = match.isMainline ? extractMainlinePositions(pgn) : extractAllPositions(pgn);
     if (replay.status !== 'complete') {
       return fallback('The original PGN could not be verified against the position index. Opened at game start.');
     }
-    // PS-05 promises the earliest mainline occurrence (ply, then path).
-    // An out-of-date later occurrence must not override that preference.
-    const earliest = replay.occurrences.find(item => item.verificationKey === positionKey);
-    if (!earliest || earliest.path !== match.path || earliest.ply !== match.ply) {
+    // Match the SQL preference: played mainline first, then earliest ply,
+    // shortest and lexically stable path. Reject stale or superseded hits.
+    const earliest = replay.occurrences.filter(item => item.verificationKey === positionKey)
+      .sort((a, b) => b.is_mainline - a.is_mainline || a.ply - b.ply ||
+        a.path.length - b.path.length || a.path.localeCompare(b.path, 'en'))[0];
+    if (!earliest || earliest.path !== match.path || earliest.ply !== match.ply ||
+        Boolean(earliest.is_mainline) !== match.isMainline) {
       return fallback('The indexed move no longer matches this position in the original PGN. Opened at game start.');
     }
     if (studyStops && earliest.path) {
@@ -33,7 +37,7 @@ export function resolveReviewNavigation(pgn, match, searchedFen, studyStops = fa
         return {
           path,
           positionKey: null, // The revealed ancestor is not the searched position.
-          notice: 'Study stops hides the matching position. Opened at the nearest revealed mainline move instead; reveal further study stops to continue.',
+          notice: 'Study stops hides the matching position. Opened at the nearest revealed move instead; reveal further study stops to continue.',
         };
       }
     }
