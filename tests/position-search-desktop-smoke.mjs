@@ -60,10 +60,20 @@ async function smoke() {
         document.querySelectorAll('.result-item').length === Math.min(n, 40);
       window.psSquare = name => document.querySelector('.position-square[data-square="' + name + '"]');
       window.psMove = async (from, to) => {
-        psSquare(from).click();
-        await psWait(() => psSquare(from).getAttribute('aria-pressed') === 'true');
+        if (psSquare(from).getAttribute('aria-pressed') !== 'true') psSquare(from).click();
+        await new Promise(resolve => setTimeout(resolve, 60));
+        if (psSquare(from).getAttribute('aria-pressed') !== 'true') {
+          const selected = document.querySelector('.position-square.selected')?.getAttribute('data-square');
+          throw new Error('Could not select ' + from + ' for ' + to + ' (selected ' +
+            selected + '; turn ' + document.querySelector('.position-turn').textContent +
+            '; FEN ' + document.querySelector('.position-fen output').textContent + ')');
+        }
         psSquare(to).click();
-        await psWait(() => psSquare(from).getAttribute('aria-pressed') === 'false');
+        await new Promise(resolve => setTimeout(resolve, 60));
+        if (psSquare(from).getAttribute('aria-pressed') !== 'false') {
+          throw new Error('Move ' + from + to + ' was not committed: ' +
+            document.querySelector('.position-board-error')?.textContent);
+        }
       };
       window.psField = (el, value) => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
