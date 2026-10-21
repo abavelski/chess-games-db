@@ -72,9 +72,9 @@ async function smoke() {
       window.rsOrigin = () => document.querySelector('.review-search-return button');
       window.rsStage = 'source sideline';
       await rsWait(() => rsCount(4), 'initial games');
-      const from = [...document.querySelectorAll('label.field')].find(el =>
+      window.rsFrom = [...document.querySelectorAll('label.field')].find(el =>
         el.textContent.includes('Year from')).querySelector('input');
-      rsSetField(from, '2015');
+      rsSetField(rsFrom, '2015');
       await rsWait(() => rsCount(3), 'filtered games');
       const original = document.querySelector('.result-item');
       original.click();
@@ -90,7 +90,7 @@ async function smoke() {
       returnButton.focus();
       returnButton.click();
       await rsWait(() => rsCount(1) && !!rsOrigin() && !rsReview(), 'source variation lookup');
-      if (from.value !== '2015' || document.querySelector('.position-coverage-notice')) throw new Error('Filters/coverage incorrect after review lookup');
+      if (rsFrom.value !== '2015' || document.querySelector('.position-coverage-notice')) throw new Error('Filters/coverage incorrect after review lookup');
       if (!document.querySelector('.position-search-active')) throw new Error('Reviewed FEN not applied to search');
       document.querySelector('.position-search-heading > div > button').click();
       await rsWait(() => !!document.querySelector('.position-variation-toggle input'), 'showing variation scope toggle');
@@ -160,10 +160,10 @@ async function smoke() {
       await rsWait(() => rsReview()?.querySelector('textarea')?.value === 'Note before cross-game search', 'discard restored saved note');
       rsButton('Back to games').click();
       await rsWait(() => !rsReview() && !rsOrigin(), 'back from origin');
-      if (from.value !== '2015') throw new Error('Returning from origin lost filters');
+      if (rsFrom.value !== '2015') throw new Error('Returning from origin lost filters');
       window.rsStage = 'saved personal sideline';
       document.querySelector('.position-search-heading .subtle-button')?.click();
-      rsSetField(from, '');
+      rsSetField(rsFrom, '');
       await rsWait(() => rsCount(4), 'all games for personal branch');
       const game3 = [...document.querySelectorAll('.result-item')]
         .find(el => el.textContent.includes('White 2'));
