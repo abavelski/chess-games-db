@@ -80,6 +80,7 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('archive:catalog', () => archive ? archive.catalog() : null);
   ipcMain.handle('archive:games', (_event, filters) => currentArchive().searchGames(filters));
+  ipcMain.handle('archive:position-search', (_event, fen, filters) => currentArchive().searchByPosition(fen, filters));
   ipcMain.handle('archive:opening-facets', (_event, filters) => currentArchive().openingFacets(filters));
   ipcMain.handle('archive:property-options', (_event, request) => currentArchive().propertyOptions(request));
   ipcMain.handle('archive:favourite', (_event, id, favourite) => currentArchive().setFavourite(id, favourite));
