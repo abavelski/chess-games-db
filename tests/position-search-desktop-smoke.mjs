@@ -50,7 +50,10 @@ async function smoke() {
       window.psWait = async predicate => {
         const deadline = Date.now() + 10000;
         while (!predicate()) {
-          if (Date.now() > deadline) throw new Error('PS-06 UI timeout: ' + predicate);
+          if (Date.now() > deadline) throw new Error('PS-06 UI timeout at ' + (window.psStage || 'initial') +
+            ': ' + predicate + '; selected=' + document.querySelector('.position-square.selected')?.dataset.square +
+            '; FEN=' + document.querySelector('.position-fen output')?.textContent +
+            '; review=' + !!document.querySelector('.review-shell'));
           await new Promise(resolve => setTimeout(resolve, 25));
         }
       };
@@ -79,11 +82,13 @@ async function smoke() {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
         setter.call(el,value); el.dispatchEvent(new Event('input', { bubbles:true }));
       };
+      window.psStage = 'initial loading';
       await psWait(() => psCount(43));
       if (document.querySelector('.position-search-board')) throw new Error('Search board must be unobtrusive until opened');
       const trigger = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Search by position'));
       trigger.click();
       await psWait(() => document.querySelectorAll('.position-square').length === 64);
+      window.psStage = 'opening board and selecting e2';
       const startFen = document.querySelector('.position-fen output').textContent;
       psSquare('e2').click();
       await psWait(() => psSquare('e2').getAttribute('aria-pressed') === 'true');
@@ -104,6 +109,7 @@ async function smoke() {
       document.querySelector('.position-search-actions button:nth-child(3)').click();
       await psWait(() => document.querySelector('.position-fen output').textContent === startFen);
       if (document.querySelector('.position-fen output').textContent !== startFen) throw new Error('Reset must restore FEN');
+      window.psStage = 'transposed order';
       // Transposed order, no opening-name selection or PGN scan.
       for (const [a,b] of [['g1','f3'],['b8','c6'],['e2','e4'],['e7','e5']]) await psMove(a,b);
       if (!document.querySelector('.position-turn').textContent.includes('White')) throw new Error('Side to move is incorrect');
@@ -124,6 +130,7 @@ async function smoke() {
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
     await window.webContents.executeJavaScript(`(async () => {
+      window.psStage = 'return from review';
       await psWait(() => !document.querySelector('.review-shell') &&
         document.activeElement?.classList.contains('result-item'));
       if (!document.querySelector('.pagination').textContent.includes('Page 2 of 2') ||
@@ -142,6 +149,7 @@ async function smoke() {
       await psWait(() => psCount(1) && !document.querySelector('.position-search-active'));
       if (document.querySelector('.position-fen output').textContent !== currentFen) throw new Error('Clearing search lost board setup');
       if (!document.querySelector('.favourites-filter input').checked || from.value !== '2000') throw new Error('Clearing position search removed unrelated filters');
+      window.psStage = 'keyboard navigation';
       // Keyboard arrow navigation and Enter/Space square interaction.
       document.querySelector('.position-search-actions button:nth-child(3)').click();
       const e2 = psSquare('e2');
