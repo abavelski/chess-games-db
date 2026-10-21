@@ -123,11 +123,28 @@ All commands require an explicit existing schema-7 archive path. `init` is idemp
 
 ### Recovery and index scope
 
-The optional index defaults to **standard-chess root and mainline** positions. PS-09 can additionally index nested original author PGN variations on explicit request; the browser and API default to mainline search and allow opt-in **Include annotated variations** after building with `--include-variations`. Pawn signatures are not yet exposed as a pawn-structure search UI. Keys include side to move, castling and Polyglot en-passant semantics; equivalent transpositions match even when move orders or matching plies differ. Repeated occurrences of the same position within one game produce one result (earliest ply), while different annotated editions remain separate.
+The optional index defaults to **standard-chess root and mainline** positions. PS-09 can additionally index nested original author PGN variations on explicit request; the browser and API default to mainline search and allow opt-in **Include annotated variations** after building with `--include-variations`. Pawn signatures are not yet exposed as a pawn-structure search UI. Keys include side to move, castling and Polyglot en-passant semantics; equivalent transpositions match even when move orders or matching plies differ. Repeated occurrences in one game produce one result, **preferentially from the played mainline**; if only author branches match, choose the earliest ply then shortest/stable path. Different annotated editions remain separate.
 
 If `status` reports `unindexed` or `stale`, repeat `build` on the **copy**. Use `rebuild --dry-run` to preview a full replay, then `rebuild` to regenerate derived rows. Invalid source PGNs or checksum failures are reported, not silently skipped as conclusive no-matches; correcting an invalid PGN requires fixing/reimporting its source separately. If the extension is incompatible or a copy becomes damaged, restore a **fresh verified archive copy** from the original and rerun `init → build → status`. You can always reopen the original unindexed archive. Neither searching nor starting Electron automatically installs, repairs or updates the index. Explicit favourite and personal-note actions remain the only review/browser writes.
 
 To measure your own archive **without modifying it**, run `npm run benchmark:positions -- --database /path/to/archive.sqlite3 --samples 80`. The benchmark opens the supplied schema-7 archive read-only, makes a temporary SQLite backup, performs indexing on that copy, and removes it afterward. Omitting `--database` benchmarks a deterministic, generated fixture (240 games by default). For example, a measured **240-game fixture copy** increased from **520,192 to 847,872 bytes** after indexing (**+327,680 bytes / 320 KiB**); real archive sizes depend on its scores. Results include hardware, build/rebuild time, additional file size, query plans, duplicate occurrences, coverage and warmed p50/p95 latency; do not treat [fixture measurements](docs/tasks/position-search/08-mvp-verification.md) as performance guarantees for your archive.
+
+### Release verification and variation-heavy benchmarks (PS-12)
+
+The final release gate verifies both search scopes and review-return behavior with automated schema-7 fixture and Electron desktop journeys; see [PS-12 completion evidence](docs/tasks/position-search/12-final-verification.md). It checks exact reviewer paths, collision safety (hash **and** four-field key), pawn signature storage, interrupted/resumed builds, partial author-variation failures, transactional rebuild rollback, stale PGN invalidation, opening enrichment, favourites, personal notes, and original source preservation. There is **no automatic installation or indexing**, and the original PGN text and annotated editions remain untouched.
+
+Compare the two scopes and storage footprints on **separate, temporary SQLite online backups**, keeping a supplied archive read-only:
+
+```sh
+# Deterministic variation-heavy schema-7 fixture (no external archive needed)
+npm run benchmark:position-variations -- --games 120 --samples 40
+# Optional: read-only snapshot of your own schema-7 archive (not modified)
+npm run benchmark:position-variations -- --database /path/to/archive.sqlite3 --samples 40
+```
+
+The benchmark records exact SQLite page-byte footprints, build and incremental timings, coverage, occurrence counts, indexed SQL plans and warmed p50/p95 per position for three conditions: baseline mainline-only index, mainline query on a full all-lines index, and **Include annotated variations** query on the same all-lines index. Reported timings are machine-dependent and **fixture-only unless an archive copy is explicitly supplied**. Invalid source sidelines on a real archive may produce partial coverage; such zeros are non-exhaustive. The local benchmark does not contact servers or launch engines.
+
+**Not shipped:** searching solely by pawn structure (the signature is indexed for future use), fuzzy board similarity, player repertoire tools, online chess databases or background index services.
 
 ### Optional author-variation index (PS-09)
 
