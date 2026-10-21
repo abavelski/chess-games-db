@@ -7,7 +7,7 @@ if not exist "%UPDATE_SHARE%\Update-App.ps1" (
     pause
     exit /b 1
 )
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%UPDATE_SHARE%\Update-App.ps1" -InstallDirectory "%~dp0app" -ShareDirectory "%UPDATE_SHARE%"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%UPDATE_SHARE%\Update-App.ps1" -InstallDirectory "%~dp0app" -ShareDirectory "%UPDATE_SHARE%" %*
 set "UPDATE_RESULT=%ERRORLEVEL%"
 echo.
 pause

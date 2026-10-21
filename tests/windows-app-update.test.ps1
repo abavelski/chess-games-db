@@ -13,6 +13,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $repo 'scripts/publish-windows-update.ps1') -Destination (Join-Path $fixture 'scripts')
     Copy-Item -LiteralPath (Join-Path $repo 'scripts/update-windows-app.ps1') -Destination (Join-Path $fixture 'scripts')
     Copy-Item -LiteralPath (Join-Path $repo 'scripts/Update.bat') -Destination (Join-Path $fixture 'scripts')
+    Copy-Item -LiteralPath (Join-Path $repo 'scripts/windows-release-data.py') -Destination (Join-Path $fixture 'scripts')
     $publish = Join-Path $fixture 'scripts/publish-windows-update.ps1'
     $update = Join-Path $fixture 'scripts/update-windows-app.ps1'
     $share = Join-Path $fixture 'share with spaces'

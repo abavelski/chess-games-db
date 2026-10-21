@@ -30,6 +30,65 @@ Hardware selection follows [PyTorch's 2.11 support matrix](https://dev-discuss.p
 
 ## App updates over your local network
 
+### App plus both existing position indexes, preserving study work
+
+For this checkout's `annotated-games-v7-final.sqlite3` and `megabase-all-ru-en.sqlite3`, run on the development PC:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/publish-windows-library-update.ps1
+```
+
+This builds the latest Windows app, makes consistent SQLite online backups of both databases, and publishes them together to `Z:\ChessExplorer\updates`. Existing position tables, SQL indexes, author-variation occurrences and coverage are copied as built: **no position index is rebuilt**. Incomplete coverage remains incomplete. The source databases are read-only; the published snapshots have favourites and personal analysis cleared so each receiving PC retains its own study work. Original book PGNs and annotations are included unchanged. Publication becomes visible only after all app/database copies pass SHA-256 verification. Source imports/index builders should finish before publishing so both snapshots represent the intended completed libraries.
+
+Python 3.10+ with SQLite is required for database updates on both PCs. The receiver automatically uses the bootstrap bundle's `.runtime\maia\Scripts\python.exe` if present, otherwise `python.exe` on PATH. Override with `-PythonPath 'C:\path\python.exe'` on either PowerShell script (or `Update.bat -PythonPath ...`). The source wrapper also accepts `-ShareDirectory` and `-SkipBuild`; the latter skips only the app build and still snapshots both databases.
+
+One-time configuration on the receiving PC:
+
+1. Save and close game reviews, then close the app and all other tools using either database. Unsaved review drafts must be saved before closing. Keep those tools closed throughout updating.
+2. Create `database-updates.json` beside the local `Update.bat` and `Start.bat`, **outside** `app`. Copy [the example](../scripts/database-updates.example.json) and change the values to the receiving PC's actual existing database paths. Keys are the published filenames; values can point to differently named local files. Use absolute paths on a local disk. Do not point to the developer's files or shared copies.
+
+   ```json
+   {
+     "annotated-games-v7-final.sqlite3": "C:\\ChessExplorer\\data\\annotated-games-v7-final.sqlite3",
+     "megabase-all-ru-en.sqlite3": "C:\\ChessExplorer\\data\\megabase-all-ru-en.sqlite3"
+   }
+   ```
+
+3. Copy the newly published `Z:\ChessExplorer\updates\Update.bat` beside `Start.bat` if your local launcher predates database updates. For a different share, edit `UPDATE_SHARE` in that local launcher.
+4. First run a full preflight from PowerShell in that folder:
+
+   ```powershell
+   .\Update.bat -CheckOnly
+   ```
+
+   This downloads, checks, and prepares both database replacements with your study data, then discards the prepared copies. It leaves the installed app and databases intact. If a previous interrupted update left a recovery journal, recovery runs first even with `-CheckOnly`.
+5. Double-click the local **Update.bat** to install. Later updates use the same publish command and double-click workflow. Existing database paths stay the same, so the app's selected archive and local preferences continue to work.
+
+The updater matches each existing game by unique `game_key` and exact `pgn_sha256`, rather than numeric ID or PGN alone. IDs may change safely. It transfers the receiving database's complete favourite state (including unstarred games), personal comments, personal lines, and their saved timestamps. Local deletions stay deleted. New games arrive without personal study data. The receiving PC's study state wins; this is a deployment workflow, not a two-way study sync.
+
+Every local game must still exist with the same original PGN in the incoming archive. Missing games, changed PGNs, mismatched archives, broken integrity/foreign keys, unavailable mappings, active SQLite sidecars, and bad checksums stop the update before replacement. This conservative rule protects local-only games and avoids attaching annotations to changed move trees or a different annotated edition. Reconcile those archive differences separately; there is no force/ignore option. Do not delete SQLite sidecars to bypass a refusal: close the owning tools cleanly and retry.
+
+All replacements are prepared before the first installed file changes. Windows database handles prevent reads/writes during the final rename sequence; another tool still holding a database open causes a refusal. Each original database and app folder is retained beside its current path as `<name>.before-update-<same-id>`. If a rename fails, the updater rolls back the set. A durable `.app-release-journal.json` beside `app` supports recovery on the next updater run after interruption, even if the app folder is temporarily absent. If rollback reports a failure, keep the journal and all backups, close all app/database processes, and rerun the updater before launching the app. Recovery may retain a failed replacement as `.failed-update-<id>` for inspection.
+
+Allow time and space for complete database transfers and validation: these libraries currently total about 4 GB. On the receiving PC allow at least **twice the incoming database size plus the app archive/extracted app** in free space during preparation, as well as space for retained backups from earlier updates. Database files are staged beside their own targets for same-volume renames. Keep the backup set until you have opened both databases, searched positions, checked favourites, and opened a saved personal comment. For manual rollback, close all tools, move the current app/databases aside, and restore all three backups with the matching ID to their original paths; this also restores study state as it was immediately before that update. Preserve any study edits made since updating before a manual rollback.
+
+For other database filenames, call the underlying publisher directly from PowerShell (a true array needs a PowerShell invocation):
+
+```powershell
+& .\scripts\publish-windows-update.ps1 -DatabasePaths @('C:\archives\first.sqlite3', 'C:\archives\second.sqlite3')
+```
+
+Use `-DatabaseConfig 'C:\path\mapping.json'` on the updater for a mapping stored elsewhere. Omitting `-DatabasePaths` on the underlying publisher keeps the original app-only workflow below, which requires no Python on the receiver.
+
+Release-script verification uses disposable fixtures, never the real archives:
+
+```powershell
+python tests/windows-release-data.test.py -v
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/windows-app-update.test.ps1
+```
+
+### App-only updates
+
 For the portable app (including the recommended bootstrap bundle above), both PCs can use the same shared folder mapped as `Z:`. Run these commands in ordinary PowerShell, without elevation, so your mapped drive is available.
 
 On the development PC, with npm dependencies installed, publish the current source:
