@@ -315,7 +315,7 @@ export default function App() {
         suspended={activeReviewKey !== session.key} onFindPosition={fen => findFromReview(session.key, fen)}
         onClose={() => closeReview(session.key)} onToggleFavourite={() => void toggleFavourite(session.game)}
         savingFavourite={savingFavourites.has(session.game.id)} favouriteError={favouriteError} />
-    </div>)}}
+    </div>)}
 
   </>;
 }
