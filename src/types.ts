@@ -79,8 +79,11 @@ export interface GameDetail extends GameRow {
 export interface PositionSearchCoverage {
   status: 'unavailable' | 'incompatible' | 'partial' | 'complete';
   isComplete: boolean;
+  scope: 'mainline' | 'includeSourceVariations';
   total: number;
   complete: number;
+  /** Indexed mainlines without verified author-variation coverage. */
+  mainlineOnly: number;
   invalid: number;
   building: number;
   partial: number;
@@ -89,7 +92,7 @@ export interface PositionSearchCoverage {
   unindexed: number;
 }
 export interface PositionSearchRow extends GameRow {
-  match: { path: string; ply: number; isMainline: true };
+  match: { path: string; ply: number; isMainline: boolean; type: 'playedGame' | 'sourceVariation' };
 }
 export interface PositionSearchResult extends Page<PositionSearchRow> {
   coverage: PositionSearchCoverage;
@@ -101,6 +104,8 @@ export interface Page<T> {
   pageSize: number;
 }
 export interface SearchFilters {
+  /** Used by position search only; omitted means played game mainlines. */
+  scope?: 'mainline' | 'includeSourceVariations';
   favouritesOnly?: boolean;
   personalOnly?: boolean;
   properties?: Partial<Record<PropertyKey, string[]>>;

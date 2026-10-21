@@ -442,6 +442,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .position-search-heading, .position-search-heading > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .position-search-heading { justify-content: space-between; }
 .position-search-active { color: #27624a; font-size: 12px; font-weight: 680; }
+.position-variation-toggle { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 4px; font-size: 13px; font-weight: 700; color: #284c3c; cursor: pointer; }
+.position-variation-toggle input { width: 17px; height: 17px; accent-color: #267152; }
+.position-variation-toggle input:focus-visible { outline: 3px solid #1745bd; outline-offset: 2px; }
+.position-variation-description { margin: 0 0 12px; color: #56685c; font-size: 12px; line-height: 1.4; }
+
 .position-search-panel { padding: 16px; margin-top: 12px; background: #fafbf8; border: 1px solid #dce2d8; border-radius: 10px; }
 .position-search-intro { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
 .position-search-intro h3 { margin: 0 0 5px; color: #2b4635; font-size: 16px; }

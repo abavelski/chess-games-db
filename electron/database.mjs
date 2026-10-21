@@ -87,7 +87,8 @@ export class ChessArchive {
   return {rows:openingLabels(this.db,activeOpeningRevision(this.db,true),rows),total,page:q.page,pageSize:q.pageSize};
  }
  /**
-  * Exact mainline position search. No source PGN is decompressed during this
+  * Exact position search over played mainlines and opt-in source variations.
+  * No source PGN is decompressed during this
   * query and no schema changes occur when opening or searching an archive.
   * For partial coverage, rows/total describe *indexed* games only; consumers
   * must inspect coverage.isComplete before treating an empty page as no hits.
@@ -98,7 +99,8 @@ export class ChessArchive {
   try { fingerprint=positionFingerprint(fen); } // strict PS-01 FEN validation
   catch(error) { throw new Error('Invalid standard-chess FEN: '+(error?.message??String(error))); }
   return this.db.transaction(() => {
-   const coverage=positionSearchCoverage(this.db);
+   const scope=filters.scope ?? 'mainline';
+   const coverage=positionSearchCoverage(this.db,scope);
    const q=this.predicate(filters); // identical filters, opening hierarchy and sort to searchGames
    const empty={rows:[],total:0,page:q.page,pageSize:q.pageSize,coverage};
    if(coverage.status==='unavailable'||coverage.status==='incompatible')return empty;
@@ -108,16 +110,18 @@ export class ChessArchive {
    if(!key)return empty;
    const from=GAME_FROM.replace(' FROM games g',
     ' FROM position_hits hit JOIN games g ON g.id=hit.game_id AND hit.hit_rank=1');
-   const params={...q.params,...POSITION_HIT_PARAMS,positionId:key.id};
+   const params={...q.params,...POSITION_HIT_PARAMS,
+    includeVariations:scope==='includeSourceVariations'?1:0,positionId:key.id};
    const total=this.db.prepare(POSITION_HITS_CTE+' SELECT count(*) n'+from+q.where).get(params).n;
    if(!total)return empty;
    const raw=this.db.prepare(POSITION_HITS_CTE+
-    ` SELECT ${this.gameColumns()},hit.path AS match_path,hit.ply AS match_ply`+
+    ` SELECT ${this.gameColumns()},hit.path AS match_path,hit.ply AS match_ply,hit.is_mainline AS match_mainline`+
     from+q.where+` ORDER BY ${q.orderBy} LIMIT @limit OFFSET @offset`)
     .all({...params,limit:q.pageSize,offset:q.offset});
    const rows=openingLabels(this.db,activeOpeningRevision(this.db,true),raw)
-    .map(({match_path,match_ply,...game})=>({
-     ...game,match:{path:match_path,ply:match_ply,isMainline:true},
+    .map(({match_path,match_ply,match_mainline,...game})=>({
+     ...game,match:{path:match_path,ply:match_ply,isMainline:match_mainline===1,
+      type:match_mainline===1?'playedGame':'sourceVariation'},
     }));
    return {rows,total,page:q.page,pageSize:q.pageSize,coverage};
   })();

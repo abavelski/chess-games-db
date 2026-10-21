@@ -40,6 +40,7 @@ export default function App() {
   const [results, setResults] = useState<Page<GameRow> | null>(null);
   const [positionPanelOpen, setPositionPanelOpen] = useState(false);
   const [positionMoves, setPositionMoves] = useState<string[]>([]);
+  const [includeSourceVariations, setIncludeSourceVariations] = useState(false);
   // Editing the board does not search. Only an explicit Search commits the FEN.
   const [appliedPositionFen, setAppliedPositionFen] = useState<string | null>(null);
   const [positionSearchRevision, setPositionSearchRevision] = useState(0);
@@ -90,7 +91,8 @@ export default function App() {
     if (!catalog) return;
     let alive = true;
     setFetching(true); setQueryError(null); setGameError(null);
-    const requestFilters = { ...baseFilters, openingNodeId: openingSelection?.id, page, pageSize: 40 };
+    const requestFilters = { ...baseFilters, openingNodeId: openingSelection?.id, page, pageSize: 40,
+      ...(appliedPositionFen === null ? {} : {scope: includeSourceVariations ? 'includeSourceVariations' as const : 'mainline' as const}) };
     const request = appliedPositionFen === null
       ? window.chessArchive.searchGames(requestFilters)
       : window.chessArchive.searchByPosition(appliedPositionFen, requestFilters);
@@ -103,7 +105,7 @@ export default function App() {
       .catch(error => { if (alive) setQueryError(errorMessage(error)); })
       .finally(() => { if (alive) setFetching(false); });
     return () => { alive = false; };
-  }, [catalog, baseFilters, openingSelection, page, appliedPositionFen, positionSearchRevision]);
+  }, [catalog, baseFilters, openingSelection, page, appliedPositionFen, includeSourceVariations, positionSearchRevision]);
 
   const patchFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => {
     setFilters(previous => ({ ...previous, [key]: value })); setPage(1);
@@ -119,7 +121,7 @@ export default function App() {
         gameRequest.current++;
         setOpeningGame(null); setGameError(null); setResults(null);
         setAppliedPositionFen(null); setPositionCoverage(null);
-        setPositionMoves([]); setPositionPanelOpen(false);
+        setPositionMoves([]); setPositionPanelOpen(false); setIncludeSourceVariations(false);
         resetFilters(); setFavouriteError(null); setCatalog(result.catalog);
       }
     } catch (error) { setOpenError(errorMessage(error)); }
@@ -169,12 +171,18 @@ export default function App() {
   const clearPositionSearch = () => {
     setAppliedPositionFen(null); setPositionCoverage(null); setPage(1);
   };
+  const toggleSourceVariations = (enabled: boolean) => {
+    setIncludeSourceVariations(enabled); setPage(1);
+    if (appliedPositionFen !== null) { setResults(null); setPositionCoverage(null); }
+  };
   const coverageIssue = appliedPositionFen !== null && positionCoverage !== null && !positionCoverage.isComplete;
   const coverageMessage = positionCoverage?.status === 'unavailable'
     ? 'This archive has no position index. On a backup, run npm run positions -- init --database PATH, then npm run positions -- build --database PATH.'
     : positionCoverage?.status === 'incompatible'
       ? 'This archive has an incompatible position index. Use a compatible archive or restore a backup.'
-      : positionCoverage ? `Position index incomplete: ${num(positionCoverage.complete)} of ${num(positionCoverage.total)} visible games indexed; ${num(positionCoverage.unindexed)} not indexed, ${num(positionCoverage.building + positionCoverage.partial)} in progress, ${num(positionCoverage.stale)} stale, ${num(positionCoverage.unsupported)} unsupported, ${num(positionCoverage.invalid)} invalid. Results below include only searchable games.` : '';
+      : positionCoverage?.scope === 'includeSourceVariations'
+        ? `Annotated variation coverage incomplete: ${num(positionCoverage.complete)} of ${num(positionCoverage.total)} visible games fully indexed; ${num(positionCoverage.mainlineOnly)} have only verified mainlines (or invalid source variations), ${num(positionCoverage.unindexed)} unindexed, ${num(positionCoverage.building + positionCoverage.partial)} in progress, ${num(positionCoverage.stale)} stale, ${num(positionCoverage.unsupported)} unsupported, ${num(positionCoverage.invalid)} invalid. Listed matches are verified but may omit author variations. On a backup, run npm run positions -- build --database PATH --include-variations.`
+        : positionCoverage ? `Position index incomplete: ${num(positionCoverage.complete)} of ${num(positionCoverage.total)} visible games indexed; ${num(positionCoverage.unindexed)} not indexed, ${num(positionCoverage.building + positionCoverage.partial)} in progress, ${num(positionCoverage.stale)} stale, ${num(positionCoverage.unsupported)} unsupported, ${num(positionCoverage.invalid)} invalid. Results below include only searchable games.` : '';
 
   return <>
     <div hidden={!!review}>
@@ -216,11 +224,14 @@ export default function App() {
             <div className="position-search-heading">
               <div><button className="secondary-button" type="button" aria-expanded={positionPanelOpen} aria-controls="position-search-content"
                 onClick={() => setPositionPanelOpen(value => !value)}><Search size={16} />Search by position</button>
-                {appliedPositionFen && <span className="position-search-active">Exact position search active</span>}
+                {appliedPositionFen && <span className="position-search-active">Exact position search active{includeSourceVariations ? " · Annotated variations included" : ""}</span>}
               </div>
               {appliedPositionFen && !positionPanelOpen && <button className="subtle-button" type="button" onClick={clearPositionSearch}><X size={15} />Clear position search</button>}
             </div>
             {positionPanelOpen && <div id="position-search-content">
+               <label className="position-variation-toggle"><input type="checkbox" checked={includeSourceVariations}
+                 onChange={event => toggleSourceVariations(event.target.checked)} />Include annotated variations</label>
+               <p className="position-variation-description">Search author-written alternatives as well as moves played in the game. Variation-only results are identified below.</p>
               <PositionSearchBoard moves={positionMoves} onMovesChange={setPositionMoves} onSearch={searchPosition}
                 onClear={clearPositionSearch} activeFen={appliedPositionFen} />
             </div>}
@@ -251,7 +262,7 @@ export default function App() {
                   {!!game.has_critical_positions && <span className="game-critical-badge">◆ {game.critical_position_count} critical {game.critical_position_count === 1 ? 'position' : 'positions'}</span>}
                   {!!game.has_medals && <span className="game-medal-badge"><Medal size={13} aria-hidden="true" /> {game.medal_count} {game.medal_count === 1 ? 'medal' : 'medals'}</span>}
                   <span className="item-small">{[game.event, game.year].filter(Boolean).join(' · ') || 'Event and date unavailable'}</span>
-                  {positionHit(game) && <span className="position-match-label">Exact position · {game.match.ply === 0 ? 'Starting position' : `Ply ${game.match.ply}`}</span>}
+                  {positionHit(game) && <span className="position-match-label">{game.match.isMainline ? "Played game" : "Author’s annotation · source variation"} · {game.match.ply === 0 ? "Starting position" : `Ply ${game.match.ply}`}</span>}
                   {(game.opening?.name || catalog.capabilities?.openings) && <span className="game-opening-name" title={game.opening?.name ?? undefined}>{game.opening?.name ? `${game.opening.name} · ${game.opening.eco}` : game.opening?.status === 'unenriched' ? 'Opening not enriched' : 'Unclassified opening'}</span>}
                   <small>{game.source_title} · {game.completeness === 'unknown' ? 'Completeness unknown' : game.completeness}{game.annotator ? ` · Annotated by ${game.annotator}` : ''}</small></span>
                 <span className="item-extra"><span className="result-val">{game.result || '—'}</span><ChevronRight size={17} /></span>
