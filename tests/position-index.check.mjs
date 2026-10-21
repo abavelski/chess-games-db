@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import Database from 'better-sqlite3';
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { Chess } from 'chessops/chess';
 import { ChessArchive } from '../electron/database.mjs';
@@ -213,4 +215,21 @@ test('CLI refuses missing, future-version and partial archives without migrating
     assert.throws(() => installPositionIndex(db), /Schema 7/);
     assert.throws(() => new ChessArchive(path), /schema 7/);
     assert.equal(positionIndexCapability(db).status, 'unavailable');
+  }));
+
+test('explicit archive-tool CLI executable installs once and refuses repeat changes', () =>
+  fixture(({ db, path }) => {
+    const script = fileURLToPath(new URL('../scripts/position-index.mjs', import.meta.url));
+    const run = () => spawnSync(process.execPath, [script, 'install', '--database', path], {
+      encoding: 'utf8',
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+    });
+    const first = run();
+    assert.equal(first.status, 0, first.stderr);
+    assert.match(first.stdout, /extension installed/);
+    const second = run();
+    assert.equal(second.status, 0, second.stderr);
+    assert.match(second.stdout, /already installed/);
+    assert.equal(positionIndexCapability(db).status, 'installed');
+    assert.equal(db.pragma('user_version', { simple: true }), 7);
   }));
