@@ -1,5 +1,5 @@
 import { extractMainlinePositions, extractAllPositions } from '../lib/position-mainline.mjs';
-import { positionFingerprint } from '../lib/position-hash.mjs';
+import { parseSearchPosition, positionFingerprint } from '../lib/position-hash.mjs';
 import { criticalReveal } from './critical-positions.mjs';
 import { reviewPgn } from './pgn.mjs';
 
@@ -51,4 +51,17 @@ export function resolveReviewNavigation(pgn, match, searchedFen, studyStops = fa
 // the original PGN. Keep exact-position semantics in one shared implementation.
 export function reviewPositionKey(position) {
   return positionFingerprint(position).verificationKey;
+}
+
+// PS-11: use the chessops position reconstructed by the actual review viewer,
+// including its active source or saved personal branch. The Polyglot four-field
+// key preserves pseudo-legal en passant metadata; a display-only FEN may not.
+export function reviewedSearchFen(analysisPosition) {
+  if (!analysisPosition || !analysisPosition.position || !Array.isArray(analysisPosition.moves)) {
+    throw new Error('No legal review position is selected');
+  }
+  const fen = positionFingerprint(analysisPosition.position).verificationKey;
+  // Verify the outbound FEN against the same strict contract used by IPC.
+  parseSearchPosition(fen);
+  return fen;
 }

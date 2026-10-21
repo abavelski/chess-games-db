@@ -16,7 +16,9 @@ export function useBoardResize() {
   const [resizing, setResizing] = useState(false);
   const measure = () => {
     const host = workspace.current;
-    if (!host) return;
+    // A review can remain mounted but hidden while cross-game search is open.
+    // Never overwrite its requested board size with the zero-sized hidden host.
+    if (!host || !host.clientWidth || !host.clientHeight) return;
     const gap = parseFloat(getComputedStyle(host).columnGap) || 10;
     const max = Math.max(120, Math.floor(Math.min(host.clientWidth - 280 - gap, host.clientHeight - (footer.current?.offsetHeight || 65) - 8)));
     const min = Math.min(320, max);

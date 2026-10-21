@@ -1,4 +1,5 @@
 import type { Position } from 'chessops/chess';
+import type { AnalysisPosition } from './analysis.mjs';
 export interface ReviewNavigation {
   path: string;
   positionKey: string | null;
@@ -12,3 +13,5 @@ export function resolveReviewNavigation(
 ): ReviewNavigation;
 
 export function reviewPositionKey(position: Position): string;
+
+export function reviewedSearchFen(current: AnalysisPosition | null): string;
