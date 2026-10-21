@@ -26,3 +26,6 @@ Status: **completed** (2026-10-21). Depends on: PS-07, PS-10.
 - Regression checks: `tests/review-navigation.test.mjs` tests legal source, saved personal and pinned-en-passant search FENs and invalid requests. `tests/position-review-search-desktop-smoke.mjs` tests filters, default/opt-in scope, source and personal branches, comparison-game return, keyboard focus, preserved original board/path, Piece mode, unsaved prompt and absent-index messaging. This smoke is included in `npm run test:desktop`.
 
 No automatic indexing, schema changes, source PGN writes or personal-analysis enrichment is introduced.
+
+
+**Automated verification:** [GitHub Actions run 39591898265](https://github.com/abavelski/chess-games-db/actions/runs/39591898265) passed `npm test` (87 pure tests and 43 archive regressions), `npm run build`, the position benchmark, and full `npm run test:desktop` on 2026-10-21, including the PS-11 review-origin smoke. All original desktop regression suites remained green.
