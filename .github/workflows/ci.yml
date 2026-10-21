@@ -16,3 +16,4 @@ jobs:
       - run: sudo chown root:root node_modules/electron/dist/chrome-sandbox && sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
       - run: xvfb-run -a npm test
       - run: npm run build
+      - run: xvfb-run -a node scripts/start-electron.mjs tests/position-search-desktop-smoke.mjs
