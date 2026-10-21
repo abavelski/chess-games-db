@@ -89,6 +89,7 @@ See [docs/database.md](docs/database.md) for the schema, stable identifiers, PGN
 | `lib/position-index-storage.mjs` | Read-only detection of the optional position-index schema (PS-02) |
 | `scripts/position-index.mjs` | Legacy explicit position-storage installer (PS-02) |
 | `scripts/positions.mjs` / `lib/position-builder.mjs` | Offline position index build, rebuild, resume, status and per-game atomic publication (PS-04) |
+| `electron/position-search.mjs` / `electron/database.mjs` | Collision-safe mainline position lookup, coverage and shared game filters (PS-05) |
 | `scripts/migrate-games.mjs` | Explicit read-only legacy snapshot conversion |
 | `src/PgnBoard.tsx` | Lichess viewer integration |
 | `db/migrations/` | Versioned schema migrations |
@@ -111,6 +112,12 @@ npm run positions -- rebuild --database data/games.positions.sqlite3 --dry-run
 ```
 
 All commands require an explicit existing schema-7 archive path. `init` is idempotent; `build` resumes by skipping current completed games, and `rebuild` replays them without dropping valid old results ahead of publication. `build --dry-run` checks PGNs and reports prospective counts without writing. `--max-games N` bounds attempted games per invocation; `--batch-size N` limits the scan window (1–1000). Repeat `build` to resume after interruption. `status` distinguishes absent schema, unindexed, stale, invalid and complete coverage, including database size and stored occurrence totals. A failed or corrupt PGN gets a per-game diagnostic and no partial hits. Indexing is local and never starts engines or network calls. Hidden games and separately annotated editions are stored individually; the future search API must filter hidden games. PGN changes invalidate rows in the writer transaction, and deletions cascade; orphaned keys are reclaimed after builds. `getCatalog().capabilities.positionIndex.status` reports schema capability only, not coverage. See [PS-04](docs/tasks/position-search/04-index-builder.md).
+
+## Position search API (PS-05; no board UI yet)
+
+With an explicitly built index (`npm run positions -- build --database PATH`), the app's read-only archive API supports `searchByPosition(fen, filters)` over the Electron preload/IPC boundary. The query accepts a validated four- or six-field standard-chess FEN, computes Polyglot keys on the trusted side, checks the full position key against collisions, and combines matches with the **same** filters and sorting as `searchGames`. It returns `{ rows, total, page, pageSize, coverage }`; each row includes `match: { path, ply, isMainline: true }` for later reviewer navigation.
+
+`coverage.status` is `unavailable`, `incompatible`, `partial`, or `complete`; `coverage.isComplete` and the visible-game counts `complete`, `invalid`, `building`, `partial`, `stale`, `unsupported`, `unindexed` are essential. In incomplete coverage, `rows` and `total` reflect **indexed games only**, so a zero result is not conclusive. Hidden games are excluded and repeated positions yield just one preferred occurrence per game (earliest ply then stable path). Neither searching nor opening the archive installs an extension, scans/decompresses source PGN, or starts any background indexing. The interactive search board and opening search navigation are separate PS-06/PS-07 tasks.
 
 ## Opening catalogue enrichment
 
