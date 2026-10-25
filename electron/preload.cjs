@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('openingStudy', Object.freeze({
   status: () => ipcRenderer.invoke('opening-study:status'),
+  settings: patch => ipcRenderer.invoke('opening-study:settings', patch),
   openLibrary: () => ipcRenderer.invoke('opening-study:open'),
   explore: request => ipcRenderer.invoke('opening-study:explore', request),
   materials: request => ipcRenderer.invoke('opening-study:materials', request),

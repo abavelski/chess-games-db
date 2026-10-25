@@ -1,9 +1,19 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { OpeningWorkerClient, registerOpeningQueryIpc } from './opening-query-client.mjs';
+import { OpeningUserStore } from '../lib/opening-user-store.mjs';
 
 export function registerOpeningWorkspace({ app, ipcMain, dialog, getWindow, authorize }) {
   const preferencePath = join(app.getPath('userData'), 'opening-library.json');
+  mkdirSync(app.getPath('userData'), { recursive: true });
+  let store = null, settingsError = null;
+  try { store = new OpeningUserStore(join(app.getPath('userData'), 'opening-user.sqlite3')); }
+  catch (cause) { settingsError = `Opening settings unavailable: ${cause.message}`; }
+  ipcMain.handle('opening-study:settings', (event, patch) => {
+    if (!authorize(event)) throw new Error('Opening request is not from an application window');
+    if (!store) throw new Error(settingsError);
+    return patch === undefined ? store.read() : store.patch(patch);
+  });
   let client = null, catalog = null, path = null, error = null, generation = 0;
   const workers = new Set();
   async function attach(file) {
@@ -52,6 +62,7 @@ export function registerOpeningWorkspace({ app, ipcMain, dialog, getWindow, auth
     async close() {
       generation++; client = null;
       await Promise.allSettled([...workers].map(worker => worker.close())); workers.clear();
+      store?.close(); store = null;
     },
   };
 }

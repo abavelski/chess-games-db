@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OpeningPositionBoard } from './OpeningPositionBoard';
 import { OpeningArticleCatalog, OpeningArticleReader } from './OpeningArticles';
 import { OPENING_START_FEN, appendOpeningMove, openingAnchor, openingBoard } from './opening-session.mjs';
-import type { OpeningCatalog, OpeningRoute, OpeningExploration, OpeningGameCard, OpeningArticleCard, OpeningCommentCard, OpeningPage } from './opening-types';
+import type { OpeningCatalog, OpeningRoute, OpeningExploration, OpeningGameCard, OpeningArticleCard, OpeningCommentCard, OpeningPage, OpeningExplorerState } from './opening-types';
 
 const tabs = ['articles','games','comments'] as const;
 const labels = { articles: 'Articles', games: 'Game records', comments: 'Source comments' };
@@ -10,23 +10,27 @@ const languages = [['en','English'],['de','German'],['fr','French'],['es','Spani
 const num = (n: number) => n.toLocaleString();
 type Kind = typeof tabs[number];
 type Material = OpeningGameCard | OpeningArticleCard | OpeningCommentCard;
-export function OpeningExplorer({ catalog, active, language, onLanguageChange, onOpenArticle, onOpenStudy }: {
+export function OpeningExplorer({ catalog, active, language, onLanguageChange, onOpenArticle, onOpenStudy, initialState, onState }: {
   catalog: OpeningCatalog; active: boolean; language: string; onLanguageChange: (language: string) => void;
   onOpenArticle?: (key: string) => void;
+  initialState?: OpeningExplorerState; onState?: (state: OpeningExplorerState) => void;
   onOpenStudy?: (request: { key: string; treeHash?: string; sourcePath?: string; expectedPositionKey?: string; token?: string; notice?: string }) => void;
 }) {
-  const [route, setRoute] = useState<OpeningRoute>({ mode: 'prefix', rootFen: OPENING_START_FEN, moves: [], filters: {} });
-  const [previous, setPrevious] = useState<{ route: OpeningRoute; page: number; kind: Kind; flipped: boolean } | null>(null);
-  const [flipped, setFlipped] = useState(false), [fenDraft, setFenDraft] = useState(''), [uciDraft, setUciDraft] = useState('');
+  const [route, setRoute] = useState<OpeningRoute>(initialState?.route ?? { mode: 'prefix', rootFen: OPENING_START_FEN, moves: [], filters: {} });
+  const [previous, setPrevious] = useState<{ route: OpeningRoute; page: number; kind: Kind; flipped: boolean } | null>(initialState?.previous ?? null);
+  const [flipped, setFlipped] = useState(initialState?.flipped ?? false), [fenDraft, setFenDraft] = useState(''), [uciDraft, setUciDraft] = useState('');
   const [error, setError] = useState<string | null>(null), [loading, setLoading] = useState(false);
   const [data, setData] = useState<{ key: string; result: OpeningExploration } | null>(null);
-  const [kind, setKind] = useState<Kind>('articles'), [page, setPage] = useState(1);
+  const [kind, setKind] = useState<Kind>(initialState?.kind ?? 'articles'), [page, setPage] = useState(initialState?.page ?? 1);
   const [material, setMaterial] = useState<{ key: string; value: OpeningPage<Material> } | null>(null);
   const [materialError, setMaterialError] = useState<string | null>(null);
-  const [articleNames, setArticleNames] = useState<Record<string, string>>({});
-  const [articleView, setArticleView] = useState<'related' | 'catalog' | 'reader'>('related');
-  const [readerKeys, setReaderKeys] = useState<Array<{ key: string; id: number }>>([]);
-  const nextReaderId = useRef(0);
+  const [articleNames, setArticleNames] = useState<Record<string, string>>(initialState?.articleNames ?? {});
+  const [articleView, setArticleView] = useState<'related' | 'catalog' | 'reader'>(initialState?.articleView ?? 'related');
+  const [readerKeys, setReaderKeys] = useState<Array<{ key: string; id: number }>>(initialState?.readerKeys ?? []);
+  const nextReaderId = useRef(Math.max(0, ...initialState?.readerKeys.map(e => e.id) ?? []));
+  const scrolls = useRef<Record<string, number>>(initialState?.scrolls ?? {});
+  const state = useMemo(() => ({ route, previous, flipped, kind, page, articleNames, articleView, readerKeys, scrolls: scrolls.current }), [route, previous, flipped, kind, page, articleNames, articleView, readerKeys]);
+  useEffect(() => { onState?.(state); }, [state, onState]);
   const sequence = useRef(0), continuationPanel = useRef<HTMLElement>(null);
   const board = useMemo(() => openingBoard(route.rootFen, route.moves), [route.rootFen, route.moves]);
   const routeKey = JSON.stringify(route), result = data?.key === routeKey ? data.result : null;
@@ -75,7 +79,11 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
   const openGame = (game: OpeningGameCard, sourcePath = game.match.sourcePath) => onOpenStudy?.({ key: game.key, treeHash: game.treeHash,
     sourcePath, expectedPositionKey: board.exactKey, token: result?.token });
   const pageCount = Math.max(1, Math.ceil((visibleMaterial?.total ?? 0) / (visibleMaterial?.pageSize ?? 20)));
-  return <div className="opening-explorer" aria-label="Opening explorer" onKeyDown={event => {
+  return <div className="opening-explorer" aria-label="Opening explorer" onScrollCapture={event => {
+    const target = event.target as HTMLElement;
+    const key = target.dataset.openingScrollKey;
+    if (key) { scrolls.current[key] = target.scrollTop; onState?.({ ...state, scrolls: { ...scrolls.current } }); }
+  }} onKeyDown={event => {
     const target = event.target;
     if (!active || event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey ||
       (target instanceof HTMLElement && target.closest('input,textarea,select,button,a,[contenteditable], [data-reading]'))) return;
@@ -182,6 +190,7 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
         <div hidden={articleView !== 'catalog'}><OpeningArticleCatalog catalog={catalog} active={active && articleView === 'catalog'} onOpen={readArticle} /></div>
         {readerKeys.map((entry, i) => <div key={entry.id} hidden={articleView !== 'reader' || i !== readerKeys.length - 1}>
           {onOpenStudy && <OpeningArticleReader catalog={catalog} articleKey={entry.key} language={language}
+            initialScroll={scrolls.current[entry.key] ?? 0}
             active={active && articleView === 'reader' && i === readerKeys.length - 1} onArticle={readArticle} onStudy={onOpenStudy} onFilter={studyArticle} onLanguageChange={onLanguageChange} />}
         </div>)}
       </section>

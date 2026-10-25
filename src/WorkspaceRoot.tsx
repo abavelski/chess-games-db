@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import App from './App';
 const OpeningWorkspace = lazy(() => import('./OpeningWorkspace').then(module => ({ default: module.OpeningWorkspace })));
 
@@ -7,8 +7,18 @@ export default function WorkspaceRoot() {
   const [openingMounted, setOpeningMounted] = useState(false);
   const focus = useRef<Partial<Record<'games' | 'openings', HTMLElement>>>({});
   const scroll = useRef({ games: 0, openings: 0 });
+  const selected = useRef(false);
+  useEffect(() => {
+    let alive = true;
+    window.openingStudy?.settings().then(state => {
+      if (alive && !selected.current && state.workspace === 'openings') { setOpeningMounted(true); setWorkspace('openings'); }
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
   function select(next: 'games' | 'openings') {
+    selected.current = true;
     if (next === workspace) return;
+    window.openingStudy?.settings({ workspace: next }).catch(() => {});
     scroll.current[workspace] = window.scrollY;
     if (next === 'openings') setOpeningMounted(true);
     setWorkspace(next);

@@ -78,10 +78,11 @@ function ReadingBlocks({ blocks, targets, onArticle, onStudy, path = '' }: {
   })}</>;
 }
 
-export function OpeningArticleReader({ catalog, articleKey, language, active, onArticle, onStudy, onFilter, onLanguageChange }: {
+export function OpeningArticleReader({ catalog, articleKey, language, active, onArticle, onStudy, onFilter, onLanguageChange, initialScroll = 0 }: {
   catalog: OpeningCatalog; articleKey: string; language: string; active: boolean;
   onArticle: (key: string) => void; onStudy: (request: OpeningStudySelection) => void; onFilter: (article: OpeningArticleCard) => void;
   onLanguageChange: (language: string) => void;
+  initialScroll?: number;
 }) {
   const [data, setData] = useState<{ key: string; page: number; value: OpeningArticle } | null>(null), [error, setError] = useState<string | null>(null);
   const [examplesPage, setExamplesPage] = useState(1), body = useRef<HTMLDivElement>(null);
@@ -96,6 +97,10 @@ export function OpeningArticleReader({ catalog, articleKey, language, active, on
   }, [active, key]);
   const article = data?.key === bodyKey ? data.value : null, examplesReady = data?.page === examplesPage;
   const targets = useMemo(() => new Map(article?.targets.map(t => [t.anchor, t]) ?? []), [article]);
+  const restoredScroll = useRef(false);
+  useEffect(() => {
+    if (article && body.current && !restoredScroll.current) { body.current.scrollTop = initialScroll; restoredScroll.current = true; }
+  }, [article, initialScroll]);
   return <article className="opening-article-reader" data-reading aria-label="Opening article reader">
     <label className="opening-reading-language">Reading language<select aria-label="Article reading language" value={language} onChange={event => onLanguageChange(event.target.value)}>{Object.entries(languageNames).filter(([code]) => code !== 'und').map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>
     {error && <p role="alert">{error}</p>}{!article && !error && <p role="status">Loading article…</p>}
@@ -104,7 +109,7 @@ export function OpeningArticleReader({ catalog, articleKey, language, active, on
       {!article.meaningful && <p className="notice">A reliable explanatory body could not be identified. The safe available content is shown below.</p>}
       {article.notices.some(n => n.code === 'safe_body_fallback') && <p className="notice">Some source formatting could not be separated reliably; a safe reading fallback is available.</p>}
       <button type="button" onClick={() => onFilter({ key: article.key, title: article.title, source: article.source })}>Study this article</button>
-      <div className="opening-reading-body" ref={body} data-opening-scroll tabIndex={0} aria-label="Article text">
+      <div className="opening-reading-body" ref={body} data-opening-scroll data-opening-scroll-key={articleKey} tabIndex={0} aria-label="Article text">
         {article.blocks.length ? <ReadingBlocks blocks={article.blocks} targets={targets} onArticle={onArticle} onStudy={onStudy} /> : <p>No explanatory text is available in this source article.</p>}
       </div>
       <h3>Model game records</h3>{article.examples.length === 0 && <p>No playable linked examples are indexed. This essay remains available for reading.</p>}

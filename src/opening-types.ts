@@ -61,6 +61,7 @@ export interface OpeningStudySelection {
   key: string; treeHash?: string; sourcePath?: string; expectedPositionKey?: string; token?: string; notice?: string;
 }
 export interface OpeningStudyAPI {
+  settings(patch?: Partial<OpeningUserState>): Promise<OpeningUserState>;
   status(): Promise<OpeningLibraryStatus>;
   openLibrary(): Promise<{ canceled: boolean } & Partial<OpeningLibraryStatus>>;
   explore(request: OpeningRoute & { revision: string; requestId?: number }): Promise<OpeningExploration>;
@@ -68,5 +69,17 @@ export interface OpeningStudyAPI {
   articleCatalog(request: { revision: string; query?: string; page?: number; pageSize?: number }): Promise<OpeningPage<OpeningArticleCard>>;
   article(request: { revision: string; key: string; language?: string; examplesPage?: number }): Promise<OpeningArticle>;
   study(request: { revision: string; key: string; treeHash?: string; sourcePath?: string; expectedPositionKey?: string; token?: string }): Promise<OpeningStudy>;
+}
+export interface OpeningExplorerState {
+  route: OpeningRoute; kind: 'articles' | 'games' | 'comments'; page: number; flipped: boolean;
+  previous: { route: OpeningRoute; page: number; kind: 'articles' | 'games' | 'comments'; flipped: boolean } | null;
+  articleView: 'related' | 'catalog' | 'reader'; readerKeys: Array<{ key: string; id: number }>;
+  articleNames: Record<string, string>; scrolls?: Record<string, number>;
+}
+export interface OpeningUserState {
+  language?: string; workspace?: 'games' | 'openings'; session?: {
+    libraryUUID: string; revision: string; corpus: string; explorer?: OpeningExplorerState;
+    review?: { key: string; treeHash: string; sourcePath: string; flipped: boolean } | null;
+  } | null;
 }
 declare global { interface Window { openingStudy: OpeningStudyAPI } }

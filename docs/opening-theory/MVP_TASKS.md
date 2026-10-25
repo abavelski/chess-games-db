@@ -268,7 +268,7 @@ Acceptance:
 - Selecting an article applies its direct model-game scope and updates the
   explorer consistently. An article without indexed examples still opens.
 
-## OT-12 — Integrate annotated example review and session return
+## OT-12 — Integrate annotated example review and session return [DONE]
 
 Dependencies: OT-05, OT-08, OT-10, OT-11. Size: large UI/integration task.
 
