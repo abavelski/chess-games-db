@@ -30,6 +30,14 @@ Keep synthetic fixtures redistributable. Mark a task done only when its
 acceptance evidence exists, update this file and the task heading, and commit
 that task before proceeding. Later tasks are not implicitly done by scaffolding.
 
+Latest article feedback fix: Study this article and article titles now open a
+dedicated study page with model-game links and Back to articles / Escape.
+Opening a reader preserves the previous selection; article scope is a separate
+explicit action. Related/catalogue return, search/focus/scroll, game round trips
+and reload are covered by the article desktop smoke. Build, article, explorer,
+review and Games desktop checks and two native user-store checks pass.
+See `READING.md`. Player retest and OT-13 acceptance remain outstanding.
+
 Latest feedback fix: annotated examples now reuse the Games `GameReview` UI;
 the opening-specific preview and its styles are removed. Source annotations,
 ordinal duplicate branches, exact resume and Back to study remain supported.

@@ -170,3 +170,19 @@ Build, focused tests and opening review/article/explorer, Games review and
 personal-review desktop checks pass. Full-library smoke confirms unchanged data.
 Detailed checks and remaining environment limitations are recorded in
 `REVIEW_AND_RESUME.md`. Player retest and OT-13 journey acceptance are outstanding.
+
+The next article feedback requested a separate study page, matching game-review
+navigation. Study this article and article titles now hide the explorer and open
+a dedicated page with safe reading content, diagrams and model-game links.
+Games return to the mounted article; Back to articles (or Escape) returns to the
+originating list, preserving selection, material page, catalogue search, scroll
+and focus. Opening the page no longer implicitly filters the explorer; the
+reader offers a separate Limit explorer to this article action. Existing article
+scope stays intact. The return-list kind is stored for session resume.
+
+Build/typecheck, article (including reload, Escape, game round trip and hostile
+content), opening review, explorer and existing Games desktop smokes pass.
+Two native user-store checks pass, including the optional return-destination
+field and invalid-value rejection. The full-library smoke follows the new Back
+to articles action; full-library performance was not remeasured for this change.
+OT-13 remains in progress pending player feedback.

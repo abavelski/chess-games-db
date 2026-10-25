@@ -34,7 +34,7 @@ async function smoke() {
       await until(()=>document.querySelector('.opening-material-card h3 button'));
       let t=performance.now();document.querySelector('.opening-material-card h3 button').click();
       await until(()=>[...document.querySelectorAll('.opening-reading-body')].some(visible));const firstArticleMs=performance.now()-t;
-      button('Back to matching material').click();document.querySelector('#opening-games-tab').click();
+      button('Back to articles').click();document.querySelector('#opening-games-tab').click();
       await until(()=>button('Open annotated example'));t=performance.now();button('Open annotated example').click();
       await until(()=>document.querySelector('.opening-workspace .review-shell .review-board')?.dataset.fen);const firstReviewMs=performance.now()-t;
       button('Back to study').click();await until(()=>count()==='8,316');

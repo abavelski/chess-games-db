@@ -73,8 +73,9 @@ async function smoke() {
       if(document.querySelectorAll('.opening-breadcrumb [aria-current="step"]').length!==1)throw Error('Move order not restored');
       explorerButton('Reset path').click();await expectExplorer(6,10);
       window.explorerStage='article scope';
-      await waitExplorer(()=>explorerButton('Study this article'));explorerButton('Study this article').click();await expectExplorer(1,3);
-      await waitExplorer(()=>explorerButton('Back to matching material'));explorerButton('Back to matching material').click();
+      await waitExplorer(()=>explorerButton('Study this article'));explorerButton('Study this article').click();
+      await waitExplorer(()=>explorerButton('Limit explorer to this article'));explorerButton('Limit explorer to this article').click();await expectExplorer(1,3);
+      await waitExplorer(()=>explorerButton('Back to articles'));explorerButton('Back to articles').click();await waitExplorer(()=>document.querySelector('.opening-layout').getClientRects().length);
       document.querySelector('[aria-label="Clear article filter"]').click();await expectExplorer(6,10);
     })()`);
     const beforeLanguage = exploreCalls;

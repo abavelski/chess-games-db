@@ -14,10 +14,10 @@ test('opening settings survive reopen and independent single-file backup; invali
     store = new OpeningUserStore(path);
     const session = { libraryUUID: 'library-a', revision: 'revision-a', corpus: 'synthetic', explorer: {
       route: { mode: 'prefix', rootFen: OPENING_START_FEN, moves: ['e2e4','c7c5'], filters: { roles: ['theory'] } },
-      kind: 'games', page: 2, flipped: true, previous: null, articleView: 'reader', readerKeys: [{ key: 'stable-article', id: 1 }], articleNames: {}, scrolls: { 'stable-article': 180 },
+      kind: 'games', page: 2, flipped: true, previous: null, articleView: 'reader', articleReturnView: 'catalog', readerKeys: [{ key: 'stable-article', id: 1 }], articleNames: {}, scrolls: { 'stable-article': 180 },
     }, review: { key: 'stable-document', treeHash: 'a'.repeat(64), sourcePath: '0.1.0', flipped: true } };
     const expected = store.patch({ language: 'de', workspace: 'openings', session });
-    for (const patch of [{ arbitrarySQL: 'drop' }, { language: 'invalid' }, { session: { ...session, explorer: { ...session.explorer, route: { ...session.explorer.route, moves: ['e2e5'] } } } }, { session: { ...session, review: { documentId: 77 } } }]) assert.throws(() => store.patch(patch));
+    for (const patch of [{ arbitrarySQL: 'drop' }, { session: { ...session, explorer: { ...session.explorer, articleReturnView: 'reader' } } }, { language: 'invalid' }, { session: { ...session, explorer: { ...session.explorer, route: { ...session.explorer.route, moves: ['e2e5'] } } } }, { session: { ...session, review: { documentId: 77 } } }]) assert.throws(() => store.patch(patch));
     assert.deepEqual(store.read(), expected);
     store.close(); store = new OpeningUserStore(path); assert.deepEqual(store.read(), expected);
     assert.equal(existsSync(path + '-wal'), false);

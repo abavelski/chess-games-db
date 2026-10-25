@@ -57,3 +57,13 @@ body:has(.workspace-root[data-workspace=openings]) { min-width: 0; }
   .opening-material { grid-column: 1 / -1; }
   .opening-workspace { padding: 18px; }
 }
+
+.opening-article-page { max-width: 1180px; margin: 0 auto; }
+.opening-article-page-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 18px;
+  h1 { font: 32px Georgia, serif; margin: 5px 0; }
+}
+.opening-article-page .opening-article-reader > h2 { font: 27px/1.3 Georgia, serif; }
+.opening-article-page .opening-reading-body { max-height: max(320px, calc(100dvh - 390px)); min-height: 0; padding: 24px; font-size: 18px; }
+.opening-article-page .opening-material-card { max-width: 760px; }
+
+.opening-workspace:has(.opening-article-page:not([hidden])) > .opening-heading { display: none; }

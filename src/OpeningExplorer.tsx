@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { OpeningPositionBoard } from './OpeningPositionBoard';
 import { OpeningArticleCatalog, OpeningArticleReader } from './OpeningArticles';
 import { OPENING_START_FEN, appendOpeningMove, openingAnchor, openingBoard } from './opening-session.mjs';
@@ -14,9 +14,8 @@ type Material = OpeningGameCard | OpeningArticleCard | OpeningCommentCard;
 // behind when restoring a session from an earlier build.
 const visibleRoute = (route: OpeningRoute): OpeningRoute => ({ ...route, filters: route.filters.articleKeys?.length ? { articleKeys: route.filters.articleKeys } : {} });
 const visiblePage = (route: OpeningRoute, page: number) => route.filters.roles?.length || route.filters.query || route.filters.annotationLanguages?.length ? 1 : page;
-export function OpeningExplorer({ catalog, active, language, onLanguageChange, onOpenArticle, onOpenStudy, initialState, onState }: {
+export function OpeningExplorer({ catalog, active, language, onLanguageChange, onOpenStudy, initialState, onState }: {
   catalog: OpeningCatalog; active: boolean; language: string; onLanguageChange: (language: string) => void;
-  onOpenArticle?: (key: string) => void;
   initialState?: OpeningExplorerState; onState?: (state: OpeningExplorerState) => void;
   onOpenStudy?: (request: { key: string; treeHash?: string; sourcePath?: string; expectedPositionKey?: string; token?: string; notice?: string }) => void;
 }) {
@@ -31,9 +30,37 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
   const [articleNames, setArticleNames] = useState<Record<string, string>>(initialState?.articleNames ?? {});
   const [articleView, setArticleView] = useState<'related' | 'catalog' | 'reader'>(initialState?.articleView ?? 'related');
   const [readerKeys, setReaderKeys] = useState<Array<{ key: string; id: number }>>(initialState?.readerKeys ?? []);
+  const [articleReturnView, setArticleReturnView] = useState<'related' | 'catalog'>(initialState?.articleReturnView ?? 'related');
+  const articleReturnLocation = useRef<{ scroll: number; focus: HTMLElement | null } | null>(null);
+  const articleBack = useRef<HTMLButtonElement>(null);
+  const returningFromArticle = useRef(false);
+  useLayoutEffect(() => {
+    if (articleView === 'reader') {
+      window.scrollTo(0, 0);
+      articleBack.current?.focus({ preventScroll: true });
+    } else if (returningFromArticle.current) {
+      returningFromArticle.current = false;
+      const saved = articleReturnLocation.current;
+      if (saved) {
+        window.scrollTo(0, saved.scroll);
+        if (saved.focus?.isConnected) saved.focus.focus({ preventScroll: true });
+      }
+    }
+  }, [articleView]);
+  const closeArticle = () => { returningFromArticle.current = true; setArticleView(articleReturnView); };
+  useEffect(() => {
+    if (!active || articleView !== 'reader') return;
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey ||
+        (event.target instanceof HTMLElement && event.target.closest('input,textarea,select,dialog,[contenteditable]'))) return;
+      event.preventDefault(); closeArticle();
+    };
+    window.addEventListener('keydown', keydown);
+    return () => window.removeEventListener('keydown', keydown);
+  }, [active, articleView, articleReturnView]);
   const nextReaderId = useRef(Math.max(0, ...initialState?.readerKeys.map(e => e.id) ?? []));
   const scrolls = useRef<Record<string, number>>(initialState?.scrolls ?? {});
-  const state = useMemo(() => ({ route, previous, flipped, kind, page, articleNames, articleView, readerKeys, scrolls: scrolls.current }), [route, previous, flipped, kind, page, articleNames, articleView, readerKeys]);
+  const state = useMemo(() => ({ route, previous, flipped, kind, page, articleNames, articleView, articleReturnView, readerKeys, scrolls: scrolls.current }), [route, previous, flipped, kind, page, articleNames, articleView, articleReturnView, readerKeys]);
   useEffect(() => { onState?.(state); }, [state, onState]);
   const sequence = useRef(0), continuationPanel = useRef<HTMLElement>(null);
   const board = useMemo(() => openingBoard(route.rootFen, route.moves), [route.rootFen, route.moves]);
@@ -77,8 +104,12 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
   };
   const readArticle = (key: string) => {
     const id = ++nextReaderId.current;
-    setReaderKeys(current => current.at(-1)?.key === key ? current : [...current, { key, id }].slice(-8));
-    setArticleView('reader'); onOpenArticle?.(key);
+    if (articleView !== 'reader') {
+      articleReturnLocation.current = { scroll: window.scrollY, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null };
+      setArticleReturnView(articleView);
+      setReaderKeys([{ key, id }]);
+    } else setReaderKeys(current => current.at(-1)?.key === key ? current : [...current, { key, id }].slice(-8));
+    setArticleView('reader');
   };
   const openGame = (game: OpeningGameCard, sourcePath = game.match.sourcePath) => onOpenStudy?.({ key: game.key, treeHash: game.treeHash,
     sourcePath, expectedPositionKey: board.exactKey, token: result?.token });
@@ -89,12 +120,13 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
     if (key) { scrolls.current[key] = target.scrollTop; onState?.({ ...state, scrolls: { ...scrolls.current } }); }
   }} onKeyDown={event => {
     const target = event.target;
-    if (!active || event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey ||
+    if (!active || articleView === 'reader' || event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey ||
       (target instanceof HTMLElement && target.closest('input,textarea,select,button,a,[contenteditable], [data-reading]'))) return;
     if (event.key === 'ArrowLeft') { jump(Math.max(0, route.moves.length - 1)); event.preventDefault(); }
     if (event.key === 'Home') { jump(0); event.preventDefault(); }
     if (event.key === 'ArrowRight' && result?.continuations[0]) { play(result.continuations[0].uci); event.preventDefault(); }
   }}>
+    <div hidden={articleView === 'reader'}>
     <div className="opening-session-label"><strong>{route.mode === 'prefix' ? 'Following move order' : 'Position anchor'}</strong>
       {route.mode === 'position' && previous && <button type="button" onClick={() => {
         setRoute(previous.route); setKind(previous.kind); setPage(previous.page); setFlipped(previous.flipped); setPrevious(null);
@@ -102,7 +134,7 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
     {error && <p className="notice error" role="alert">{error}</p>}
     <div className="opening-layout">
       <section className="opening-board-panel" aria-label="Opening board and path">
-        <OpeningPositionBoard initialFen={route.rootFen} moves={route.moves} flipped={flipped} onPlay={play} active={active} />
+        <OpeningPositionBoard initialFen={route.rootFen} moves={route.moves} flipped={flipped} onPlay={play} active={active && articleView !== 'reader'} />
         <div className="opening-board-controls"><button type="button" onClick={() => setFlipped(value => !value)}>Flip</button>
           <button type="button" disabled={!route.moves.length} onClick={() => jump(route.moves.length - 1)}>Undo</button>
           <button type="button" disabled={!route.moves.length} onClick={() => jump(0)}>Reset path</button></div>
@@ -138,7 +170,7 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
           <button type="button" aria-label="Clear article filter" onClick={() => setFilter({ articleKeys: [] })}>×</button></div>}
         <div className="opening-reading-navigation"><button type="button" onClick={() => setArticleView('catalog')}>Browse all article titles</button>
           {articleView !== 'related' && <button type="button" onClick={() => setArticleView('related')}>Back to matching material</button>}
-          {articleView === 'reader' && readerKeys.length > 1 && <button type="button" onClick={() => setReaderKeys(current => current.slice(0, -1))}>Previous article</button>}</div>
+</div>
         <div hidden={articleView !== 'related'}>
         <div className="opening-material-tabs" role="tablist" aria-label="Study material">{tabs.map((tab, index) => <button key={tab} type="button" role="tab"
           id={`opening-${tab}-tab`} aria-controls="opening-material-panel" aria-selected={kind === tab} tabIndex={kind === tab ? 0 : -1}
@@ -155,8 +187,8 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
             const article = item as OpeningArticleCard;
             return <article key={article.key} className="opening-material-card"><h3><button type="button" onClick={() => readArticle(article.key)}>{article.title}</button></h3>
               <p>{article.evidence?.includes('explicit_link') ? 'Linked example' : 'Same chapter'}</p><small>{article.source}</small>
-              <button type="button" onClick={() => { studyArticle(article); readArticle(article.key); }}>Study this article</button>
-              <small>Read the explanation and limit continuations to this article.</small></article>;
+              <button type="button" onClick={() => readArticle(article.key)}>Study this article</button>
+              <small>Read the explanation and explore its model games.</small></article>;
           })() : kind === 'games' ? (() => {
             const game = item as OpeningGameCard;
             return <article key={game.key} className="opening-material-card"><h3>{game.white || 'Unknown'} — {game.black || 'Unknown'}</h3><p>{[game.event, game.date, game.eco].filter(Boolean).join(' · ')}</p>
@@ -177,14 +209,20 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
           <span>Page {page} of {pageCount}</span><button type="button" disabled={page >= pageCount || !visibleMaterial} onClick={() => setPage(value => value + 1)}>Next</button></div>
         </div>
         <div hidden={articleView !== 'catalog'}><OpeningArticleCatalog catalog={catalog} active={active && articleView === 'catalog'} onOpen={readArticle} /></div>
-        {readerKeys.map((entry, i) => <div key={entry.id} hidden={articleView !== 'reader' || i !== readerKeys.length - 1}>
+      </section>
+    </div>
+    <p className="opening-coverage">Indexed subset: {catalog.coverage.quarantinedDocuments} quarantined records; {catalog.coverage.deletedRecords} source-deleted records excluded; {num(catalog.coverage.unsupportedAnnotations)} unsupported annotations. Source theory is not claimed complete or current.</p>
+    </div>
+    <section className="opening-article-page" hidden={articleView !== 'reader'} aria-label="Article study page">
+      <header className="opening-article-page-header"><h1>Article study</h1>
+        <button ref={articleBack} type="button" className="secondary-button" onClick={closeArticle}>Back to articles</button></header>
+      {readerKeys.length > 1 && <button type="button" className="secondary-button" onClick={() => setReaderKeys(current => current.slice(0, -1))}>Previous article</button>}
+        {readerKeys.map((entry, i) => <div key={entry.id} hidden={i !== readerKeys.length - 1}>
           {onOpenStudy && <OpeningArticleReader catalog={catalog} articleKey={entry.key} language={language}
             selectedForStudy={route.filters.articleKeys?.length === 1 && route.filters.articleKeys[0] === entry.key}
             initialScroll={scrolls.current[entry.key] ?? 0}
             active={active && articleView === 'reader' && i === readerKeys.length - 1} onArticle={readArticle} onStudy={onOpenStudy} onFilter={studyArticle} onLanguageChange={onLanguageChange} />}
         </div>)}
-      </section>
-    </div>
-    <p className="opening-coverage">Indexed subset: {catalog.coverage.quarantinedDocuments} quarantined records; {catalog.coverage.deletedRecords} source-deleted records excluded; {num(catalog.coverage.unsupportedAnnotations)} unsupported annotations. Source theory is not claimed complete or current.</p>
+    </section>
   </div>;
 }

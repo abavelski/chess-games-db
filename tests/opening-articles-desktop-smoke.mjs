@@ -55,37 +55,35 @@ async function smoke() {
       document.querySelector('.opening-workspace .review-header-actions button:last-child').click();
       await waitArticle(()=>articleVisible()&&Math.abs(readingBody.scrollTop-savedArticleScroll)<1);
       if(document.activeElement!==sourceArticleLink)throw Error('Returning did not restore article link focus');
-      [...articleVisible().querySelectorAll('button')].find(b=>b.textContent==='Study this article').click();
-      await waitArticle(()=>document.querySelector('.opening-counters strong')?.textContent==='1');
-      if(!articleVisible()||!document.querySelector('.opening-filter-chip'))throw Error('Study article did not preserve reader and apply direct scope');
-      document.querySelector('[aria-label="Clear article filter"]').click();
-      await waitArticle(()=>document.querySelector('.opening-counters strong')?.textContent==='6');
-      // The player's first usability check found that this card action only
-      // filtered silently. It must also reveal the explanatory reader, even
-      // when the exact article is already selected.
-      articleButton('Back to matching material').click();
+      if(document.querySelector('.opening-layout').getClientRects().length)throw Error('Article must have its own page without explorer board or continuations');
+      if(document.querySelector('.opening-heading').getClientRects().length)throw Error('Explorer header remained on article page');
+      const originalCounters=document.querySelector('.opening-counters').textContent;
+      articleButton('Back to articles').click();
       const studyCard=()=>[...document.querySelectorAll('.opening-material-card')].find(c=>!c.closest('[hidden]')&&c.textContent.includes('Synthetic Sicilian plans'));
       await waitArticle(()=>!articleVisible()&&studyCard());
-      [...studyCard().querySelectorAll('button')].find(b=>b.textContent==='Study this article').click();
-      await waitArticle(()=>articleVisible()?.textContent.includes('Selected for study')&&document.querySelector('.opening-counters strong')?.textContent==='1');
-      if(!articleVisible().textContent.includes('Original synthetic prose explaining'))throw Error('Study action did not open explanatory text');
-      articleButton('Back to matching material').click();
+      window.studyAction=[...studyCard().querySelectorAll('button')].find(b=>b.textContent==='Study this article');
+      studyAction.focus();studyAction.click();
+      await waitArticle(()=>articleVisible()?.textContent.includes('Original synthetic prose explaining'));
+      if(document.querySelector('.opening-layout').getClientRects().length)throw Error('Study action did not open dedicated page');
+      if(document.querySelector('.opening-counters').textContent!==originalCounters)throw Error('Study action changed previous article selection');
+      articleButton('Back to articles').click();
       await waitArticle(()=>!articleVisible()&&studyCard());
-      [...studyCard().querySelectorAll('button')].find(b=>b.textContent==='Study this article').click();
-      await waitArticle(()=>articleVisible()?.textContent.includes('Selected for study'));
-      document.querySelector('[aria-label="Clear article filter"]').click();
-      await waitArticle(()=>document.querySelector('.opening-counters strong')?.textContent==='6');
+      if(document.activeElement!==studyAction)throw Error('Article selection focus not restored');
+      studyAction.click();await waitArticle(()=>articleVisible());
       const ambiguous=articleVisible().querySelector('.opening-controlled-link details');ambiguous.open=true;
       ambiguous.querySelector('button:not(:disabled)').click();await waitArticle(()=>document.querySelector('.opening-workspace .review-shell .review-board')?.dataset.fen);
       if(!document.querySelector('.opening-workspace .review-shell').textContent.includes('Synthetic White 5'))throw Error('Ambiguous link guessed the wrong occurrence');
       document.querySelector('.opening-workspace .review-header-actions button:last-child').click();await waitArticle(()=>articleVisible());
       if(!articleVisible().querySelector('.opening-controlled-link .opening-unavailable'))throw Error('Unavailable source link disappeared');
-      articleButton('Browse all article titles').click();articleInput('[aria-label="Article title search"]','standalone');
+      articleButton('Back to articles').click();await waitArticle(()=>!articleVisible());articleButton('Browse all article titles').click();articleInput('[aria-label="Article title search"]','standalone');
       await waitArticle(()=>[...document.querySelectorAll('.opening-article-catalog h3 button')].some(b=>b.textContent==='Standalone synthetic essay'));
       [...document.querySelectorAll('.opening-article-catalog h3 button')].find(b=>b.textContent==='Standalone synthetic essay').click();
       await waitArticle(()=>articleVisible()?.textContent.includes('No playable linked examples'));
       if(!articleVisible().textContent.includes('An essay without playable examples remains available'))throw Error('Standalone essay cannot be read');
-      articleButton('Browse all article titles').click();articleInput('[aria-label="Article title search"]','Unsafe');
+      articleButton('Back to articles').click();await waitArticle(()=>document.querySelector('.opening-article-catalog').getClientRects().length);
+      if(document.querySelector('[aria-label="Article title search"]').value!=='standalone')throw Error('Article catalogue search lost on return');
+      document.querySelector('.opening-article-catalog h3 button').click();await waitArticle(()=>articleVisible());
+      articleButton('Back to articles').click();await waitArticle(()=>!articleVisible());articleButton('Browse all article titles').click();articleInput('[aria-label="Article title search"]','Unsafe');
       await waitArticle(()=>document.querySelector('.opening-article-catalog h3 button')?.textContent==='Unsafe synthetic source example');
       document.querySelector('.opening-article-catalog h3 button').click();
       await waitArticle(()=>articleVisible()?.querySelector('cg-board'));
@@ -94,6 +92,17 @@ async function smoke() {
       if(safe.querySelector('script,style,iframe,object,embed,img[src],[onclick],[onerror],[onload]'))throw Error('Source active HTML entered the app DOM');
       if(safe.querySelectorAll('.opening-article-diagram cg-board').length!==1)throw Error('Validated diagram did not render locally');
       if(!safe.textContent.includes('invalid or unsupported FEN'))throw Error('Unavailable diagram notice missing');
+    })()`);
+    // Dedicated article view and its return destination survive a restart.
+    await new Promise(resolve => setTimeout(resolve, 250));
+    window.reload(); await once(window.webContents, 'did-finish-load');
+    await window.webContents.executeJavaScript(`(async()=>{
+      const until=async p=>{const end=Date.now()+7000;while(!p()){if(Date.now()>end)throw Error('Article resume timeout');await new Promise(r=>setTimeout(r,20));}};
+      await until(()=>document.querySelector('.opening-article-page:not([hidden]) .opening-article-diagram cg-board'));
+      if(document.querySelector('.opening-layout').getClientRects().length)throw Error('Reload restored inline article');
+      document.querySelector('.opening-article-page-header button').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+      await until(()=>document.querySelector('.opening-article-catalog').getClientRects().length);
+      if(document.querySelector('.opening-article-page').getClientRects().length)throw Error('Escape did not return to article selection');
     })()`);
     assert.deepEqual(requests, []); assert.deepEqual(errors, []);
     assert.deepEqual([archivePath,args.source,args.output].map(fileHash), hashes);

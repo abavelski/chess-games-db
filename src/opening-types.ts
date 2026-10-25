@@ -73,7 +73,7 @@ export interface OpeningStudyAPI {
 export interface OpeningExplorerState {
   route: OpeningRoute; kind: 'articles' | 'games' | 'comments'; page: number; flipped: boolean;
   previous: { route: OpeningRoute; page: number; kind: 'articles' | 'games' | 'comments'; flipped: boolean } | null;
-  articleView: 'related' | 'catalog' | 'reader'; readerKeys: Array<{ key: string; id: number }>;
+  articleView: 'related' | 'catalog' | 'reader'; articleReturnView?: 'related' | 'catalog'; readerKeys: Array<{ key: string; id: number }>;
   articleNames: Record<string, string>; scrolls?: Record<string, number>;
 }
 export interface OpeningUserState {
