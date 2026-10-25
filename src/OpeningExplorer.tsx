@@ -22,7 +22,7 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
 }) {
   const [route, setRoute] = useState<OpeningRoute>(initialState ? visibleRoute(initialState.route) : { mode: 'prefix', rootFen: OPENING_START_FEN, moves: [], filters: {} });
   const [previous, setPrevious] = useState<{ route: OpeningRoute; page: number; kind: Kind; flipped: boolean } | null>(initialState?.previous ? { ...initialState.previous, route: visibleRoute(initialState.previous.route), page: visiblePage(initialState.previous.route, initialState.previous.page) } : null);
-  const [flipped, setFlipped] = useState(initialState?.flipped ?? false), [fenDraft, setFenDraft] = useState(''), [uciDraft, setUciDraft] = useState('');
+  const [flipped, setFlipped] = useState(initialState?.flipped ?? false);
   const [error, setError] = useState<string | null>(null), [loading, setLoading] = useState(false);
   const [data, setData] = useState<{ key: string; result: OpeningExploration } | null>(null);
   const [kind, setKind] = useState<Kind>(initialState?.kind ?? 'articles'), [page, setPage] = useState(initialState ? visiblePage(initialState.route, initialState.page) : 1);
@@ -61,14 +61,14 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
   const visibleMaterial = material?.key === materialKey ? material.value : null;
   const play = useCallback((uci: string) => {
     const next = appendOpeningMove(route, uci);
-    setRoute(next); setPage(1); setError(null); setUciDraft('');
+    setRoute(next); setPage(1); setError(null);
   }, [route]);
   const jump = (length: number) => { setRoute(current => ({ ...current, moves: current.moves.slice(0, length) })); setPage(1); };
   const anchor = (fen: string) => {
     try {
       const next = openingAnchor(route, fen);
       if (route.mode === 'prefix') setPrevious({ route, kind, page, flipped });
-      setRoute(next); setPage(1); setFenDraft(''); setError(null);
+      setRoute(next); setPage(1); setError(null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
   const setFilter = (patch: Partial<OpeningRoute['filters']>) => { setRoute(current => ({ ...current, filters: { ...current.filters, ...patch } })); setPage(1); };
@@ -110,11 +110,6 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
         <nav className="opening-breadcrumb" aria-label="Chosen move order"><button type="button" onClick={() => jump(0)}>Start</button>
           {board.sans.map((san, i) => <button key={i} type="button" aria-current={i === board.sans.length - 1 ? 'step' : undefined} onClick={() => jump(i + 1)}>{san}</button>)}</nav>
         <button type="button" className="secondary-button" onClick={() => anchor(board.fen)}>Find other move orders</button>
-        <details className="opening-position-tools"><summary>FEN and keyboard move entry</summary>
-          <form onSubmit={event => { event.preventDefault(); anchor(fenDraft.trim()); }}><label>Start a position search<textarea aria-label="Opening FEN" value={fenDraft} placeholder={board.fen} onChange={event => setFenDraft(event.target.value)} rows={3} maxLength={256} /></label><button type="submit" disabled={!fenDraft.trim()}>Explore FEN</button></form>
-          <form onSubmit={event => { event.preventDefault(); try { play(uciDraft.trim()); } catch (cause) { setError(String((cause as Error).message)); } }}><label>Play a legal UCI move<input aria-label="Opening UCI move" value={uciDraft} onChange={event => setUciDraft(event.target.value)} maxLength={5} placeholder="e2e4" /></label><button type="submit">Play move</button></form>
-          <code>{board.fen}</code>
-        </details>
       </section>
       <section className="opening-continuations" ref={continuationPanel} tabIndex={-1} aria-label="Opening continuations" aria-busy={loading}>
         <h2>Continuations</h2>
@@ -123,7 +118,6 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
           <span><strong>{result ? num(result.sourceLineCount) : '…'}</strong> Source lines</span>
           <span><strong>{result ? num(result.relatedArticleCount) : '…'}</strong> Related articles</span>
         </div>
-        <details><summary>What the counters mean</summary><p>Game records include copies and editions. Source lines are available root-to-leaf paths, including author variations. These counts describe study material. Related articles have direct example or chapter associations.</p></details>
         {!result && !error && <p role="status">Updating continuations…</p>}
         {result && <>
           {!!result.endingLineCount && <p>{num(result.endingLineCount)} source {result.endingLineCount === 1 ? 'line ends' : 'lines end'} here.</p>}

@@ -143,6 +143,12 @@ beside the study material. Build and the workspace, explorer, article and review
 desktop checks pass after the simplification. The backend filter API remains
 available; the UI acceptance scope now follows this explicit player request.
 
+The next simplification request removed the counter-explanation disclosure and
+the FEN/text move-entry disclosure. Board input, move-path navigation and the
+explicit same-position action remain available. The explorer desktop smoke now
+uses board gestures for legal no-hit and stale-response checks, and a saved
+setup fixture for promotion/resume coverage.
+
 ```powershell
 node scripts/run-archive-tool.mjs scripts/benchmark-opening-library.mjs data/opening-study/opening-library.sqlite3 data/opening-study/performance-final.json
 $env:CHESS_OPENING_LIBRARY = 'E:\dev\chess-games-db\data\opening-study\opening-library.sqlite3'

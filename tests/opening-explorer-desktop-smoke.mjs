@@ -44,7 +44,6 @@ async function smoke() {
       window.expectExplorer=async(games,lines)=>{try{await waitExplorer(()=>document.querySelector('.opening-continuations')?.getAttribute('aria-busy')==='false'&&explorerCounts()[0]===games&&explorerCounts()[1]===lines);}catch(error){throw Error('Stage '+window.explorerStage+' expected '+games+'/'+lines+'; actual '+JSON.stringify(explorerCounts())+'; path '+document.querySelector('.opening-breadcrumb')?.textContent+'; focus '+document.activeElement?.outerHTML.slice(0,200)+'; errors '+[...document.querySelectorAll('[role=alert]')].map(e=>e.textContent).join(' | '));}};
       window.explorerButton=text=>[...document.querySelectorAll('.opening-explorer button')].find(b=>b.textContent===text);
       window.changeExplorer=(selector,value)=>{const el=document.querySelector(selector);const proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));};
-      window.playExplorerUci=async uci=>{changeExplorer('[aria-label="Opening UCI move"]',uci);document.querySelector('[aria-label="Opening UCI move"]').closest('form').requestSubmit();await new Promise(r=>setTimeout(r,30));};
       document.querySelector('[aria-label="Workspaces"] button:nth-child(2)').click();
       await expectExplorer(6,10);window.originalOpeningBoard=document.querySelector('.opening-board-container cg-board');
       window.explorerStage='row';
@@ -82,14 +81,29 @@ async function smoke() {
     await window.webContents.executeJavaScript(`(async()=>{changeExplorer('[aria-label="Opening reading language"]','de');await new Promise(r=>setTimeout(r,100));if(explorerCounts()[1]!==10)throw Error('Reading language changed counters');})()`);
     assert.equal(exploreCalls, beforeLanguage);
     slowE4 = true;
+    // Use the board now that the optional text move-entry UI is removed.
+    await square(4,2); await square(4,4); await square(2,7); await square(2,5);
     await window.webContents.executeJavaScript(`(async()=>{
-      document.querySelector('.opening-position-tools').open=true;
-      await playExplorerUci('e2e4');await playExplorerUci('c7c5');await expectExplorer(1,1);await new Promise(r=>setTimeout(r,400));
+      await expectExplorer(1,1);await new Promise(r=>setTimeout(r,400));
       if(explorerCounts()[0]!==1||!document.querySelector('.opening-breadcrumb [aria-current="step"]').textContent.includes('c5'))throw Error('Stale response replaced the current board/results');
       explorerButton('Reset path').click();await expectExplorer(6,10);
-      await playExplorerUci('a2a3');await expectExplorer(0,0);if(!document.querySelector('.opening-continuations').textContent.includes('No indexed continuation'))throw Error('Unsupported legal branch needs an explicit message');
+    })()`);
+    await square(0,2); await square(0,3);
+    await window.webContents.executeJavaScript(`(async()=>{
+      await expectExplorer(0,0);if(!document.querySelector('.opening-continuations').textContent.includes('No indexed continuation'))throw Error('Unsupported legal branch needs an explicit message');
       explorerButton('Undo').click();await expectExplorer(6,10);
-      changeExplorer('[aria-label="Opening FEN"]','4k3/P7/8/8/8/8/8/4K3 w - - 0 1');document.querySelector('[aria-label="Opening FEN"]').closest('form').requestSubmit();await expectExplorer(0,0);
+      // Seed a valid saved setup for the existing promotion/resume check;
+      // custom FEN entry is no longer exposed in the workspace.
+      await new Promise(r=>setTimeout(r,250));
+      const saved=await openingStudy.settings();
+      await openingStudy.settings({session:{...saved.session,explorer:{...saved.session.explorer,route:{mode:'position',rootFen:'4k3/P7/8/8/8/8/8/4K3 w - - 0 1',moves:[],filters:{}}}}});
+      window.explorerTestHelpers=[waitExplorer,explorerCounts,expectExplorer,explorerButton].map(fn=>fn.toString());
+    })()`);
+    const helpers = await window.webContents.executeJavaScript('explorerTestHelpers');
+    window.reload(); await once(window.webContents, 'did-finish-load');
+    await window.webContents.executeJavaScript(`(async()=>{
+      ${['waitExplorer','explorerCounts','expectExplorer','explorerButton'].map((name, i) => `window.${name}=${helpers[i]};`).join('\n')}
+      await expectExplorer(0,0);
     })()`);
     slowE4 = false;
     await square(0,7); await square(0,8);

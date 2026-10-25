@@ -26,12 +26,8 @@ body:has(.workspace-root[data-workspace=openings]) { min-width: 0; }
 .opening-explorer button { border: 1px solid #c9d3c1; color: #2b4637; background: #fff; border-radius: 5px; padding: 6px 9px; }
 .opening-explorer h2 { font: 24px Georgia, serif; margin: 0 0 12px; }
 .opening-breadcrumb { display: flex; gap: 4px; flex-wrap: wrap; margin: 12px 0; button[aria-current] { background: #2b4637; color: white; } }
-.opening-position-tools { margin-top: 12px; font-size: 12px; summary { cursor: pointer; } form { margin: 12px 0; display: grid; gap: 5px; }
-  label { display: grid; gap: 4px; } textarea, input { width: 100%; max-width: 100%; padding: 7px; } code { overflow-wrap: anywhere; display: block; font-size: 10px; }
-}
 .opening-promotion { padding: 12px; background: #f9f5e6; border: 1px solid #b79960; button { margin: 4px; } }
 .opening-counters { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; span { display: grid; font-size: 11px; } strong { font-size: 20px; } }
-.opening-continuations >details { font-size: 12px; line-height: 1.6; margin-bottom: 14px; }
 .opening-replies { display: grid; gap: 6px;
   button { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px; }
   strong { font-size: 18px; } span { font-size: 11px; line-height: 1.5; text-align: right; }
