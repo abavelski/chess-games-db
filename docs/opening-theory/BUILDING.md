@@ -15,7 +15,8 @@ that namespace across builds. Full source SHA-256 and converter versions bind
 checkpoints. Changed inputs require a new generation.
 
 The default phase inventories only. Tree conversion is available with
-`--phase trees`; articles and ready publication remain later tasks. The manifest remains `building`, the final path is
+`--phase trees`; article conversion is `--phase articles` after all games have
+final dispositions. Ready publication remains a later task. The manifest remains `building`, the final path is
 absent, and the runtime loader refuses the staging artifact. This distinction
 must remain visible until the OT-07 publication gate is implemented.
 
@@ -82,3 +83,37 @@ explicit leaf oracle covers ordinal provenance for duplicate same-move siblings;
 cross-document parents are rejected by composite foreign keys. Sixteen strict
 reader tests and the separate Python inventory tests also pass. Full-corpus
 annotation reconciliation and publication remain OT-07.
+
+## Safe articles and relationships (OT-06)
+
+The offline converter uses Python's standard-library HTML parser, launched
+without a shell or visible window. Set `PYTHON` to an explicit executable if
+needed; default is `python` on Windows, `python3` elsewhere. Desktop reading
+requires no Python or source archive: only inert JSON blocks are retained.
+Recognized navbar/SideBar/navigation is removed in the derivative. Source
+attributes, scripts, handlers, styles, frames and resource URLs never become
+rendering props. Malformed navigation gets a safe whole-body fallback plus a
+quality notice. FEN diagrams are validated with the strict standard-chess
+contract; invalid diagrams and missing media become readable unavailable blocks.
+
+Links use original parser line/column locators and stored resolution evidence,
+never visible labels or executable CBLink strings. Numeric position hints remain
+unvalidated; the controlled target opens the exact referenced document root with
+a notice. Ambiguous targets retain candidate stable keys. Repeated explicit
+evidence is consolidated separately from same-source membership; unvalidated
+header identities never expand article membership. Title catalog entries exist
+even without playable examples. Language availability requires explanatory prose,
+not merely source navigation; source language IDs remain alongside display codes.
+
+```powershell
+node --test tests/opening-reading-blocks.test.mjs
+node scripts/run-archive-tool.mjs --test tests/opening-articles.check.mjs
+```
+
+Four security/body tests and the native relationship test pass. Real English
+samples from source article rows 40615 (2001), 43512 (2000), and 43062 (2023)
+retain respectively 2,923 / 1,955 / 4,310 visible characters, 14 / 3 / 13
+controlled links and 7 / 1 / 10 validated local diagrams. Each removes both
+recognized navigation regions. Missing legacy key bitmaps remain unavailable;
+no source media URL is emitted. No malformed/fallback notice was needed for
+these samples. Full conversion/reconciliation remains OT-07.

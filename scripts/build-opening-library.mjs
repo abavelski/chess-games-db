@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { fileHash, validateBuildPaths, createStaging, stableSourceKey, BUILD_VERSIONS } from '../lib/opening-library-storage.mjs';
 import { digest } from '../lib/opening-source-tree.mjs';
 import { createTreeConverter } from '../lib/opening-tree-converter.mjs';
+import { createArticleConverter } from '../lib/opening-article-converter.mjs';
 
 // OT-04 only inventories into staging. Playable conversion and publication are
 // distinct later phases; this command never labels inventory-only data ready.
@@ -73,6 +74,22 @@ export function initializeBuild({ source, staging, output, corpus, resume = fals
         }
       }
     }
+    if (phase === 'articles') {
+      if (db.prepare(`SELECT 1 FROM source_items s JOIN build_record_state b ON b.item_id=s.id
+        WHERE s.kind='game' AND b.state='pending' LIMIT 1`).get())
+        throw new Error('Complete tree conversion before articles so relationships have final dispositions');
+      const convert = createArticleConverter(db, input);
+      while (converted < limit) {
+        const pending = db.prepare(`SELECT s.id FROM source_items s JOIN build_record_state b ON b.item_id=s.id
+          WHERE s.kind='article' AND b.state='pending' ORDER BY s.id LIMIT 32`).all();
+        if (!pending.length) break;
+        for (const { id } of pending) {
+          if (converted >= limit) break;
+          convert(id); converted++;
+          if (converted % 10 === 0) console.log(`Converted ${converted} articles`);
+        }
+      }
+    }
     if (fileHash(source) !== sourceHash) throw new Error('Source changed during staging build; do not resume this generation');
     return { status: 'building', sourceHash, inventoried: count, converted, next: 'remaining conversion, validation and publication' };
   } finally { input.close(); if (db) { db.pragma('wal_checkpoint(TRUNCATE)'); db.close(); } }
@@ -84,7 +101,7 @@ export function main(args = process.argv.slice(2)) {
   } });
   for (const name of ['source','staging','output','corpus']) if (!values[name])
     throw new Error('Required: --source PATH --staging PATH --output NEW_PATH --corpus NAMESPACE [--resume]');
-  if (!['inventory','trees'].includes(values.phase)) throw new Error('Phase must be inventory or trees');
+  if (!['inventory','trees','articles'].includes(values.phase)) throw new Error('Phase must be inventory, trees or articles');
   const limit = values.limit === undefined ? Infinity : Number(values.limit);
   if (limit !== Infinity && (!Number.isSafeInteger(limit) || limit < 1)) throw new Error('Limit must be a positive integer');
   return initializeBuild({ ...values, limit });

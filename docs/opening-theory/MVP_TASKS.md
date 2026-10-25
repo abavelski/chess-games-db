@@ -138,7 +138,7 @@ Acceptance:
   correction or cleaned-PGN substitution occurs.
 - Node/annotation publication and checkpoints are atomic per document.
 
-## OT-06 — Convert articles and relationship evidence safely
+## OT-06 — Convert articles and relationship evidence safely [DONE]
 
 Dependencies: OT-04; consumes OT-02 article fixtures. Size: large.
 
