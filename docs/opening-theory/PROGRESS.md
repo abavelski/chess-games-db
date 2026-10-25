@@ -30,6 +30,12 @@ Keep synthetic fixtures redistributable. Mark a task done only when its
 acceptance evidence exists, update this file and the task heading, and commit
 that task before proceeding. Later tasks are not implicitly done by scaffolding.
 
+Latest navigation simplification: removed Browse all article titles and the
+unused title-catalogue UI. Saved catalogue views now restore Articles, page 1;
+reader Back/Escape returns to regular material. Build and article/explorer
+desktop smokes pass, including legacy-catalogue recovery and preserved safe
+reading/game links. OT-13 remains open for player feedback.
+
 Latest simplification: removed the Source comments tab and its preview cards.
 The material tabs are Articles and Game records; source comments, glyphs,
 variations and drawings stay in the shared game review. Legacy saved comment

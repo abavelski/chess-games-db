@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { OpeningPositionBoard } from './OpeningPositionBoard';
-import { OpeningArticleCatalog, OpeningArticleReader } from './OpeningArticles';
+import { OpeningArticleReader } from './OpeningArticles';
 import { OPENING_START_FEN, appendOpeningMove, openingAnchor, openingBoard } from './opening-session.mjs';
 import type { OpeningCatalog, OpeningRoute, OpeningExploration, OpeningGameCard, OpeningArticleCard, OpeningPage, OpeningExplorerState } from './opening-types';
 
@@ -25,13 +25,12 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
   const [flipped, setFlipped] = useState(initialState?.flipped ?? false);
   const [error, setError] = useState<string | null>(null), [loading, setLoading] = useState(false);
   const [data, setData] = useState<{ key: string; result: OpeningExploration } | null>(null);
-  const [kind, setKind] = useState<Kind>(initialState ? visibleKind(initialState.kind) : 'articles'), [page, setPage] = useState(initialState && initialState.kind !== 'comments' ? visiblePage(initialState.route, initialState.page) : 1);
+  const [kind, setKind] = useState<Kind>(initialState && initialState.articleView !== 'catalog' ? visibleKind(initialState.kind) : 'articles'), [page, setPage] = useState(initialState && initialState.articleView !== 'catalog' && initialState.kind !== 'comments' ? visiblePage(initialState.route, initialState.page) : 1);
   const [material, setMaterial] = useState<{ key: string; value: OpeningPage<Material> } | null>(null);
   const [materialError, setMaterialError] = useState<string | null>(null);
   const [articleNames, setArticleNames] = useState<Record<string, string>>(initialState?.articleNames ?? {});
-  const [articleView, setArticleView] = useState<'related' | 'catalog' | 'reader'>(initialState?.articleView ?? 'related');
+  const [articleView, setArticleView] = useState<'related' | 'reader'>(initialState?.articleView === 'reader' ? 'reader' : 'related');
   const [readerKeys, setReaderKeys] = useState<Array<{ key: string; id: number }>>(initialState?.readerKeys ?? []);
-  const [articleReturnView, setArticleReturnView] = useState<'related' | 'catalog'>(initialState?.articleReturnView ?? 'related');
   const articleReturnLocation = useRef<{ scroll: number; focus: HTMLElement | null } | null>(null);
   const articleBack = useRef<HTMLButtonElement>(null);
   const returningFromArticle = useRef(false);
@@ -48,7 +47,7 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
       }
     }
   }, [articleView]);
-  const closeArticle = () => { returningFromArticle.current = true; setArticleView(articleReturnView); };
+  const closeArticle = () => { returningFromArticle.current = true; setArticleView('related'); };
   useEffect(() => {
     if (!active || articleView !== 'reader') return;
     const keydown = (event: KeyboardEvent) => {
@@ -58,10 +57,10 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
     };
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
-  }, [active, articleView, articleReturnView]);
+  }, [active, articleView]);
   const nextReaderId = useRef(Math.max(0, ...initialState?.readerKeys.map(e => e.id) ?? []));
   const scrolls = useRef<Record<string, number>>(initialState?.scrolls ?? {});
-  const state = useMemo(() => ({ route, previous, flipped, kind, page, articleNames, articleView, articleReturnView, readerKeys, scrolls: scrolls.current }), [route, previous, flipped, kind, page, articleNames, articleView, articleReturnView, readerKeys]);
+  const state = useMemo(() => ({ route, previous, flipped, kind, page, articleNames, articleView, readerKeys, scrolls: scrolls.current }), [route, previous, flipped, kind, page, articleNames, articleView, readerKeys]);
   useEffect(() => { onState?.(state); }, [state, onState]);
   const sequence = useRef(0), continuationPanel = useRef<HTMLElement>(null);
   const board = useMemo(() => openingBoard(route.rootFen, route.moves), [route.rootFen, route.moves]);
@@ -106,7 +105,6 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
     const id = ++nextReaderId.current;
     if (articleView !== 'reader') {
       articleReturnLocation.current = { scroll: window.scrollY, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null };
-      setArticleReturnView(articleView);
       setReaderKeys([{ key, id }]);
     } else setReaderKeys(current => current.at(-1)?.key === key ? current : [...current, { key, id }].slice(-8));
     setArticleView('reader');
@@ -168,9 +166,6 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
       <section className="opening-material" aria-label="Opening study material">
         {!!route.filters.articleKeys?.length && <div className="opening-filter-chip">Article: {articleNames[route.filters.articleKeys[0]] ?? route.filters.articleKeys[0]}
           <button type="button" aria-label="Clear article filter" onClick={() => setFilter({ articleKeys: [] })}>×</button></div>}
-        <div className="opening-reading-navigation"><button type="button" onClick={() => setArticleView('catalog')}>Browse all article titles</button>
-          {articleView !== 'related' && <button type="button" onClick={() => setArticleView('related')}>Back to matching material</button>}
-</div>
         <div hidden={articleView !== 'related'}>
         <div className="opening-material-tabs" role="tablist" aria-label="Study material">{tabs.map((tab, index) => <button key={tab} type="button" role="tab"
           id={`opening-${tab}-tab`} aria-controls="opening-material-panel" aria-selected={kind === tab} tabIndex={kind === tab ? 0 : -1}
@@ -202,7 +197,6 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
         <div className="opening-pagination"><button type="button" disabled={page <= 1 || !visibleMaterial} onClick={() => setPage(value => value - 1)}>Previous</button>
           <span>Page {page} of {pageCount}</span><button type="button" disabled={page >= pageCount || !visibleMaterial} onClick={() => setPage(value => value + 1)}>Next</button></div>
         </div>
-        <div hidden={articleView !== 'catalog'}><OpeningArticleCatalog catalog={catalog} active={active && articleView === 'catalog'} onOpen={readArticle} /></div>
       </section>
     </div>
     <p className="opening-coverage">Indexed subset: {catalog.coverage.quarantinedDocuments} quarantined records; {catalog.coverage.deletedRecords} source-deleted records excluded; {num(catalog.coverage.unsupportedAnnotations)} unsupported annotations. Source theory is not claimed complete or current.</p>

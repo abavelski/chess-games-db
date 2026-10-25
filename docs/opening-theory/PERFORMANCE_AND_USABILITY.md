@@ -195,3 +195,12 @@ Game records, page 1, rather than leaving an invisible tab selected. The backend
 annotation query contract remains compatible with existing libraries.
 Build/typecheck and explorer/review desktop smokes pass, covering the two-tab
 workspace, saved comment-view recovery and preserved game annotations.
+
+The player next requested removal of Browse all article titles. Removed that
+button, the dedicated title-browser component and its styles. Articles continue
+to open from the regular material list and controlled article links. Legacy
+catalogue sessions restore the Articles tab on page 1; reader Back/Escape returns
+to material instead of an inaccessible catalogue. Backend title-query support
+remains compatible. This explicitly supersedes the earlier standalone title-UI
+acceptance scope. Build/typecheck and article/explorer desktop smokes pass,
+including saved-catalogue recovery, safe reading and game-review round trips.

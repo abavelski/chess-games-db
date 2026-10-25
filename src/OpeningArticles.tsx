@@ -1,33 +1,10 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import type { ArticleTarget, OpeningArticle, OpeningArticleCard, OpeningCatalog, OpeningPage, OpeningStudySelection, ReadingBlock } from './opening-types';
+import type { ArticleTarget, OpeningArticle, OpeningArticleCard, OpeningCatalog, OpeningStudySelection, ReadingBlock } from './opening-types';
 import { OpeningPositionBoard } from './OpeningPositionBoard';
 import { openingBoard } from './opening-session.mjs';
 
 const emptyMoves: string[] = [];
 const languageNames: Record<string, string> = { en: 'English', de: 'German', fr: 'French', es: 'Spanish', it: 'Italian', nl: 'Dutch', pt: 'Portuguese', und: 'untagged' };
-export function OpeningArticleCatalog({ catalog, active, onOpen }: { catalog: OpeningCatalog; active: boolean; onOpen: (key: string) => void }) {
-  const [query, setQuery] = useState(''), [page, setPage] = useState(1);
-  const [result, setResult] = useState<{ key: string; value: OpeningPage<OpeningArticleCard> } | null>(null), [error, setError] = useState<string | null>(null);
-  const key = JSON.stringify([query, page, catalog.revision]);
-  useEffect(() => {
-    if (!active) return;
-    let alive = true; setError(null);
-    window.openingStudy.articleCatalog({ revision: catalog.revision, query, page }).then(value => { if (alive) setResult({ key, value }); })
-      .catch(cause => { if (alive) setError(String(cause.message)); });
-    return () => { alive = false; };
-  }, [active, key]);
-  const visible = result?.key === key ? result.value : null;
-  return <section className="opening-article-catalog" aria-label="All opening articles"><h2>All article titles</h2>
-    <p>Includes essays without indexed examples.</p><label>Find an article<input aria-label="Article title search" value={query} maxLength={256} onChange={event => { setQuery(event.target.value); setPage(1); }} /></label>
-    {error && <p role="alert">{error}</p>}{!visible && !error && <p role="status">Loading titles…</p>}
-    <div aria-busy={!visible}>{visible?.items.map(article => <article className="opening-material-card" key={article.key}>
-      <h3><button type="button" onClick={() => onOpen(article.key)}>{article.title}</button></h3><small>{article.source}</small></article>)}</div>
-    {visible?.total === 0 && <p>No matching article titles.</p>}
-    <div className="opening-pagination"><button type="button" disabled={page <= 1 || !visible} onClick={() => setPage(value => value - 1)}>Previous titles</button>
-      <span>Page {page} of {Math.max(1, Math.ceil((visible?.total ?? 0) / 20))}</span><button type="button" disabled={!visible || page * 20 >= visible.total} onClick={() => setPage(value => value + 1)}>Next titles</button></div>
-  </section>;
-}
-
 function OpeningDiagram({ fen }: { fen: string }) {
   const valid = useMemo(() => { try { openingBoard(fen, []); return true; } catch { return false; } }, [fen]);
   return valid ? <figure className="opening-article-diagram"><OpeningPositionBoard initialFen={fen} moves={emptyMoves} /><figcaption>Source diagram · local board</figcaption><details><summary>Diagram FEN</summary><code>{fen}</code></details></figure>

@@ -75,34 +75,35 @@ async function smoke() {
       if(!document.querySelector('.opening-workspace .review-shell').textContent.includes('Synthetic White 5'))throw Error('Ambiguous link guessed the wrong occurrence');
       document.querySelector('.opening-workspace .review-header-actions button:last-child').click();await waitArticle(()=>articleVisible());
       if(!articleVisible().querySelector('.opening-controlled-link .opening-unavailable'))throw Error('Unavailable source link disappeared');
-      articleButton('Back to articles').click();await waitArticle(()=>!articleVisible());articleButton('Browse all article titles').click();articleInput('[aria-label="Article title search"]','standalone');
-      await waitArticle(()=>[...document.querySelectorAll('.opening-article-catalog h3 button')].some(b=>b.textContent==='Standalone synthetic essay'));
-      [...document.querySelectorAll('.opening-article-catalog h3 button')].find(b=>b.textContent==='Standalone synthetic essay').click();
-      await waitArticle(()=>articleVisible()?.textContent.includes('No playable linked examples'));
-      if(!articleVisible().textContent.includes('An essay without playable examples remains available'))throw Error('Standalone essay cannot be read');
-      articleButton('Back to articles').click();await waitArticle(()=>document.querySelector('.opening-article-catalog').getClientRects().length);
-      if(document.querySelector('[aria-label="Article title search"]').value!=='standalone')throw Error('Article catalogue search lost on return');
-      document.querySelector('.opening-article-catalog h3 button').click();await waitArticle(()=>articleVisible());
-      articleButton('Back to articles').click();await waitArticle(()=>!articleVisible());articleButton('Browse all article titles').click();articleInput('[aria-label="Article title search"]','Unsafe');
-      await waitArticle(()=>document.querySelector('.opening-article-catalog h3 button')?.textContent==='Unsafe synthetic source example');
-      document.querySelector('.opening-article-catalog h3 button').click();
-      await waitArticle(()=>articleVisible()?.querySelector('cg-board'));
-      const safe=articleVisible();
-      if(!safe.textContent.includes('Safe words')||!safe.textContent.includes('retained'))throw Error('Malformed source lost readable text');
-      if(safe.querySelector('script,style,iframe,object,embed,img[src],[onclick],[onerror],[onload]'))throw Error('Source active HTML entered the app DOM');
-      if(safe.querySelectorAll('.opening-article-diagram cg-board').length!==1)throw Error('Validated diagram did not render locally');
-      if(!safe.textContent.includes('invalid or unsupported FEN'))throw Error('Unavailable diagram notice missing');
+      if([...document.querySelectorAll('button')].some(b=>b.textContent==='Browse all article titles'))throw Error('Removed catalogue button remains');
+      // Resume a hostile source article directly to preserve reader security coverage.
+      await new Promise(resolve=>setTimeout(resolve,250));
+      const saved=await openingStudy.settings(), catalog=(await openingStudy.status()).catalog;
+      const unsafe=(await openingStudy.articleCatalog({revision:catalog.revision,query:'Unsafe'})).items[0];
+      await openingStudy.settings({session:{...saved.session,explorer:{...saved.session.explorer,articleView:'reader',articleReturnView:'catalog',readerKeys:[{key:unsafe.key,id:1}]}}});
     })()`);
-    // Dedicated article view and its return destination survive a restart.
-    await new Promise(resolve => setTimeout(resolve, 250));
     window.reload(); await once(window.webContents, 'did-finish-load');
     await window.webContents.executeJavaScript(`(async()=>{
       const until=async p=>{const end=Date.now()+7000;while(!p()){if(Date.now()>end)throw Error('Article resume timeout');await new Promise(r=>setTimeout(r,20));}};
       await until(()=>document.querySelector('.opening-article-page:not([hidden]) .opening-article-diagram cg-board'));
+      const safe=document.querySelector('.opening-article-reader');
+      if(!safe.textContent.includes('Safe words')||!safe.textContent.includes('retained'))throw Error('Malformed source lost readable text');
+      if(safe.querySelector('script,style,iframe,object,embed,img[src],[onclick],[onerror],[onload]'))throw Error('Source active HTML entered the app DOM');
+      if(safe.querySelectorAll('.opening-article-diagram cg-board').length!==1)throw Error('Validated diagram did not render locally');
+      if(!safe.textContent.includes('invalid or unsupported FEN'))throw Error('Unavailable diagram notice missing');
       if(document.querySelector('.opening-layout').getClientRects().length)throw Error('Reload restored inline article');
       document.querySelector('.opening-article-page-header button').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
-      await until(()=>document.querySelector('.opening-article-catalog').getClientRects().length);
+      await until(()=>document.querySelector('.opening-layout').getClientRects().length);
       if(document.querySelector('.opening-article-page').getClientRects().length)throw Error('Escape did not return to article selection');
+      await new Promise(resolve=>setTimeout(resolve,250));
+      const saved=await openingStudy.settings();
+      await openingStudy.settings({session:{...saved.session,explorer:{...saved.session.explorer,articleView:'catalog',kind:'games',page:7}}});
+    })()`);
+    window.reload(); await once(window.webContents, 'did-finish-load');
+    await window.webContents.executeJavaScript(`(async()=>{
+      const end=Date.now()+7000;
+      while(!document.querySelector('#opening-articles-tab[aria-selected="true"]')){if(Date.now()>end)throw Error('Legacy catalogue did not restore Articles');await new Promise(r=>setTimeout(r,20));}
+      if(document.querySelector('.opening-article-catalog')||[...document.querySelectorAll('button')].some(b=>b.textContent==='Browse all article titles'))throw Error('Removed title catalogue returned');
     })()`);
     assert.deepEqual(requests, []); assert.deepEqual(errors, []);
     assert.deepEqual([archivePath,args.source,args.output].map(fileHash), hashes);
