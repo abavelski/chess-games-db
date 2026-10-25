@@ -183,7 +183,7 @@ Acceptance:
 - Failure/interruption retains a resumable staging artifact without publishing
   an apparently successful output; a previous runtime generation still opens.
 
-## OT-08 — Implement the opening query service and counter contract
+## OT-08 — Implement the opening query service and counter contract [DONE]
 
 Dependencies: OT-05; OT-06 for article results, OT-07 for full-data verification.
 Size: large.
