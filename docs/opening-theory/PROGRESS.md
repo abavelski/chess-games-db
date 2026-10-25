@@ -9,13 +9,14 @@ Packaging: same repository/build, separate Games / Openings workspaces.
 | OT-02 | Done | [Source quality](SOURCE_QUALITY.md); local full inventory reconciles; Python tests pass |
 | OT-03 | Done | [Feasibility review](FEASIBILITY.md); 942 real records; 16 tree tests pass |
 | OT-04 | Done | [Builder](BUILDING.md); 82,888 items staged; three native SQLite checks pass |
-| OT-05 | Next | Complete source-tree and typed-annotation conversion |
-| OT-06–OT-14 | Pending | Execute in task-list order after dependencies pass |
+| OT-05 | Done | [Tree converter](BUILDING.md); six native checks + 16 reader tests; first 100 real records checkpointed |
+| OT-06 | Next | Safe article/relationship conversion |
+| OT-07–OT-14 | Pending | Execute in task-list order after dependencies pass |
 
 ## Resume
 
 Read this file, `MVP_TASKS.md`, and the last task commit on the branch. Check
-`git status` before editing. Continue OT-05. Source:
+`git status` before editing. Continue OT-06. Source:
 `data/tmp/opening-theory.sqlite`; open read-only, never migrate or repair it.
 All source payloads and real-data reports belong under ignored `data/`.
 Keep synthetic fixtures redistributable. Mark a task done only when its

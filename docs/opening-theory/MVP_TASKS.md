@@ -114,7 +114,7 @@ Acceptance:
 - Repeated builds preserve stable external record keys. SQLite integrity and
   FK checks pass on generated fixtures; source fingerprints remain unchanged.
 
-## OT-05 — Convert complete source trees and typed annotations
+## OT-05 — Convert complete source trees and typed annotations [DONE]
 
 Dependencies: OT-04. Size: large; highest fidelity risk.
 

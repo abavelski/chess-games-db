@@ -4,10 +4,11 @@ import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { fileHash, validateBuildPaths, createStaging, stableSourceKey, BUILD_VERSIONS } from '../lib/opening-library-storage.mjs';
 import { digest } from '../lib/opening-source-tree.mjs';
+import { createTreeConverter } from '../lib/opening-tree-converter.mjs';
 
 // OT-04 only inventories into staging. Playable conversion and publication are
 // distinct later phases; this command never labels inventory-only data ready.
-export function initializeBuild({ source, staging, output, corpus, resume = false }) {
+export function initializeBuild({ source, staging, output, corpus, resume = false, phase = 'inventory', limit = Infinity }) {
   validateBuildPaths(source, staging, output, resume);
   stableSourceKey(corpus, 'validate');
   const sourceHash = fileHash(source);
@@ -53,17 +54,40 @@ export function initializeBuild({ source, staging, output, corpus, resume = fals
       count += batch.length;
       lastId = batch.at(-1).id;
     }
-    if (fileHash(source) !== sourceHash) throw new Error('Source changed during staging inventory; do not resume this generation');
-    return { status: 'building', sourceHash, inventoried: count, next: 'tree/article conversion, validation and publication' };
+    let converted = 0;
+    if (phase === 'trees') {
+      const convert = createTreeConverter(db);
+      const gameGet = input.prepare('SELECT g.*,s.errors_json FROM games g JOIN source_records s ON s.id=g.id WHERE g.id=?');
+      const annotationGet = input.prepare('SELECT sequence,move_index,annotation_type,language,text,payload_json FROM game_annotations WHERE game_id=? ORDER BY sequence');
+      while (converted < limit) {
+        const pending = db.prepare(`SELECT s.id FROM source_items s JOIN build_record_state b ON b.item_id=s.id
+          WHERE s.kind='game' AND b.state='pending' ORDER BY s.id LIMIT 64`).all();
+        if (!pending.length) break;
+        for (const { id } of pending) {
+          if (converted >= limit) break;
+          const game = gameGet.get(id);
+          if (!game) throw new Error(`Source game ${id} missing from inventory snapshot`);
+          convert(id, game, annotationGet.all(id));
+          converted++;
+          if (converted % 100 === 0) console.log(`Converted ${converted} game records`);
+        }
+      }
+    }
+    if (fileHash(source) !== sourceHash) throw new Error('Source changed during staging build; do not resume this generation');
+    return { status: 'building', sourceHash, inventoried: count, converted, next: 'remaining conversion, validation and publication' };
   } finally { input.close(); if (db) { db.pragma('wal_checkpoint(TRUNCATE)'); db.close(); } }
 }
 export function main(args = process.argv.slice(2)) {
   const { values } = parseArgs({ args, strict: true, options: {
     source: { type: 'string' }, staging: { type: 'string' }, output: { type: 'string' }, corpus: { type: 'string' }, resume: { type: 'boolean', default: false },
+    phase: { type: 'string', default: 'inventory' }, limit: { type: 'string' },
   } });
   for (const name of ['source','staging','output','corpus']) if (!values[name])
     throw new Error('Required: --source PATH --staging PATH --output NEW_PATH --corpus NAMESPACE [--resume]');
-  return initializeBuild(values);
+  if (!['inventory','trees'].includes(values.phase)) throw new Error('Phase must be inventory or trees');
+  const limit = values.limit === undefined ? Infinity : Number(values.limit);
+  if (limit !== Infinity && (!Number.isSafeInteger(limit) || limit < 1)) throw new Error('Limit must be a positive integer');
+  return initializeBuild({ ...values, limit });
 }
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
   try { console.log(JSON.stringify(main(), null, 2)); }
