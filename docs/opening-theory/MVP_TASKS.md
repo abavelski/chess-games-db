@@ -44,7 +44,7 @@ Acceptance:
 - The chosen shell approach and deferred features are recorded. No engine,
   training or repertoire editor is added to the initial scope by implication.
 
-## OT-02 — Build a source-quality inventory and fixture set
+## OT-02 — Build a source-quality inventory and fixture set [DONE]
 
 Dependencies: OT-01. Size: medium; primarily data work.
 
