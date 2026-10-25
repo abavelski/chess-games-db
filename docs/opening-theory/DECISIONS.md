@@ -21,7 +21,7 @@ observed at OT-13; no user usability approval is claimed here.
 
 ### Static workspace sketch
 
-Illustrative study opening: Sicilian Defence, pending any player preference.
+Study opening: Sicilian Defence, confirmed by the player on 2026-10-25.
 
 ```text
 Games | OPENINGS                       Library…  Coverage…

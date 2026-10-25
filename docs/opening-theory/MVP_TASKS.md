@@ -72,7 +72,7 @@ Acceptance:
 - Historical audit findings are identified as historical; current scope is not
   inferred from the earlier two-Theory-database snapshot.
 
-## OT-03 — Prove source traversal and index scale
+## OT-03 — Prove source traversal and index scale [DONE]
 
 Dependencies: OT-02. Size: medium, with a stop-and-review gate.
 

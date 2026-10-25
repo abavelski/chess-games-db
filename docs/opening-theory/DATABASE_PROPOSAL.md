@@ -185,6 +185,12 @@ the UI includes stable document key, tree hash and source path. Viewer paths are
 versioned derived mappings. Duplicate same-move siblings can share a prefix but
 retain different source paths and annotations.
 
+OT-03 measured amendment: viewer move paths collide in real duplicate siblings
+(60 of 935 accepted sample documents). They are not unique node identities.
+Review must select ordinal source paths and project the chosen branch onto a
+controlled board; see [feasibility review](FEASIBILITY.md). Root and nonroot
+prefix SQL must be separate so SQLite uses their respective partial indexes.
+
 Each document root has source move index `-1`. Other source indexes preserve
 Morphy's zero-based **PGN traversal order**, including variations. For
 `1.e4 c5 (1...c6 2.d4) 2.Nf3`, indexes are 0, 1, 2, 3, 4 respectively. They are
