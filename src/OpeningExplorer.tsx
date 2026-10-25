@@ -167,7 +167,8 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
             const article = item as OpeningArticleCard;
             return <article key={article.key} className="opening-material-card"><h3><button type="button" onClick={() => readArticle(article.key)}>{article.title}</button></h3>
               <p>{article.evidence?.includes('explicit_link') ? 'Linked example' : 'Same chapter'}</p><small>{article.source}</small>
-              <button type="button" onClick={() => studyArticle(article)}>Study this article</button></article>;
+              <button type="button" onClick={() => { studyArticle(article); readArticle(article.key); }}>Study this article</button>
+              <small>Read the explanation and limit continuations to this article.</small></article>;
           })() : kind === 'games' ? (() => {
             const game = item as OpeningGameCard;
             return <article key={game.key} className="opening-material-card"><h3>{game.white || 'Unknown'} — {game.black || 'Unknown'}</h3><p>{[game.event, game.date, game.eco].filter(Boolean).join(' · ')}</p>
@@ -190,6 +191,7 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
         <div hidden={articleView !== 'catalog'}><OpeningArticleCatalog catalog={catalog} active={active && articleView === 'catalog'} onOpen={readArticle} /></div>
         {readerKeys.map((entry, i) => <div key={entry.id} hidden={articleView !== 'reader' || i !== readerKeys.length - 1}>
           {onOpenStudy && <OpeningArticleReader catalog={catalog} articleKey={entry.key} language={language}
+            selectedForStudy={route.filters.articleKeys?.length === 1 && route.filters.articleKeys[0] === entry.key}
             initialScroll={scrolls.current[entry.key] ?? 0}
             active={active && articleView === 'reader' && i === readerKeys.length - 1} onArticle={readArticle} onStudy={onOpenStudy} onFilter={studyArticle} onLanguageChange={onLanguageChange} />}
         </div>)}

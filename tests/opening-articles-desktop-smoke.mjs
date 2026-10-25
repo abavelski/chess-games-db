@@ -60,6 +60,21 @@ async function smoke() {
       if(!articleVisible()||!document.querySelector('.opening-filter-chip'))throw Error('Study article did not preserve reader and apply direct scope');
       document.querySelector('[aria-label="Clear article filter"]').click();
       await waitArticle(()=>document.querySelector('.opening-counters strong')?.textContent==='6');
+      // The player's first usability check found that this card action only
+      // filtered silently. It must also reveal the explanatory reader, even
+      // when the exact article is already selected.
+      articleButton('Back to matching material').click();
+      const studyCard=()=>[...document.querySelectorAll('.opening-material-card')].find(c=>!c.closest('[hidden]')&&c.textContent.includes('Synthetic Sicilian plans'));
+      await waitArticle(()=>!articleVisible()&&studyCard());
+      [...studyCard().querySelectorAll('button')].find(b=>b.textContent==='Study this article').click();
+      await waitArticle(()=>articleVisible()?.textContent.includes('Selected for study')&&document.querySelector('.opening-counters strong')?.textContent==='1');
+      if(!articleVisible().textContent.includes('Original synthetic prose explaining'))throw Error('Study action did not open explanatory text');
+      articleButton('Back to matching material').click();
+      await waitArticle(()=>!articleVisible()&&studyCard());
+      [...studyCard().querySelectorAll('button')].find(b=>b.textContent==='Study this article').click();
+      await waitArticle(()=>articleVisible()?.textContent.includes('Selected for study'));
+      document.querySelector('[aria-label="Clear article filter"]').click();
+      await waitArticle(()=>document.querySelector('.opening-counters strong')?.textContent==='6');
       const ambiguous=articleVisible().querySelector('.opening-controlled-link details');ambiguous.open=true;
       ambiguous.querySelector('button:not(:disabled)').click();await waitArticle(()=>document.querySelector('.opening-example-preview .opening-board-container'));
       if(!document.querySelector('.opening-example-preview').textContent.includes('Synthetic White 5'))throw Error('Ambiguous link guessed the wrong occurrence');

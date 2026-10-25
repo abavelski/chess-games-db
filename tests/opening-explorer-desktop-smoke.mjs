@@ -79,6 +79,7 @@ async function smoke() {
       window.explorerStage='filters';
       document.querySelector('.opening-filters fieldset input').click();await expectExplorer(3,5);
       await waitExplorer(()=>explorerButton('Study this article'));explorerButton('Study this article').click();await expectExplorer(1,3);
+      await waitExplorer(()=>explorerButton('Back to matching material'));explorerButton('Back to matching material').click();
       document.querySelectorAll('.opening-filters fieldset input')[1].click();await expectExplorer(1,3);
       document.querySelector('.opening-filters fieldset input').click();await expectExplorer(0,0);
       if(!document.querySelector('.opening-filter-chip'))throw Error('Zero-match article filter disappeared');

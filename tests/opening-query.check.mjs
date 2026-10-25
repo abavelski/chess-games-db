@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, copyFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, copyFileSync, writeFileSync, statSync, utimesSync, renameSync } from 'node:fs';
 import Database from 'better-sqlite3';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -178,4 +178,37 @@ test('worker uses the native read-only service and coalesces stale explorations'
     assert.equal(results[2].status, 'fulfilled'); assert.equal(results[2].value.requestId, 3);
     assert.equal(results[2].value.sourceLineCount, 10);
   } finally { await client.close(); }
+});
+
+test('missing, corrupt and changed runtime files fail recoverably; runtime does not require its source', async () => {
+  assert.throws(() => new OpeningQueryService(join(folder, 'missing.sqlite')));
+  const corruptPath = join(folder, 'corrupt.sqlite'); writeFileSync(corruptPath, 'not a SQLite library');
+  const corrupt = new OpeningWorkerClient(corruptPath);
+  try { await assert.rejects(corrupt.ready); } finally { await corrupt.close(); }
+  const changedPath = join(folder, 'changed.sqlite'); copyFileSync(args.output, changedPath);
+  const changed = new OpeningQueryService(changedPath);
+  try {
+    const time = statSync(changedPath); utimesSync(changedPath, time.atime, new Date(time.mtimeMs + 2000));
+    assert.throws(() => changed.explore({ revision }), /changed/);
+  } finally { changed.close(); }
+  const absentSource = args.source + '.absent'; renameSync(args.source, absentSource);
+  try {
+    const independent = new OpeningQueryService(args.output);
+    try { assert.equal(independent.explore({ revision }).gameRecordCount, 6); } finally { independent.close(); }
+  } finally { renameSync(absentSource, args.source); }
+});
+
+test('worker failure rejects queued requests and a new worker recovers', async () => {
+  const client = new OpeningWorkerClient(args.output); await client.ready;
+  const pending = Promise.allSettled([client.call('explore', { revision }), client.call('explore', { revision, requestId: 2 })]);
+  await Promise.resolve();
+  assert.ok(client.pending.size > 0);
+  const exited = new Promise(resolve => client.worker.once('exit', resolve));
+  await client.worker.terminate(); await exited;
+  assert.ok((await pending).every(result => result.status === 'rejected'));
+  await assert.rejects(client.call('explore', { revision }), /closed|stopped/);
+  await client.close();
+  const replacement = new OpeningWorkerClient(args.output);
+  try { await replacement.ready; assert.equal((await replacement.call('explore', { revision })).gameRecordCount, 6); }
+  finally { await replacement.close(); }
 });

@@ -17,7 +17,7 @@ Packaging: same repository/build, separate Games / Openings workspaces.
 | OT-10 | Done | [Explorer](EXPLORER.md); legal input/session tests, build, explorer and Games desktop smokes pass |
 | OT-11 | Done | [Reading](READING.md); build, publication/query checks and hostile-content article desktop smoke pass |
 | OT-12 | Done | [Review/resume](REVIEW_AND_RESUME.md); independent store/query checks, build and five desktop smokes pass |
-| OT-13 | Next | Full-data timings, failure handling and actual player usability evidence |
+| OT-13 | In progress | [Performance/usability checkpoint](PERFORMANCE_AND_USABILITY.md); automated checks and article-action fix; player journey/retest outstanding |
 | OT-14 | Pending | Execute after OT-13 acceptance evidence exists |
 
 ## Resume
@@ -29,6 +29,14 @@ All source payloads and real-data reports belong under ignored `data/`.
 Keep synthetic fixtures redistributable. Mark a task done only when its
 acceptance evidence exists, update this file and the task heading, and commit
 that task before proceeding. Later tasks are not implicitly done by scaffolding.
+
+OT-13 continuation: retest the article action in the rebuilt desktop, collect
+the player's two-opening/transposition/counter/return feedback, address any
+blockers and record it in `PERFORMANCE_AND_USABILITY.md`. Measurements and
+recovery checks are implemented; exact native distributions are in ignored
+`data/opening-study/performance-final.json` and desktop timings in
+`performance-ui.json`. Do not treat the initial confusing button report as
+approval of the whole study journey. OT-14 remains pending.
 
 OT-07 is complete. Ready runtime: `data/opening-study/opening-library.sqlite3`
 with `.report.json` and `.sha256`. Its completed v2 staging name was removed

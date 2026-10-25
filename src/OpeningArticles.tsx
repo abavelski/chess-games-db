@@ -78,11 +78,12 @@ function ReadingBlocks({ blocks, targets, onArticle, onStudy, path = '' }: {
   })}</>;
 }
 
-export function OpeningArticleReader({ catalog, articleKey, language, active, onArticle, onStudy, onFilter, onLanguageChange, initialScroll = 0 }: {
+export function OpeningArticleReader({ catalog, articleKey, language, active, onArticle, onStudy, onFilter, onLanguageChange, initialScroll = 0, selectedForStudy = false }: {
   catalog: OpeningCatalog; articleKey: string; language: string; active: boolean;
   onArticle: (key: string) => void; onStudy: (request: OpeningStudySelection) => void; onFilter: (article: OpeningArticleCard) => void;
   onLanguageChange: (language: string) => void;
   initialScroll?: number;
+  selectedForStudy?: boolean;
 }) {
   const [data, setData] = useState<{ key: string; page: number; value: OpeningArticle } | null>(null), [error, setError] = useState<string | null>(null);
   const [examplesPage, setExamplesPage] = useState(1), body = useRef<HTMLDivElement>(null);
@@ -108,7 +109,8 @@ export function OpeningArticleReader({ catalog, articleKey, language, active, on
       {article.fallback && <p className="notice" role="status">{languageNames[language] ?? language} has no explanatory body. Showing {languageNames[article.language ?? ''] ?? article.language ?? 'available content'} ({article.sourceLanguage}).</p>}
       {!article.meaningful && <p className="notice">A reliable explanatory body could not be identified. The safe available content is shown below.</p>}
       {article.notices.some(n => n.code === 'safe_body_fallback') && <p className="notice">Some source formatting could not be separated reliably; a safe reading fallback is available.</p>}
-      <button type="button" onClick={() => onFilter({ key: article.key, title: article.title, source: article.source })}>Study this article</button>
+      <button type="button" disabled={selectedForStudy} onClick={() => onFilter({ key: article.key, title: article.title, source: article.source })}>{selectedForStudy ? 'Selected for study' : 'Study this article'}</button>
+      {selectedForStudy && <p role="status">The board, continuations and matching game records are limited to this article. Read its explanation below, play a continuation, or open one of its model games.</p>}
       <div className="opening-reading-body" ref={body} data-opening-scroll data-opening-scroll-key={articleKey} tabIndex={0} aria-label="Article text">
         {article.blocks.length ? <ReadingBlocks blocks={article.blocks} targets={targets} onArticle={onArticle} onStudy={onStudy} /> : <p>No explanatory text is available in this source article.</p>}
       </div>
