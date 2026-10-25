@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import LichessPgnViewer from '@lichess-org/pgn-viewer';
 import { makeGame } from '@lichess-org/pgn-viewer/pgn';
 import { Path } from '@lichess-org/pgn-viewer/path';
-import { prepareDisplayPgn } from './pgn.mjs';
+import { assignOrdinalPaths, prepareDisplayPgn } from './pgn.mjs';
 
 export type Viewer = ReturnType<typeof LichessPgnViewer>;
 
-export function PgnBoard({ pgn, review = false, initialPath = '', reviewPath, onReady, onPathChange, configureBoard, canSelectPath }: {
-  pgn: string; review?: boolean; initialPath?: string; reviewPath?: string;
+export function PgnBoard({ pgn, review = false, initialPath = '', reviewPath, onReady, onPathChange, configureBoard, canSelectPath, ordinalPaths = false }: {
+  ordinalPaths?: boolean; pgn: string; review?: boolean; initialPath?: string; reviewPath?: string;
   onReady?: (viewer: Viewer | null) => void;
   onPathChange?: (path: string) => void;
   canSelectPath?: (path: string) => boolean;
@@ -46,6 +46,7 @@ export function PgnBoard({ pgn, review = false, initialPath = '', reviewPath, on
           analysisBoard: { enabled: false },
         },
       });
+      if (ordinalPaths) assignOrdinalPaths(viewer.game, Path);
       viewer.opts.pgn = latestPgn.current; // Keep the viewer's PGN export authoritative too.
       const go = viewer.toPath;
       viewer.toPath = (path, focus) => {
@@ -69,7 +70,7 @@ export function PgnBoard({ pgn, review = false, initialPath = '', reviewPath, on
       viewer?.ground?.destroy();
       host.replaceChildren();
     };
-  }, [review, initialPath, onReady, onPathChange]);
+  }, [review, initialPath, onReady, onPathChange, ordinalPaths]);
 
   useEffect(() => {
     const viewer = activeViewer.current;
@@ -77,6 +78,7 @@ export function PgnBoard({ pgn, review = false, initialPath = '', reviewPath, on
     try {
       // Update the score without replacing Chessground or resetting its pieces.
       const game = makeGame(prepareDisplayPgn(pgn), viewer.opts.lichess);
+      if (ordinalPaths) assignOrdinalPaths(game, Path);
       let target = new Path(reviewPath ?? viewer.path.path);
       while (!game.nodeAt(target) && !target.empty()) target = target.init();
       viewer.game = game;
@@ -86,7 +88,7 @@ export function PgnBoard({ pgn, review = false, initialPath = '', reviewPath, on
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
-  }, [pgn, reviewPath]);
+  }, [pgn, reviewPath, ordinalPaths]);
 
   useEffect(() => { if (activeViewer.current) configure.current?.(activeViewer.current); }, [configureBoard]);
 

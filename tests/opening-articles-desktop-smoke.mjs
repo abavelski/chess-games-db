@@ -49,10 +49,10 @@ async function smoke() {
       if(savedArticleScroll<100)throw Error('Fixture must exercise real article scrolling');
       window.sourceArticleLink=[...reader.querySelectorAll('.opening-prose-link')].find(b=>b.textContent==='Example');
       sourceArticleLink.focus({preventScroll:true});sourceArticleLink.click();
-      await waitArticle(()=>document.querySelector('.opening-example-preview .opening-board-container'));
-      if(!document.querySelector('.opening-example-preview').textContent.includes('unvalidated'))throw Error('Raw numeric hint must not become an invented source ply');
-      if(!document.querySelector('.opening-example-preview .opening-board-container').dataset.fen.startsWith('rnbqkbnr/pppppppp/'))throw Error('Unvalidated hint did not open source root');
-      document.querySelector('.opening-example-preview > button').click();
+      await waitArticle(()=>document.querySelector('.opening-workspace .review-shell .review-board')?.dataset.fen);
+      if(!document.querySelector('.opening-workspace .review-shell').textContent.includes('unvalidated'))throw Error('Raw numeric hint must not become an invented source ply');
+      if(!document.querySelector('.opening-workspace .review-shell .review-board').dataset.fen.startsWith('rnbqkbnr/pppppppp/'))throw Error('Unvalidated hint did not open source root');
+      document.querySelector('.opening-workspace .review-header-actions button:last-child').click();
       await waitArticle(()=>articleVisible()&&Math.abs(readingBody.scrollTop-savedArticleScroll)<1);
       if(document.activeElement!==sourceArticleLink)throw Error('Returning did not restore article link focus');
       [...articleVisible().querySelectorAll('button')].find(b=>b.textContent==='Study this article').click();
@@ -76,9 +76,9 @@ async function smoke() {
       document.querySelector('[aria-label="Clear article filter"]').click();
       await waitArticle(()=>document.querySelector('.opening-counters strong')?.textContent==='6');
       const ambiguous=articleVisible().querySelector('.opening-controlled-link details');ambiguous.open=true;
-      ambiguous.querySelector('button:not(:disabled)').click();await waitArticle(()=>document.querySelector('.opening-example-preview .opening-board-container'));
-      if(!document.querySelector('.opening-example-preview').textContent.includes('Synthetic White 5'))throw Error('Ambiguous link guessed the wrong occurrence');
-      document.querySelector('.opening-example-preview > button').click();await waitArticle(()=>articleVisible());
+      ambiguous.querySelector('button:not(:disabled)').click();await waitArticle(()=>document.querySelector('.opening-workspace .review-shell .review-board')?.dataset.fen);
+      if(!document.querySelector('.opening-workspace .review-shell').textContent.includes('Synthetic White 5'))throw Error('Ambiguous link guessed the wrong occurrence');
+      document.querySelector('.opening-workspace .review-header-actions button:last-child').click();await waitArticle(()=>articleVisible());
       if(!articleVisible().querySelector('.opening-controlled-link .opening-unavailable'))throw Error('Unavailable source link disappeared');
       articleButton('Browse all article titles').click();articleInput('[aria-label="Article title search"]','standalone');
       await waitArticle(()=>[...document.querySelectorAll('.opening-article-catalog h3 button')].some(b=>b.textContent==='Standalone synthetic essay'));

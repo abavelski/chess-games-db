@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { OpeningLibraryStatus, OpeningStudy, OpeningStudySelection, OpeningUserState, OpeningExplorerState } from './opening-types';
 import { OpeningExplorer } from './OpeningExplorer';
-import { OpeningExamplePreview } from './OpeningExamplePreview';
+import { OpeningGameReview } from './OpeningGameReview';
 
 export function OpeningWorkspace({ active }: { active: boolean }) {
   const [status, setStatus] = useState<OpeningLibraryStatus>({ catalog: null, path: null, error: null });
@@ -106,8 +106,8 @@ export function OpeningWorkspace({ active }: { active: boolean }) {
     } catch (error) { setStatus(previous => ({ ...previous, error: error instanceof Error ? error.message : String(error) })); }
     finally { setOpening(false); }
   }
-  return <main className="opening-workspace" aria-label="Opening study workspace" data-active={active}>
-    <header className="opening-heading"><h1 tabIndex={-1}>Openings</h1>
+  return <section className={"opening-workspace" + (selection ? " reviewing-game" : "")} aria-label="Opening study workspace" data-active={active}>
+    <header hidden={!!selection} className="opening-heading"><h1 tabIndex={-1}>Openings</h1>
       <button type="button" className="primary-button" disabled={opening} onClick={() => void openLibrary()}>{opening ? 'Opening…' : 'Open opening library'}</button></header>
     {status.error && <p className="notice error" role="alert">{status.error}</p>}
     {saveError && <p className="notice error" role="alert">Opening settings could not be saved: {saveError}</p>}
@@ -117,8 +117,8 @@ export function OpeningWorkspace({ active }: { active: boolean }) {
       <p>Games and its selected archive stay available in their own workspace.</p>
       {status.path && <p>Remembered file: {status.path}</p>}</section>
       : <><div hidden={!!selection}>{settingsReady && <OpeningExplorer key={`${status.catalog.libraryUUID}:${status.catalog.revision}:${epoch}`} initialState={initialExplorer} onState={explorerState} catalog={status.catalog} active={active && !selection} language={language} onLanguageChange={changeLanguage} onOpenStudy={openStudy} />}</div>
-      {selection && (studyData?.key === selectionKey ? <OpeningExamplePreview key={selectionKey} study={studyData.value} notice={selection.notice} onClose={closeStudy} language={language} active={active} initialFlipped={reviewFlipped} onPosition={reviewPosition} />
+      {selection && (studyData?.key === selectionKey ? <OpeningGameReview key={selectionKey} study={studyData.value} notice={selection.notice} onClose={closeStudy} language={language} active={active} initialFlipped={reviewFlipped} onPosition={reviewPosition} />
         : <section aria-label="Opening source example"><button type="button" onClick={closeStudy}>Back to study</button>{studyError ? <p role="alert">{studyError}</p> : <p role="status">Loading source example…</p>}</section>)}
       </>}
-  </main>;
+  </section>;
 }

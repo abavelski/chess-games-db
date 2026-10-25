@@ -1,26 +1,34 @@
 # Annotated review and resume (OT-12)
 
-Source review starts at the query service's verified ordinal source path and
-replays legal UCI moves from the document's own FEN. It follows every original
-child in order, including duplicate same-move siblings, through continuation
-buttons, the ancestor breadcrumb, Previous/Next, Home and arrow keys. It does
-not use the PGN viewer's colliding move-path encoding. Custom setup counters
-are preserved. A missing path, mismatched tree hash or wrong expected position
-opens the root with an explanation; an unavailable document stays recoverable
-with Back to study.
+Annotated examples now open the same `GameReview` used by Games. The
+opening-specific preview, board layout, move buttons and annotation cards were
+removed. `OpeningGameReview` supplies only the validated runtime tree, language
+selection, source attribution and study navigation to the shared screen.
 
-Comments retain sequence, before/after/root placement, source language and
-document/annotator attribution. Reading language chooses matching text, then
-untagged text, then a labelled source fallback; all languages can be shown.
-NAGs include descriptions. Arrows and square highlights come only from the
-selected source node and disappear on navigation. Unsupported evaluations,
-arrays and unknown annotations have explicit notices; no score perspective
-or array offset is invented. Unmapped annotations are separately inspectable.
+The shared board, resizer, score/variation transcript, NAG descriptions,
+keyboard navigation, review settings, engine controls and Piece mode are reused.
+Comments retain before/after/root placement and source sequence. Reading language
+chooses matching text, then untagged text, then a labelled source fallback;
+all languages can be shown. Source prose is encoded as literal text so braces
+and PGN-like directives cannot introduce moves, evaluations or drawings.
+Arrows and squares use the shared board overlays and clear on navigation.
+Unsupported/unmapped annotations remain explicit; no evaluation perspective or
+array offset is inferred.
 
-The explorer remains mounted during review. Back restores its route, filters,
-counts, material page, orientation, mounted article history, article scroll and
-focused control before paint. Review navigation never changes search scope.
-There are no opening calls to Games favourites, saves, notes or engine APIs.
+Opening review uses ordinal child identities throughout the shared viewer and
+transcript, preserving duplicate same-move siblings. Native verified source paths
+map to these identities; custom FEN counters survive replay. Temporary board or
+engine exploration extends the selected branch in memory. Opening examples do
+not use Games favourites, personal-comment persistence or cross-archive search;
+the source library stays read-only. Engine analysis is opt-in and uses the same
+local engine configuration as Games.
+
+The explorer remains mounted during review. Back to study restores its route,
+filters, counts, material page, orientation, mounted article history, article
+scroll and focused control. Review navigation does not change search scope.
+Session persistence stores the last source ancestor when exploring a temporary
+variation. Missing paths/hash/position mismatches still fall back through the
+query service with an explanation.
 
 ## Independent personal state
 
@@ -66,3 +74,25 @@ node scripts/run-archive-tool.mjs --test tests/opening-user-store.check.mjs test
 npm.cmd run build
 node scripts/start-electron.mjs tests/opening-review-desktop-smoke.mjs
 ```
+
+## Shared review feedback validation (OT-13)
+
+Build/typecheck and 30 focused review/notation/personal unit tests pass. The
+opening review desktop smoke now exercises the shared transcript, drawings,
+nested and duplicate branches, exact path/orientation after restart, custom FEN
+counters, a temporary board variation and unchanged source/runtime/Games hashes.
+Article and explorer desktop smokes, existing Games review and personal-review
+smokes also pass. The personal-test return-focus selector was updated for the current header
+action container.
+
+The full-library desktop smoke passes and confirms the runtime checksum is
+unchanged. Its new local report is `data/opening-study/performance-ui-shared-review.json`;
+the run overlapped other desktop checks, so its timing distributions are not a
+replacement for the dedicated performance baseline.
+
+The broad unit run passes 119/120; the existing opening-storage migration test
+cannot start `python3` on this Windows environment. The optional engine desktop
+smoke also remains unverified here: its toolbar-count assertion is stale (six
+buttons versus the existing seven), and a diagnostic run past that assertion
+times out waiting for the fake engine output on Windows.
+No engine implementation changed in this feedback fix.

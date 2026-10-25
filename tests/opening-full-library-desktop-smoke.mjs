@@ -21,7 +21,7 @@ async function smoke() {
     const metrics = await window.webContents.executeJavaScript(`(async()=>{
       const until=async p=>{const end=performance.now()+15000;while(!p()){if(performance.now()>end)throw Error('Full library UI timeout: '+p);await new Promise(r=>setTimeout(r,5));}};
       const visible=e=>e&&!e.closest('[hidden]');
-      const button=text=>[...document.querySelectorAll('.opening-workspace button')].find(e=>visible(e)&&e.textContent===text);
+      const button=text=>[...document.querySelectorAll('.opening-workspace button')].find(e=>visible(e)&&e.textContent.trim()===text);
       const count=()=>document.querySelector('.opening-counters strong')?.textContent;
       const frames=[];let running=true,last=performance.now();const frame=now=>{frames.push(now-last);last=now;if(running)requestAnimationFrame(frame);};requestAnimationFrame(frame);
       const start=performance.now();document.querySelector('[aria-label="Workspaces"] button:nth-child(2)').click();
@@ -36,7 +36,7 @@ async function smoke() {
       await until(()=>[...document.querySelectorAll('.opening-reading-body')].some(visible));const firstArticleMs=performance.now()-t;
       button('Back to matching material').click();document.querySelector('#opening-games-tab').click();
       await until(()=>button('Open annotated example'));t=performance.now();button('Open annotated example').click();
-      await until(()=>document.querySelector('.opening-example-preview .opening-board-container'));const firstReviewMs=performance.now()-t;
+      await until(()=>document.querySelector('.opening-workspace .review-shell .review-board')?.dataset.fen);const firstReviewMs=performance.now()-t;
       button('Back to study').click();await until(()=>count()==='8,316');
       const cachedDisplayMs=[];
       for(let i=0;i<10;i++){

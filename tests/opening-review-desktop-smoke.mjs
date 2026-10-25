@@ -18,8 +18,9 @@ writeFileSync(join(temporary, 'opening-library.json'), JSON.stringify({ path: ar
 const paths = [archivePath, args.source, args.output], hashes = paths.map(fileHash), errors = [];
 app.on('browser-window-created', (_event, window) => window.webContents.on('console-message', event => { if (event.level === 'error') errors.push(event.message); }));
 const helpers = `window.until=async p=>{const end=Date.now()+7000;while(!p()){if(Date.now()>end)throw Error('Review timeout: '+p);await new Promise(r=>setTimeout(r,20));}};
-window.review=()=>document.querySelector('.opening-example-preview');
-window.press=text=>{const b=[...review().querySelectorAll('button')].find(b=>b.textContent===text);if(!b)throw Error('Missing '+text);b.click();};`;
+window.review=()=>document.querySelector('.opening-workspace .review-shell');
+window.selectSource=path=>review().querySelector('[data-review-path=\"'+path.split('.').map(n=>String.fromCharCode(256+(Number(n)>>8),256+(Number(n)&255))).join('')+'\"]').click();
+window.press=text=>{const b=[...review().querySelectorAll('button')].find(b=>b.textContent.trim()===text||b.getAttribute('aria-label')===text);if(!b)throw Error('Missing '+text);b.click();};`;
 async function smoke() {
   const timeout = setTimeout(() => { console.error('Opening review desktop smoke timed out'); app.exit(1); }, 40000);
   let code = 0;
@@ -31,26 +32,26 @@ async function smoke() {
       await until(()=>document.querySelector('#opening-games-tab')); document.querySelector('#opening-games-tab').click();
       await until(()=>[...document.querySelectorAll('.opening-material-card')].some(c=>c.textContent.includes('Synthetic White 1')));
       [...document.querySelectorAll('.opening-material-card')].find(c=>c.textContent.includes('Synthetic White 1')).querySelector('button').click();
-      await until(()=>review());
+      await until(()=>review()?.querySelector('.review-move:not(:disabled)'));
       if(!review().textContent.includes('Synthetic root explanation.')||!review().textContent.includes('Unsupported source annotation: Evaluations'))throw Error('Root annotation coverage lost');
-      press('Next move');await until(()=>review().textContent.includes('c6 · branch 0.1'));
-      press('c6 · branch 0.1 · variation');await until(()=>review().textContent.includes('The c-pawn supports d5.'));
+      if(!review().querySelector('.review-transcript')||!review().querySelector('[aria-label="Resize board"]'))throw Error('Shared review UI missing');
+      selectSource('0.1');await until(()=>review().querySelector('[aria-current="step"]')?.textContent.includes('c6'));
       if(!review().textContent.includes('Prepare a different pawn structure.')||!review().textContent.includes('A second comment in the same language.'))throw Error('Ordered comments lost');
       if(review().textContent.includes('Der c-Bauer'))throw Error('Language selection mixed translations');
-      const annotations=[...review().querySelectorAll('.opening-source-annotation')];
-      if(annotations[0].dataset.placement!=='before'||annotations[1].dataset.placement!=='after')throw Error('Comment placement lost');
-      press('d4 · branch 0.1.0 · variation');await until(()=>review().textContent.includes('Good move'));
+      const comments=[...review().querySelectorAll('.review-comment')].map(e=>e.textContent);
+      if(comments.findIndex(t=>t.includes('Prepare a different'))>comments.findIndex(t=>t.includes('The c-pawn')))throw Error('Comment placement lost');
+      selectSource('0.1.0');await until(()=>review().querySelector('[aria-label="Good move"]'));
       await until(()=>review().querySelector('svg.cg-shapes > g line')&&review().querySelector('svg.cg-shapes > g circle'));
       press('Previous move');await until(()=>!review().querySelector('svg.cg-shapes > g line, svg.cg-shapes > g circle'));
-      press('Nf3 · branch 0.1.1 · variation');await until(()=>review().textContent.includes('Unsupported source annotation: FutureType'));
-      press('Flip review board');await until(()=>review().querySelector('.orientation-black'));
+      selectSource('0.1.1');await until(()=>review().querySelector('[aria-current="step"]')?.textContent.includes('Nf3'));
+      review().dispatchEvent(new KeyboardEvent('keydown',{key:'f',bubbles:true}));await until(()=>review().querySelector('.orientation-black'));
       await new Promise(r=>setTimeout(r,250));
       const state=await openingStudy.settings();
       if(state.session.review.sourcePath!=='0.1.1'||!state.session.review.flipped)throw Error('Exact review path not saved');
     })()`);
     window.reload(); await once(window.webContents, 'did-finish-load');
     await window.webContents.executeJavaScript(`(async()=>{${helpers}
-      await until(()=>review()?.textContent.includes('Unsupported source annotation: FutureType'));
+      await until(()=>review()?.querySelector('[aria-current="step"]')?.textContent.includes('Nf3'));
       if(document.querySelector('.workspace-root').dataset.workspace!=='openings'||!review().querySelector('.orientation-black'))throw Error('Workspace/orientation resume lost');
       press('Back to study'); await until(()=>document.querySelector('#opening-games-tab[aria-selected="true"]'));
       await new Promise(r=>setTimeout(r,250));
@@ -70,8 +71,9 @@ async function smoke() {
     })()`);
     window.reload(); await once(window.webContents, 'did-finish-load');
     await window.webContents.executeJavaScript(`(async()=>{${helpers}
-      await until(()=>review()?.textContent.includes('Nc3 · branch 0.1.0'));
-      if(review().textContent.includes('Nf3 · branch 0.0.0'))throw Error('Duplicate siblings collapsed to viewer path');
+      await until(()=>review()?.querySelector('.review-move:not(:disabled)'));
+      press('Next move');await until(()=>review().querySelector('[aria-current="step"]')?.textContent.includes('Nc3'));
+      if(review().querySelectorAll('[aria-current="step"]').length!==1)throw Error('Duplicate siblings collapsed to viewer path');
       press('Back to study');await until(()=>document.querySelector('.opening-explorer .orientation-black'));
       const c=(await openingStudy.status()).catalog, fen='4k3/8/8/8/8/8/4P3/4K3 b - - 17 42';
       const result=await openingStudy.explore({revision:c.revision,mode:'prefix',rootFen:fen,moves:[],filters:{}});
@@ -81,9 +83,20 @@ async function smoke() {
     })()`);
     window.reload(); await once(window.webContents, 'did-finish-load');
     await window.webContents.executeJavaScript(`(async()=>{${helpers}
-      await until(()=>review()?.querySelector('.opening-board-container'));
-      if(!review().querySelector('.opening-board-container').dataset.fen.endsWith('w - - 18 43'))throw Error('Custom setup root or move counters lost');
-      press('Source root');await until(()=>review().querySelector('.opening-board-container').dataset.fen.endsWith('b - - 17 42'));
+      await until(()=>review()?.querySelector('.review-board')?.dataset.fen);
+      if(!review().querySelector('.review-board').dataset.fen.endsWith('w - - 18 43'))throw Error('Custom setup root or move counters lost');
+      press('First position');await until(()=>review().querySelector('.review-board').dataset.fen.endsWith('b - - 17 42'));
+    })()`);
+    // Board input can add a temporary analysis variation in the shared viewer.
+    for (const [file, rank] of [[4,8],[4,7]]) {
+      const point = await window.webContents.executeJavaScript(`(()=>{const b=review().querySelector('cg-board').getBoundingClientRect();return {x:Math.round(b.left+(${file}+.5)*b.width/8),y:Math.round(b.top+(8-${rank}+.5)*b.height/8)};})()`);
+      window.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...point });
+      window.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...point });
+    }
+    await window.webContents.executeJavaScript(`(async()=>{${helpers}
+      await until(()=>review().querySelector('[aria-current="step"]')?.textContent.includes('Ke7'));
+      if(review().querySelector('[aria-label="Save my comments"]'))throw Error('Source review exposed Games archive saves');
+      press('Previous move');await until(()=>review().querySelector('.review-board').dataset.fen.endsWith('b - - 17 42'));
     })()`);
     assert.deepEqual(paths.map(fileHash), hashes); assert.deepEqual(errors, []);
     console.log('Opening review and restart desktop smoke passed');

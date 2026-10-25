@@ -30,6 +30,14 @@ Keep synthetic fixtures redistributable. Mark a task done only when its
 acceptance evidence exists, update this file and the task heading, and commit
 that task before proceeding. Later tasks are not implicitly done by scaffolding.
 
+Latest feedback fix: annotated examples now reuse the Games `GameReview` UI;
+the opening-specific preview and its styles are removed. Source annotations,
+ordinal duplicate branches, exact resume and Back to study remain supported.
+Shared-review unit/build, opening review/article/explorer, Games and personal
+review desktop checks pass; full-library smoke confirms unchanged runtime.
+See `REVIEW_AND_RESUME.md` for the Python/optional engine test limitations.
+OT-13 remains in progress pending player feedback; OT-14 remains pending.
+
 OT-13 continuation: retest the article action in the rebuilt desktop, collect
 the player's two-opening/transposition/counter/return feedback, address any
 blockers and record it in `PERFORMANCE_AND_USABILITY.md`. Measurements and

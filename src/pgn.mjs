@@ -1,5 +1,7 @@
-import { PgnParser, makePgn, startingPosition } from 'chessops/pgn';
+import { PgnParser, makePgn, startingPosition, ChildNode } from 'chessops/pgn';
 import { parseSan, makeSanAndPlay } from 'chessops/san';
+import { parseUci, makeUci } from 'chessops/util';
+import { normalizeMove } from 'chessops/chess';
 import { scalachessCharPair } from 'chessops/compat';
 
 function parse(pgn) {
@@ -25,6 +27,11 @@ function restoreComment(comment) {
 }
 
 export function commentText(comment, keepBoardAnnotations = false) {
+  const literal = /^\[%openingtext ([A-Za-z0-9+/=]+)\]$/.exec(comment);
+  if (literal) {
+    if (keepBoardAnnotations) return ''; // Source prose cannot supply board directives.
+    return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(literal[1]), c => c.charCodeAt(0)));
+  }
   return restoreComment(comment).replace(/\[%([\w]+)(?::[\w-]+)?(?:\s+([^\]]*))?\]/g, (tag, kind, payload = '') => {
     const value = payload.trim();
     switch (kind.toLowerCase()) {
@@ -67,7 +74,26 @@ function displayPgn(game) {
 
 export const prepareDisplayPgn = pgn => displayPgn(parse(pgn));
 
-export function reviewPgn(pgn) {
+// Two code units per child keep the viewer's Path operations intact while
+// distinguishing identical moves in different source branches.
+export function ordinalPathPart(index) {
+  if (!Number.isInteger(index) || index < 0 || index > 65535) throw new Error('Too many sibling moves');
+  return String.fromCharCode(256 + (index >> 8), 256 + (index & 255));
+}
+export function assignOrdinalPaths(game, Path) {
+  const stack = [{ node: game.moves, path: '' }];
+  while (stack.length) {
+    const { node, path } = stack.pop();
+    node.children.forEach((child, index) => {
+      const next = path + ordinalPathPart(index);
+      child.data.path = new Path(next);
+      stack.push({ node: child, path: next });
+    });
+  }
+  return game;
+}
+
+export function reviewPgn(pgn, ordinalPaths = false) {
   const game = parse(pgn);
   const tokens = [];
   let position = null;
@@ -82,7 +108,7 @@ export function reviewPgn(pgn) {
   };
   comments(game.comments, 0);
   const tasks = game.moves.children.length ? [{ type: 'line', node: game.moves.children[0],
-    alternatives: game.moves.children.slice(1), position, path: '', ply: position ? (position.fullmoves - 1) * 2 + (position.turn === 'black' ? 1 : 0) : 0, depth: 0 }] : [];
+    alternatives: game.moves.children.slice(1), ordinal: 0, position, path: '', ply: position ? (position.fullmoves - 1) * 2 + (position.turn === 'black' ? 1 : 0) : 0, depth: 0 }] : [];
   while (tasks.length) {
     const task = tasks.pop();
     if (task.type !== 'line') { tokens.push(task); continue; }
@@ -92,7 +118,7 @@ export function reviewPgn(pgn) {
     let nextPath = null;
     let san = node.data.san;
     if (move) {
-      nextPath = path + scalachessCharPair(move);
+      nextPath = path + (ordinalPaths ? ordinalPathPart(task.ordinal) : scalachessCharPair(move));
       san = makeSanAndPlay(nextPosition, move);
     }
     const critical = [];
@@ -127,12 +153,36 @@ export function reviewPgn(pgn) {
       annotated: /\[%(?:cal|csl)\s/.test([...(node.data.startingComments || []), ...(node.data.comments || [])].join(' ')) });
     comments(after, depth);
     if (node.children.length) tasks.push({ type: 'line', node: node.children[0], alternatives: node.children.slice(1),
-      position: move ? nextPosition : null, path: nextPath, ply: ply + 1, depth });
+      ordinal: 0, position: move ? nextPosition : null, path: nextPath, ply: ply + 1, depth });
     for (let i = task.alternatives.length - 1; i >= 0; i--) {
       tasks.push({ type: 'variation-end', depth: depth + 1 });
-      tasks.push({ type: 'line', node: task.alternatives[i], alternatives: [], position: task.position, path, ply, depth: depth + 1 });
+      tasks.push({ type: 'line', node: task.alternatives[i], alternatives: [], ordinal: i + 1, position: task.position, path, ply, depth: depth + 1 });
       tasks.push({ type: 'variation-start', depth: depth + 1 });
     }
   }
   return { tokens, headers: [...game.headers], displayPgn: displayPgn(game), positionError };
+}
+
+// Extend a selected branch without resolving identical sibling moves by UCI.
+export function extendReviewLine(pgn, selectedPath, moves) {
+  const game = parse(pgn), position = startingPosition(game.headers).unwrap();
+  let node = game.moves, path = '';
+  for (let index = 0; index < moves.length; index++) {
+    const selected = selectedPath.slice(index * 2, index * 2 + 2);
+    const preferred = selected.length === 2 ? (selected.charCodeAt(0) - 256) * 256 + selected.charCodeAt(1) - 256 : -1;
+    const sameMove = child => {
+      const move = parseSan(position, child.data.san);
+      return move && makeUci(normalizeMove(position, move)) === moves[index];
+    };
+    let ordinal = node.children[preferred] && sameMove(node.children[preferred]) ? preferred : node.children.findIndex(sameMove);
+    const move = parseUci(moves[index]);
+    if (!move || !position.isLegal(move)) throw new Error('Illegal analysis move');
+    if (ordinal < 0) {
+      ordinal = node.children.length;
+      node.children.push(new ChildNode({ san: makeSanAndPlay(position.clone(), move) }));
+    }
+    position.play(move);
+    node = node.children[ordinal]; path += ordinalPathPart(ordinal);
+  }
+  return { pgn: makePgn(game), path };
 }

@@ -155,3 +155,18 @@ $env:CHESS_OPENING_LIBRARY = 'E:\dev\chess-games-db\data\opening-study\opening-l
 $env:CHESS_OPENING_UI_REPORT = 'E:\dev\chess-games-db\data\opening-study\performance-ui.json'
 node scripts/start-electron.mjs tests/opening-full-library-desktop-smoke.mjs
 ```
+
+The next feedback request replaced the separate opening-example review with the
+polished Games review screen. Examples now use the same full-height board,
+resize control, score/variation transcript, annotation glyphs and drawings,
+keyboard navigation, settings, engine controls and Piece mode. Back to study
+preserves the explorer/article context. A thin runtime-tree adapter preserves
+source comment language, unsupported-annotation notices and duplicate sibling
+identity; the previous opening-specific review component and styles are deleted.
+Opening examples retain read-only source data and temporary analysis; Games
+personal saves and favourites remain scoped to the Games archive.
+
+Build, focused tests and opening review/article/explorer, Games review and
+personal-review desktop checks pass. Full-library smoke confirms unchanged data.
+Detailed checks and remaining environment limitations are recorded in
+`REVIEW_AND_RESUME.md`. Player retest and OT-13 journey acceptance are outstanding.

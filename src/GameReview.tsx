@@ -20,12 +20,15 @@ import { criticalNavigation, criticalReveal, criticalRevealStage } from './criti
 import { emptyPersonal, mergePersonal, personalPath, personalReviewTokens, updatePersonalComment, removePersonalMove } from './personal.mjs';
 import { Chess } from 'chessops/chess';
 import { parseFen } from 'chessops/fen';
-import { reviewPgn } from './pgn.mjs';
+import { extendReviewLine, reviewPgn } from './pgn.mjs';
 import { reviewPositionKey, reviewedSearchFen } from './review-navigation.mjs';
 import type { GameDetail } from './types';
 
-export function GameReview({ game, initialPath, matchedPositionKey = null, navigationNotice = null, positionSearchNavigation = false, suspended = false, onFindPosition, onClose, onToggleFavourite, savingFavourite, favouriteError, onPersonalSaved }: {
-  onPersonalSaved: () => void; game: GameDetail; initialPath: string;
+export type ReviewGame = Pick<GameDetail, 'id' | 'personal' | 'pgn' | 'white' | 'black' | 'event' | 'site' | 'date' | 'result' | 'eco' | 'start_fen' | 'source_title' | 'favourite' | 'opening'>;
+
+export function GameReview({ sourceReview = false, initialFlipped = false, onReviewPosition, reviewTools, game, initialPath, matchedPositionKey = null, navigationNotice = null, positionSearchNavigation = false, suspended = false, onFindPosition, onClose, onToggleFavourite, savingFavourite, favouriteError, onPersonalSaved }: {
+  sourceReview?: boolean; initialFlipped?: boolean; onReviewPosition?: (path: string, flipped: boolean) => void; reviewTools?: React.ReactNode;
+  onPersonalSaved: () => void; game: ReviewGame; initialPath: string;
   matchedPositionKey?: string | null; navigationNotice?: string | null; positionSearchNavigation?: boolean;
   suspended?: boolean; onFindPosition: (fen: string) => void;
   onClose: () => void; onToggleFavourite: () => void; savingFavourite: boolean; favouriteError: string | null;
@@ -58,8 +61,9 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
   const [personalError, setPersonalError] = useState<string | null>(null);
   const selectedPath = useRef(initialPath);
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
-  const dirty = JSON.stringify(personal) !== saved;
+  const dirty = !sourceReview && JSON.stringify(personal) !== saved;
   const savePersonal = async (snapshot = personal) => {
+    if (sourceReview) return false;
     setSavingPersonal(true); setPersonalError(null);
     const request = saveQueue.current.catch(() => {}).then(() => window.chessArchive.savePersonal(game.id, snapshot));
     saveQueue.current = request;
@@ -89,10 +93,12 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
   };
   const closeRef = useRef(closeReview);
   closeRef.current = closeReview;
+  const [sourceScore, setSourceScore] = useState({ base: game.pgn, pgn: game.pgn });
+  const reviewScore = sourceReview && sourceScore.base === game.pgn ? sourceScore.pgn : game.pgn;
   const merged = useMemo(() => {
-    try { return { ...mergePersonal(game.pgn, personal), error: null }; }
+    try { return { ...mergePersonal(reviewScore, personal), error: null }; }
     catch (error) { return { pgn: game.pgn, ownPaths: new Set<string>(), comments: new Map<string, string>(), error: String(error) }; }
-  }, [game.pgn, personal]);
+  }, [reviewScore, game.pgn, personal]);
   const [preferences] = useState(readReviewPreferences);
   const [display, setDisplay] = useState(preferences.display);
   const [analysisOptions, setAnalysisOptions] = useState<AnalysisOptions>({ stockfish: false, maia: false, lines: preferences.lines, maiaLines: preferences.maiaLines, rating: preferences.rating, revision: 0 });
@@ -109,9 +115,9 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
   const [promotion, setPromotion] = useState<{ from: string; to: string; position: AnalysisPosition } | null>(null);
   const [ready, setReady] = useState(false);
   const model = useMemo(() => {
-    try { return { data: reviewPgn(merged.pgn), error: null }; }
+    try { return { data: reviewPgn(merged.pgn, sourceReview), error: null }; }
     catch (error) { return { data: null, error: error instanceof Error ? error.message : String(error) }; }
-  }, [merged.pgn]);
+  }, [merged.pgn, sourceReview]);
   const [revealStage, setRevealStage] = useState(() =>
     positionSearchNavigation && preferences.display.criticalStudy
       ? 0 : criticalRevealStage(model.data?.tokens || [], initialPath));
@@ -140,6 +146,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
   const onReady = useCallback((value: Viewer | null) => {
     viewer.current = value; setReady(!!value);
     if (value) {
+      if (initialFlipped && value.orientation() !== 'black') value.flip();
       const target = selectedPath.current;
       if (target && value.game.nodeAt(new Path(target))) value.toPath(new Path(target), false);
       if (value.path.path !== target) {
@@ -158,7 +165,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
       }
       setPath(value.path.path);
     }
-  }, [matchedPositionKey]);
+  }, [matchedPositionKey, initialFlipped]);
   const onPathChange = useCallback((value: string) => { selectedPath.current = value; setPromotion(null); setPath(value); }, []);
   const source = useMemo(() => {
     if (!ready || !viewer.current) return null;
@@ -182,6 +189,13 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
     } else onFindPosition(searchTarget.fen);
   };
   const explore = useCallback((next: AnalysisPosition) => {
+    if (sourceReview) {
+      const nextLine = extendReviewLine(merged.pgn, selectedPath.current, next.moves);
+      selectedPath.current = nextLine.path;
+      setSourceScore({ base: game.pgn, pgn: nextLine.pgn });
+      if (viewer.current?.game.nodeAt(new Path(nextLine.path))) viewer.current.toPath(new Path(nextLine.path), false);
+      return;
+    }
     const initial = Chess.fromSetup(parseFen(next.initialFen).unwrap()).unwrap();
     const target = personalPath(initial, next.moves);
     if (viewer.current?.game.nodeAt(new Path(target))) {
@@ -191,7 +205,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
     selectedPath.current = target;
     setPromotion(null);
     setPersonal(previous => ({ ...previous, lines: [...previous.lines.filter(line => !(line.length < next.moves.length && line.every((move, index) => move === next.moves[index]))), next.moves] }));
-  }, []);
+  }, [sourceReview, merged.pgn, game.pgn]);
   const deleteSelectedMove = () => {
     if (!position || savingPersonal || !merged.ownPaths.has(path)) return;
     try {
@@ -204,6 +218,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
     const current = (() => { try { return sourcePosition(board); } catch { return null; } })();
     if (!current || !board.ground) return;
     setFlipped(board.orientation() === 'black');
+    onReviewPosition?.(board.path.path, board.orientation() === 'black');
     const data = board.curData();
     const shapes: DrawShape[] = display.book ? data.shapes.map(shape => ({ orig: makeSquare(shape.from), dest: makeSquare(shape.to), brush: shape.color })) : [];
     const auto: DrawShape[] = display.book && isMoveData(data) ? annotationShapes(data, board.opts.maxGlyphs, board.opts.showRepetitions) : [];
@@ -219,7 +234,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
         if (piece?.role === 'pawn' && (to[1] === '1' || to[1] === '8')) { setPromotion({ from, to, position: current }); return; }
         try { explore(appendMove(current, from, to)); } catch { board.toPath(board.path, false); }
       } } }, draggable: { enabled: true }, selectable: { enabled: true }, premovable: { enabled: false } });
-  }, [explore, display, analysisOptions.stockfish, analysisOptions.maia, engines]);
+  }, [explore, onReviewPosition, display, analysisOptions.stockfish, analysisOptions.maia, engines]);
   useEffect(() => {
     const previousTitle = document.title;
     if (suspended) return;
@@ -262,23 +277,23 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
     <header className="review-header">
       <div>
         <div className="eyebrow">GAME REVIEW · {game.source_title}</div>
-        <div className="review-title"><h1>{title}</h1><FavouriteButton favourite={!!game.favourite} disabled={savingFavourite} onClick={onToggleFavourite} label={title} /></div>
+        <div className="review-title"><h1>{title}</h1>{!sourceReview && <FavouriteButton favourite={!!game.favourite} disabled={savingFavourite} onClick={onToggleFavourite} label={title} />}</div>
         {game.opening?.name && <p className="review-opening-name" title={game.opening.name}>{game.opening.name} · {game.opening.eco}{game.eco && game.eco !== game.opening.eco ? ` · Source ECO ${game.eco}` : ''}</p>}
         <p>{[game.event, game.site, game.date, game.opening?.name ? null : game.eco, revealed.paused ? null : game.result].filter(value => value && value !== '?').join(' · ')}</p>
       </div>
       <div className="review-header-actions">
-        <button className="secondary-button" type="button"
+        {!sourceReview && <button className="secondary-button" type="button"
           disabled={!searchTarget.fen || !!pieceMode || !!promotion || !!merged.error || !!model.error || !!model.data?.positionError || savingPersonal || suspended}
           title={pieceMode ? 'Return from Piece mode before searching a legal position.' : searchTarget.reason ?? 'Search other games at the current review position'}
-          onClick={findPosition}><Search size={16} />Find games with this position</button>
-        <button className="secondary-button" disabled={savingPersonal} onClick={() => void closeReview()} autoFocus><ArrowLeft size={16} /> Back to games</button>
+          onClick={findPosition}><Search size={16} />Find games with this position</button>}
+        <button className="secondary-button" disabled={savingPersonal} onClick={() => void closeReview()} autoFocus><ArrowLeft size={16} /> {sourceReview ? 'Back to study' : 'Back to games'}</button>
       </div>
     </header>
     {favouriteError && <div role="alert" className="notice error">{favouriteError}</div>}
     {navigationWarning && <div role="status" className="notice position-navigation-notice">{navigationWarning}</div>}
     <div className={"review-workspace" + (resize.resizing ? " resizing-board" : "")} ref={resize.workspace}>
-      <section ref={resize.board} className="review-board" aria-label="Game review board">
-        <div className={"analysis-board-frame" + (display.bar && analysisOptions.stockfish ? " with-bar" : "")}><div className="review-board-surface"><PgnBoard pgn={merged.pgn} reviewPath={selectedPath.current} review initialPath={initialPath} canSelectPath={canSelectPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} /><button {...resize.handle} data-board-resize className="board-resize-handle" title="Drag to resize board. Double-click to reset." /></div>{display.bar && analysisOptions.stockfish && <EvaluationBar state={engines.stockfish} enabled={analysisOptions.stockfish} flipped={flipped} />}</div>
+      <section ref={resize.board} className="review-board" data-fen={position?.fen} aria-label="Game review board">
+        <div className={"analysis-board-frame" + (display.bar && analysisOptions.stockfish ? " with-bar" : "")}><div className="review-board-surface"><PgnBoard ordinalPaths={sourceReview} pgn={merged.pgn} reviewPath={selectedPath.current} review initialPath={initialPath} canSelectPath={canSelectPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} /><button {...resize.handle} data-board-resize className="board-resize-handle" title="Drag to resize board. Double-click to reset." /></div>{display.bar && analysisOptions.stockfish && <EvaluationBar state={engines.stockfish} enabled={analysisOptions.stockfish} flipped={flipped} />}</div>
 
         <div className="review-board-footer" ref={resize.footer}><div className="review-controls" role="group" aria-label="Move navigation">
           <button title="First position" aria-label="First position" disabled={!ready || !path} onClick={() => go('first')}><ChevronsLeft size={21} /></button>
@@ -287,7 +302,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
           <button title="Next move" aria-label="Next move" disabled={!ready || !currentNode?.children.some(node => canSelectPath(node.data.path.path))} onClick={() => go('next')}><ChevronRight size={24} /></button>
           <button title="Last mainline position" aria-label="Last mainline position" disabled={!ready || revealed.paused || !viewer.current?.game.mainline.length} onClick={() => go('last')}><ChevronsRight size={21} /></button>
         </div>
-        <p className="review-help">Select any move or variation to explore it. ← / → moves · Home / End first / last · F flips · Esc returns to games.</p>
+        <p className="review-help">Select any move or variation to explore it. ← / → moves · Home / End first / last · F flips · Esc returns to {sourceReview ? 'study' : 'games'}.</p>
         {game.start_fen && <details className="review-position"><summary>Starting position</summary><code>{game.start_fen}</code></details>}
         </div>
       </section>
@@ -302,6 +317,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
           </div>
         </div>}
         <EnginePanel toolbarActions={<>
+          {!sourceReview && <>
           <button type="button" className="review-comment-button" aria-label="Add comment" title={showCommentEditor ? 'Hide comment editor' : merged.comments.has(path) ? 'Edit comment' : 'Add comment'}
             aria-expanded={showCommentEditor} aria-controls="personal-comment-editor" disabled={!position}
             onClick={() => setShowCommentEditor(value => !value)}><MessageSquarePlus size={17} aria-hidden="true" /></button>
@@ -311,6 +327,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
             disabled={!hasPersonalAnalysis || savingPersonal} onClick={() => void deletePersonalAnalysis()}><Trash2 size={17} aria-hidden="true" /></button>
           {merged.ownPaths.has(path) && <button type="button" className="review-comment-button" aria-label="Delete selected personal move"
             title="Delete this move and its continuation from my line" disabled={savingPersonal || !!promotion} onClick={deleteSelectedMove}><Scissors size={17} aria-hidden="true" /></button>}
+          </>}
           <button type="button" className="review-piece-mode-button" disabled={!position || !!promotion} onClick={() => {
             if (position && viewer.current) setPieceMode({ fen: position.fen, orientation: viewer.current.orientation(), scroll: transcript.current?.scrollTop || 0, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null });
           }}>Piece mode</button>
@@ -329,6 +346,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
         </div>}
         {promotion && <div className="promotion-choice" role="group" aria-label="Choose promotion">Promote to {(['queen', 'rook', 'bishop', 'knight'] as const).map(role => <button key={role} onClick={() => { explore(appendMove(promotion.position, promotion.from, promotion.to, role)); setPromotion(null); }}>{role}</button>)}</div>}
         <div className="review-transcript" ref={transcript}>
+          {reviewTools}
           {model.error && <div className="notice error">{model.error}</div>}
           {model.data?.positionError && <div className="notice error">{model.data.positionError}</div>}
           {model.data && <ReviewMoves showGlyphDescriptions={display.glyphDescriptions} tokens={reviewTokens} ownPaths={merged.ownPaths} personalComments={merged.comments} onEditComment={editComment} path={path} ready={ready} onSelect={selectReviewPath}
@@ -338,7 +356,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
           {!revealed.paused && <><details className="review-headers"><summary>Game information · all PGN headers</summary><dl>
             {model.data?.headers.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}
           </dl></details>
-          <details className="review-original"><summary>Original PGN</summary><pre>{game.pgn}</pre></details></>}
+          <details className="review-original"><summary>{sourceReview ? 'Source score (PGN export)' : 'Original PGN'}</summary><pre>{game.pgn}</pre></details></>}
         </div>
       </section>
     </div>
