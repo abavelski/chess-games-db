@@ -6,9 +6,9 @@ import { fileHash, validateBuildPaths, createStaging, stableSourceKey, BUILD_VER
 import { digest } from '../lib/opening-source-tree.mjs';
 import { createTreeConverter } from '../lib/opening-tree-converter.mjs';
 import { createArticleConverter } from '../lib/opening-article-converter.mjs';
+import { publishOpeningLibrary } from '../lib/opening-publication.mjs';
 
-// OT-04 only inventories into staging. Playable conversion and publication are
-// distinct later phases; this command never labels inventory-only data ready.
+// Distinct phases preserve atomic checkpoints and an explicit ready gate.
 export function initializeBuild({ source, staging, output, corpus, resume = false, phase = 'inventory', limit = Infinity }) {
   validateBuildPaths(source, staging, output, resume);
   stableSourceKey(corpus, 'validate');
@@ -17,6 +17,7 @@ export function initializeBuild({ source, staging, output, corpus, resume = fals
   let db;
   try {
     input.pragma('query_only=ON');
+    input.pragma('cache_size=-16384');
     if (input.pragma('user_version', { simple: true }) !== 1 ||
         !input.prepare("SELECT 1 FROM sqlite_master WHERE name='source_records'").get() ||
         !input.prepare("SELECT 1 FROM sqlite_master WHERE name='import_runs'").get())
@@ -101,12 +102,18 @@ export function main(args = process.argv.slice(2)) {
   } });
   for (const name of ['source','staging','output','corpus']) if (!values[name])
     throw new Error('Required: --source PATH --staging PATH --output NEW_PATH --corpus NAMESPACE [--resume]');
-  if (!['inventory','trees','articles'].includes(values.phase)) throw new Error('Phase must be inventory, trees or articles');
+  if (!['inventory','trees','articles','publish'].includes(values.phase)) throw new Error('Phase must be inventory, trees, articles or publish');
   const limit = values.limit === undefined ? Infinity : Number(values.limit);
   if (limit !== Infinity && (!Number.isSafeInteger(limit) || limit < 1)) throw new Error('Limit must be a positive integer');
-  return initializeBuild({ ...values, limit });
+  return values.phase === 'publish' ? publishOpeningLibrary(values) : initializeBuild({ ...values, limit });
 }
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
-  try { console.log(JSON.stringify(main(), null, 2)); }
+  try {
+    const result = main();
+    console.log(JSON.stringify(result.format === 'opening-study-build-report' ? {
+      status: 'ready', libraryUUID: result.libraryUUID, revision: result.revision, coverage: result.coverage,
+      artifactSHA256: result.artifactSHA256, artifactBytes: result.artifactBytes, validationSeconds: result.validationSeconds,
+    } : result, null, 2));
+  }
   catch (error) { console.error(error.message); process.exitCode = 1; }
 }

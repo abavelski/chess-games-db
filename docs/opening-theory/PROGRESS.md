@@ -11,18 +11,41 @@ Packaging: same repository/build, separate Games / Openings workspaces.
 | OT-04 | Done | [Builder](BUILDING.md); 82,888 items staged; three native SQLite checks pass |
 | OT-05 | Done | [Tree converter](BUILDING.md); six native checks + 16 reader tests; first 100 real records checkpointed |
 | OT-06 | Done | [Safe articles](BUILDING.md); four body/security tests + native relationship check; three real samples |
-| OT-07 | Next | Full conversion, reconciliation and publication gate |
-| OT-08–OT-14 | Pending | Execute in task-list order after dependencies pass |
+| OT-07 | Done | [Full-library report](FULL_LIBRARY_REPORT.md); published 7.4 GB ready artifact, checksum, complete reconciliation |
+| OT-08 | Next | Read-only worker query service, exact counters and bounded IPC |
+| OT-09–OT-14 | Pending | Execute in task-list order after dependencies pass |
 
 ## Resume
 
 Read this file, `MVP_TASKS.md`, and the last task commit on the branch. Check
-`git status` before editing. Continue OT-07. Source:
+`git status` before editing. Continue OT-08. Source:
 `data/tmp/opening-theory.sqlite`; open read-only, never migrate or repair it.
 All source payloads and real-data reports belong under ignored `data/`.
 Keep synthetic fixtures redistributable. Mark a task done only when its
 acceptance evidence exists, update this file and the task heading, and commit
 that task before proceeding. Later tasks are not implicitly done by scaffolding.
+
+OT-07 is complete. Ready runtime: `data/opening-study/opening-library.sqlite3`
+with `.report.json` and `.sha256`. Its completed v2 staging name was removed
+at publication. Do not rerun the old staging command against the existing final
+output. New source/build versions require new staging/output paths. Example
+command for an interrupted future generation (substitute its actual paths):
+
+```powershell
+node scripts/run-archive-tool.mjs scripts/build-opening-library.mjs --source data/tmp/opening-theory.sqlite --staging data/opening-study/NEXT.staging.sqlite3 --output data/opening-study/NEXT-ready.sqlite3 --corpus opening-encyclopaedia-2024 --resume --phase trees
+```
+
+Do not start a second writer if that command is already running. After it
+finishes, run the same command with `--phase articles`, then `--phase publish`.
+Neither conversion phase publishes. Publication passed synthetic end-to-end
+tests and the full local source; see the report above.
+
+The earlier `library.staging.sqlite3` is superseded, preserved locally and must
+not be resumed with builder v2. Full-data inspection added FRA/ESP/NED language
+normalization and root FEN/counters to tree hashes; those versioned changes
+require a new generation. The v2 build uses bounded 128 MiB SQLite cache and
+WAL/NORMAL (atomic checkpoints; after a power loss, lost complete transactions
+are simply processed again). Do not mix maps from the two generations.
 
 OT-03 is a documented feasibility gate before full conversion. OT-07 requires
 a full-corpus published artifact; OT-13 requires full-data measurements and

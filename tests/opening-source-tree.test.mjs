@@ -82,3 +82,13 @@ test('incomplete numbering and incorrect setup move counters are rejected', () =
     assert.throws(() => readSourceTree({ ...treeFixtures[0], moves_pgn, all_lines_ply: null }));
   assert.throws(() => readSourceTree({ ...treeFixtures[0], main_line_ply: 99 }), /mainline count mismatch/);
 });
+
+test('language identifiers normalize consistently and setup counters participate in tree identity', () => {
+  const fixture = treeFixtures[0], tree = readSourceTree(fixture);
+  const annotations = ['ENG','GER','FRA','ESP','ITA','NED'].map((language, sequence) => ({
+    ...fixture.annotations[1], sequence, language,
+    payload_json: JSON.stringify({ ...JSON.parse(fixture.annotations[1].payload_json), language }),
+  }));
+  assert.deepEqual(normalizeAnnotations(tree, annotations).map(a => a.language), ['en','de','fr','es','it','nl']);
+  assert.notEqual(tree.treeHash, readSourceTree({ ...fixture, start_fen: fixture.start_fen.replace('0 1', '7 1') }).treeHash);
+});

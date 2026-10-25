@@ -162,7 +162,7 @@ Acceptance:
   model-game lists distinguish explicit links from same-source membership.
 - Standalone articles with no playable model game remain discoverable by title.
 
-## OT-07 — Finalize and reconcile a full runtime library
+## OT-07 — Finalize and reconcile a full runtime library [DONE]
 
 Dependencies: OT-05, OT-06. Size: medium plus full-data execution time.
 
