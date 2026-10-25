@@ -89,6 +89,10 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
     setRoute(next); setPage(1); setError(null);
   }, [route]);
   const jump = (length: number) => { setRoute(current => ({ ...current, moves: current.moves.slice(0, length) })); setPage(1); };
+  const reset = () => {
+    setRoute({ mode: 'prefix', rootFen: OPENING_START_FEN, moves: [], filters: {} });
+    setPrevious(null); setPage(1); setArticleNames({}); setError(null); setMaterialError(null);
+  };
   const anchor = (fen: string) => {
     try {
       const next = openingAnchor(route, fen);
@@ -124,21 +128,20 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
     if (event.key === 'ArrowRight' && result?.continuations[0]) { play(result.continuations[0].uci); event.preventDefault(); }
   }}>
     <div hidden={articleView === 'reader'}>
-    <div className="opening-session-label"><strong>{route.mode === 'prefix' ? 'Following move order' : 'Position anchor'}</strong>
-      {route.mode === 'position' && previous && <button type="button" onClick={() => {
-        setRoute(previous.route); setKind(previous.kind); setPage(previous.page); setFlipped(previous.flipped); setPrevious(null);
-      }}>Return to previous move order</button>}</div>
     {error && <p className="notice error" role="alert">{error}</p>}
     <div className="opening-layout">
       <section className="opening-board-panel" aria-label="Opening board and path">
         <OpeningPositionBoard initialFen={route.rootFen} moves={route.moves} flipped={flipped} onPlay={play} active={active && articleView !== 'reader'} />
         <div className="opening-board-controls"><button type="button" onClick={() => setFlipped(value => !value)}>Flip</button>
-          <button type="button" disabled={!route.moves.length} onClick={() => jump(route.moves.length - 1)}>Undo</button>
-          <button type="button" disabled={!route.moves.length} onClick={() => jump(0)}>Reset path</button></div>
-        <p role="status">{board.turn === 'white' ? 'White' : 'Black'} to move{!board.position.hasDests() ? ' · Terminal position' : board.position.isCheck() ? ' · Check' : ''}</p>
-        <nav className="opening-breadcrumb" aria-label="Chosen move order"><button type="button" onClick={() => jump(0)}>Start</button>
-          {board.sans.map((san, i) => <button key={i} type="button" aria-current={i === board.sans.length - 1 ? 'step' : undefined} onClick={() => jump(i + 1)}>{san}</button>)}</nav>
-        <button type="button" className="secondary-button" onClick={() => anchor(board.fen)}>Find other move orders</button>
+          <button type="button" onClick={reset}>Reset path</button>
+          <button type="button" className="secondary-button" onClick={() => anchor(board.fen)}>Find other move orders</button>
+          {route.mode === 'position' && <small className="opening-anchor-status" role="status">Position anchor</small>}
+          {route.mode === 'position' && previous && <button type="button" onClick={() => {
+            setRoute(previous.route); setKind(previous.kind); setPage(previous.page); setFlipped(previous.flipped); setPrevious(null);
+          }}>Return to previous move order</button>}
+        </div>
+        {!!board.sans.length && <nav className="opening-breadcrumb" aria-label="Chosen move order">
+          {board.sans.map((san, i) => <button key={i} type="button" aria-current={i === board.sans.length - 1 ? 'step' : undefined} onClick={() => jump(i + 1)}>{san}</button>)}</nav>}
       </section>
       <section className="opening-continuations" ref={continuationPanel} tabIndex={-1} aria-label="Opening continuations" aria-busy={loading}>
         <h2>Continuations</h2>
@@ -151,7 +154,7 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
         {result && <>
           {!!result.endingLineCount && <p>{num(result.endingLineCount)} source {result.endingLineCount === 1 ? 'line ends' : 'lines end'} here.</p>}
           {result.emptyLibrary ? <p>This library has no playable source trees. Articles remain available.</p>
-            : !result.gameRecordCount ? <p>No indexed continuation in this library subset. Undo a move or change the filters.</p>
+            : !result.gameRecordCount ? <p>No indexed continuation in this library subset. Reset the path or change the filters.</p>
             : result.exhausted ? <p>The matching source lines end here. You can undo or continue legally beyond the indexed material.</p> : null}
           <div className="opening-replies">{result.continuations.map(move => <button key={move.uci} data-opening-reply={move.uci} type="button" onKeyDown={event => {
             if (!['ArrowUp','ArrowDown'].includes(event.key)) return;

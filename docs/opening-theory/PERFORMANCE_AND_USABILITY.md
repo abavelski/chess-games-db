@@ -219,3 +219,18 @@ Build/typecheck, 11 native query checks, five review unit tests and article,
 review and explorer desktop smokes pass. Tests cover English/Russian/other
 preference, English placeholders, empty comments, legacy explicit language
 requests, preserved annotations and absence of language selectors.
+
+The next board cleanup removed Following move order and its entire row, the
+side-to-move label, Undo and Start. Empty breadcrumbs no longer reserve space,
+and the workspace heading gap is reduced. Find other move orders now immediately
+follows Reset path in the board action row. Anchored sessions retain a compact
+status and their explicit return action in that row.
+
+Reset path now restores the standard initial position in prefix mode, removes
+all filters and remembered article-filter labels, resets material pagination,
+clears errors and discards previous anchor context. It stays available at an
+article-filtered root and in custom-FEN sessions without moves. Board orientation
+and the material tab stay selected. Keyboard and move-button backward navigation
+remain available. Build/typecheck and explorer/article desktop smokes pass,
+including removed UI, adjacent controls, article-filtered/anchored reset,
+custom-position reset, saved reset state, promotion and narrow-window layout.

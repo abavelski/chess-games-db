@@ -46,10 +46,13 @@ async function smoke() {
       window.changeExplorer=(selector,value)=>{const el=document.querySelector(selector);const proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));};
       document.querySelector('[aria-label="Workspaces"] button:nth-child(2)').click();
       await expectExplorer(6,10);if(document.querySelectorAll('[aria-label="Study material"] [role="tab"]').length!==2||document.querySelector('#opening-comments-tab'))throw Error('Only articles and games should be shown');window.originalOpeningBoard=document.querySelector('.opening-board-container cg-board');
+      if(document.querySelector('.opening-session-label')||explorerButton('Undo')||explorerButton('Start')||document.querySelector('.opening-board-panel').textContent.includes('White to move'))throw Error('Removed board headings or controls remain');
+      const reset=explorerButton('Reset path'), find=explorerButton('Find other move orders');
+      if(reset.nextElementSibling!==find)throw Error('Find other move orders must follow Reset path');
       window.explorerStage='row';
       document.querySelector('[data-opening-reply="e2e4"]').click();await expectExplorer(3,6);
       if(document.querySelector('.opening-board-container cg-board')!==originalOpeningBoard)throw Error('Board remounted during move/query');
-      explorerButton('Undo').click();await expectExplorer(6,10);
+      document.querySelector('.opening-board-container').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));await expectExplorer(6,10);
     })()`);
     async function square(file, rank) {
       const point = await window.webContents.executeJavaScript(`(async()=>{const board=document.querySelector('.opening-board-container cg-board');board.scrollIntoView({block:'center'});await new Promise(r=>setTimeout(r,60));const b=board.getBoundingClientRect();return{x:Math.round(b.left+(${file}+.5)*b.width/8),y:Math.round(b.top+(8-${rank}+.5)*b.height/8)};})()`);
@@ -59,7 +62,7 @@ async function smoke() {
     }
     await window.webContents.executeJavaScript("window.explorerStage='mouse'");
     await square(4,2); await square(4,4);
-    await window.webContents.executeJavaScript(`(async()=>{await expectExplorer(3,6);explorerButton('Undo').click();await expectExplorer(6,10);window.explorerStage='keyboard';document.querySelector('[data-opening-reply="e2e4"]').focus();})()`);
+    await window.webContents.executeJavaScript(`(async()=>{await expectExplorer(3,6);document.querySelector('.opening-board-container').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));await expectExplorer(6,10);window.explorerStage='keyboard';document.querySelector('[data-opening-reply="e2e4"]').focus();})()`);
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
     window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
@@ -68,7 +71,7 @@ async function smoke() {
       window.explorerStage='transposition';
       for(const uci of ['g1f3','d7d5','g2g3']){await waitExplorer(()=>document.querySelector('[data-opening-reply="'+uci+'"]'));document.querySelector('[data-opening-reply="'+uci+'"]').click();await new Promise(r=>setTimeout(r,30));}
       await expectExplorer(1,1);explorerButton('Find other move orders').click();await expectExplorer(2,2);
-      if(!document.querySelector('.opening-session-label').textContent.includes('Position anchor'))throw Error('Anchor mode not labeled');
+      if(!document.querySelector('.opening-anchor-status').textContent.includes('Position anchor'))throw Error('Anchor mode not labeled');
       explorerButton('Return to previous move order').click();await expectExplorer(1,1);
       if(document.querySelectorAll('.opening-breadcrumb [aria-current="step"]').length!==1)throw Error('Move order not restored');
       explorerButton('Reset path').click();await expectExplorer(6,10);
@@ -76,7 +79,10 @@ async function smoke() {
       await waitExplorer(()=>explorerButton('Study this article'));explorerButton('Study this article').click();
       await waitExplorer(()=>explorerButton('Limit explorer to this article'));explorerButton('Limit explorer to this article').click();await expectExplorer(1,3);
       await waitExplorer(()=>explorerButton('Back to articles'));explorerButton('Back to articles').click();await waitExplorer(()=>document.querySelector('.opening-layout').getClientRects().length);
-      document.querySelector('[aria-label="Clear article filter"]').click();await expectExplorer(6,10);
+      explorerButton('Find other move orders').click();await expectExplorer(1,3);
+      explorerButton('Reset path').click();await expectExplorer(6,10);
+      if(document.querySelector('.opening-filter-chip,.opening-anchor-status')||explorerButton('Return to previous move order'))throw Error('Reset retained article scope or previous anchor');
+      if(document.querySelector('.opening-board-container').dataset.fen!=='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')throw Error('Reset did not restore standard start');
     })()`);
     const beforeLanguage = exploreCalls;
     await window.webContents.executeJavaScript(`(async()=>{if(document.querySelector('[aria-label="Opening reading language"]'))throw Error('Language selector remains');await new Promise(r=>setTimeout(r,100));if(explorerCounts()[1]!==10)throw Error('Reading language changed counters');})()`);
@@ -92,7 +98,7 @@ async function smoke() {
     await square(0,2); await square(0,3);
     await window.webContents.executeJavaScript(`(async()=>{
       await expectExplorer(0,0);if(!document.querySelector('.opening-continuations').textContent.includes('No indexed continuation'))throw Error('Unsupported legal branch needs an explicit message');
-      explorerButton('Undo').click();await expectExplorer(6,10);
+      document.querySelector('.opening-board-container').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));await expectExplorer(6,10);
       // Seed a valid saved setup for the existing promotion/resume check;
       // custom FEN entry is no longer exposed in the workspace.
       await new Promise(r=>setTimeout(r,250));
@@ -114,8 +120,12 @@ async function smoke() {
       if(document.querySelector('.opening-breadcrumb [aria-current="step"]'))throw Error('Promotion advanced before selection');
       [...document.querySelectorAll('.opening-promotion button')].find(b=>b.textContent==='knight').click();
       await waitExplorer(()=>document.querySelector('.opening-board-container').dataset.fen.startsWith('N3k3/'));
-      await expectExplorer(0,0);explorerButton('Undo').click();await expectExplorer(0,0);
+      await expectExplorer(0,0);document.querySelector('.opening-board-container').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));await expectExplorer(0,0);
       if(!document.querySelector('.opening-board-container').dataset.fen.startsWith('4k3/P7/'))throw Error('Promotion undo lost anchor root');
+      explorerButton('Reset path').click();await expectExplorer(6,10);
+      if(document.querySelector('.opening-board-container').dataset.fen!=='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')throw Error('Reset from custom FEN did not return to standard start');
+      await new Promise(r=>setTimeout(r,250));const saved=await openingStudy.settings();
+      if(saved.session.explorer.route.mode!=='prefix'||saved.session.explorer.route.moves.length||Object.keys(saved.session.explorer.route.filters).length||saved.session.explorer.previous)throw Error('Saved reset retained filters, moves or previous anchor');
     })()`);
     window.setSize(920,650);
     await window.webContents.executeJavaScript(`(async()=>{await new Promise(r=>setTimeout(r,120));if(document.documentElement.scrollWidth>document.documentElement.clientWidth)throw Error('Opening explorer overflows narrow window');})()`);

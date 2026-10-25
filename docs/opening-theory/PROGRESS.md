@@ -30,6 +30,14 @@ Keep synthetic fixtures redistributable. Mark a task done only when its
 acceptance evidence exists, update this file and the task heading, and commit
 that task before proceeding. Later tasks are not implicitly done by scaffolding.
 
+Latest board simplification: removed Following move order and its row, the
+side-to-move label, Undo and Start. Find other move orders is next to Reset path.
+Reset now restores standard starting FEN/prefix mode, clears all filters and
+previous anchor context, and resets material pagination, including from custom
+FENs and filtered roots. Build and explorer/article desktop smokes pass; keyboard
+backward navigation, root-filter reset, custom-FEN reset and saved reset state
+are covered. OT-13 remains open for player feedback.
+
 Latest language simplification: removed reading-language selectors and the
 review all-languages checkbox. Articles and opening-review comments now choose
 English, then Russian, then another available language automatically. Article

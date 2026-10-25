@@ -1,22 +1,35 @@
 # OT-10 move-driven explorer
 
-Openings now has a legal controlled board, SAN breadcrumb, immediate replies,
-three exact counters, contextual material tabs and filters. Board clicks, reply
-buttons, keyboard activation and UCI entry share strict legal replay and normalize
-castling identically. Promotion waits for an explicit piece choice. Undo/reset
-retain the selected root; terminal positions and legal unsupported moves stay
-visible without invented continuations.
+Openings has a legal controlled board, SAN move buttons, immediate replies,
+three exact counters and Articles / Game records material tabs. Board clicks,
+reply buttons and keyboard activation share strict legal replay and normalize
+castling identically. Promotion waits for an explicit piece choice.
 
-Default navigation follows a move order. Find other move orders or submitted
-FEN explicitly creates an anchor. The original prefix route, filters, material
-tab/page and orientation are kept for return. Further anchored moves retain the
-original anchor rather than re-running unrestricted position lookup. Invalid FEN
-does not change the board or repair castling metadata.
+The Following move order header, side-to-move label, Undo button and Start
+button were removed following player feedback. Their unused spacing is removed,
+and the workspace heading gap is reduced. The board action row now contains
+Flip, Reset path and Find other move orders, in that order. Move buttons and
+Arrow Left / Home still allow backward navigation without a separate Undo UI.
+An empty move path renders no breadcrumb row.
 
-Filters apply source roles, direct article scope, metadata and actual comment
-language consistently. Empty role selection means all sources. Zero-match
-selections remain visible. Reading language only changes presentation; it never
-changes exploration counters. Material pages are bounded and load on demand.
+Reset path is always available: it restores the standard initial FEN in prefix
+mode with no moves or filters, resets material pagination, clears remembered
+article-filter names/errors and discards previous anchor context. It also works
+from a custom-FEN anchor or an article-filtered root with no moves. Orientation
+and the selected material tab remain user choices.
+
+Default navigation follows a move order. Find other move orders explicitly
+creates an anchor. A compact Position anchor status and Return to previous move
+order action appear in the board controls only in anchor mode. The original
+prefix route, filters, material tab/page and orientation are kept for return.
+Further anchored moves retain the original anchor rather than re-running
+unrestricted position lookup. Reset path discards this return context.
+
+Direct article scope is the visible filter. Source/metadata/language filter
+controls were removed in earlier feedback; hidden legacy restrictions are cleared
+on resume. Articles and review comments choose English, Russian, then another
+available language automatically. Language choice never restricts article lists
+or exploration counters. Material pages are bounded and load on demand.
 
 Every legal move updates the board locally before a worker response. Each result
 is tagged with its full route and request revision. Old replies/cards are hidden
@@ -33,7 +46,7 @@ animations do not lag legal board state. Games retains its existing PgnBoard.
 The layout becomes two columns with material beneath at narrower desktop widths.
 The opening workspace removes the Games browser's global minimum-content-width
 constraint to account for the vertical scrollbar. Reply/tab keyboard controls,
-promotion choices, FEN/UCI labels and focus targets are explicit. Source text is
+promotion choices and focus targets are explicit. Source text is
 rendered as React text; no source HTML is mounted.
 
 ```powershell

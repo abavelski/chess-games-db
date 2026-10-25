@@ -48,7 +48,7 @@ async function smoke() {
       // Explicit discovery stays responsive while a worker handles the query.
       const anchorButton=button('Find other move orders');
       if(!anchorButton)throw Error('Position discovery action unavailable');t=performance.now();anchorButton.click();
-      await until(()=>document.querySelector('.opening-session-label')?.textContent.includes('Position anchor')&&/^[0-9,]+$/.test(count()??''));const anchorMs=performance.now()-t;
+      await until(()=>document.querySelector('.opening-anchor-status')?.textContent.includes('Position anchor')&&/^[0-9,]+$/.test(count()??''));const anchorMs=performance.now()-t;
       running=false;return {firstRootMs,path,firstArticleMs,firstReviewMs,anchorMs,frames,cachedDisplayMs};
     })()`);
     const frames = metrics.frames.sort((a,b) => a-b); delete metrics.frames;
