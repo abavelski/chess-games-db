@@ -2,6 +2,16 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+contextBridge.exposeInMainWorld('openingStudy', Object.freeze({
+  status: () => ipcRenderer.invoke('opening-study:status'),
+  openLibrary: () => ipcRenderer.invoke('opening-study:open'),
+  explore: request => ipcRenderer.invoke('opening-study:explore', request),
+  materials: request => ipcRenderer.invoke('opening-study:materials', request),
+  articleCatalog: request => ipcRenderer.invoke('opening-study:articleCatalog', request),
+  article: request => ipcRenderer.invoke('opening-study:article', request),
+  study: request => ipcRenderer.invoke('opening-study:study', request),
+}));
+
 // Renderer code has no Node.js or direct SQL access.
 contextBridge.exposeInMainWorld('chessArchive', Object.freeze({
   openDatabase: () => ipcRenderer.invoke('archive:open'),

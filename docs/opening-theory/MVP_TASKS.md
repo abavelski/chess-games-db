@@ -211,7 +211,7 @@ Acceptance:
 - Invalid IDs, oversized paths/filters and expired cursors return bounded errors.
   Stale requests can be cancelled or ignored without blocking the desktop UI.
 
-## OT-09 — Add workspace navigation and separate library loading
+## OT-09 — Add workspace navigation and separate library loading [DONE]
 
 Dependencies: OT-01 and the OT-04 format contract. Size: medium.
 

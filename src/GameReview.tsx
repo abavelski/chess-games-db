@@ -222,6 +222,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
   }, [explore, display, analysisOptions.stockfish, analysisOptions.maia, engines]);
   useEffect(() => {
     const previousTitle = document.title;
+    if (suspended) return;
     document.title = `Game review · ${game.white || game.event || game.source_title}`;
     const keydown = (event: KeyboardEvent) => {
       if (pieceMode || confirmExit) return; // Native dialogs own Escape and focus.
@@ -248,7 +249,7 @@ export function GameReview({ game, initialPath, matchedPositionKey = null, navig
       window.removeEventListener('keydown', keydown, true);
       document.title = previousTitle;
     };
-  }, [game.white, game.event, game.source_title, onClose, pieceMode, confirmExit]);
+  }, [game.white, game.event, game.source_title, onClose, pieceMode, confirmExit, suspended]);
   useEffect(() => {
     const current = transcript.current?.querySelector('[aria-current="step"]');
     current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });

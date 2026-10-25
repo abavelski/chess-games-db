@@ -4,11 +4,13 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ChessArchive } from './database.mjs';
 import { registerEngineIpc } from './engine-ipc.mjs';
+import { registerOpeningWorkspace } from './opening-workspace.mjs';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 let window;
 let archive;
 let currentPath = null;
+let openingWorkspace;
 
 const preferencePath = () => join(app.getPath('userData'), 'archive.json');
 
@@ -65,6 +67,8 @@ function createWindow() {
 
 app.whenReady().then(() => {
   registerEngineIpc({ app, ipcMain, dialog });
+  openingWorkspace = registerOpeningWorkspace({ app, ipcMain, dialog, getWindow: () => window,
+    authorize: event => Boolean(BrowserWindow.fromWebContents(event.sender)) });
   ipcMain.handle('archive:open', async () => {
     const answer = await dialog.showOpenDialog(window, {
       title: 'Open annotated games database',
@@ -108,6 +112,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+  void openingWorkspace?.close();
   archive?.close();
   archive = null;
 });
