@@ -4,7 +4,7 @@ import { OpeningPositionBoard } from './OpeningPositionBoard';
 import { openingBoard } from './opening-session.mjs';
 
 const emptyMoves: string[] = [];
-const languageNames: Record<string, string> = { en: 'English', de: 'German', fr: 'French', es: 'Spanish', it: 'Italian', nl: 'Dutch', pt: 'Portuguese', und: 'untagged' };
+const languageNames: Record<string, string> = { en: 'English', de: 'German', fr: 'French', es: 'Spanish', it: 'Italian', nl: 'Dutch', pt: 'Portuguese', ru: 'Russian', und: 'untagged' };
 function OpeningDiagram({ fen }: { fen: string }) {
   const valid = useMemo(() => { try { openingBoard(fen, []); return true; } catch { return false; } }, [fen]);
   return valid ? <figure className="opening-article-diagram"><OpeningPositionBoard initialFen={fen} moves={emptyMoves} /><figcaption>Source diagram · local board</figcaption><details><summary>Diagram FEN</summary><code>{fen}</code></details></figure>
@@ -55,21 +55,20 @@ function ReadingBlocks({ blocks, targets, onArticle, onStudy, path = '' }: {
   })}</>;
 }
 
-export function OpeningArticleReader({ catalog, articleKey, language, active, onArticle, onStudy, onFilter, onLanguageChange, initialScroll = 0, selectedForStudy = false }: {
-  catalog: OpeningCatalog; articleKey: string; language: string; active: boolean;
+export function OpeningArticleReader({ catalog, articleKey, active, onArticle, onStudy, onFilter, initialScroll = 0, selectedForStudy = false }: {
+  catalog: OpeningCatalog; articleKey: string; active: boolean;
   onArticle: (key: string) => void; onStudy: (request: OpeningStudySelection) => void; onFilter: (article: OpeningArticleCard) => void;
-  onLanguageChange: (language: string) => void;
   initialScroll?: number;
   selectedForStudy?: boolean;
 }) {
   const [data, setData] = useState<{ key: string; page: number; value: OpeningArticle } | null>(null), [error, setError] = useState<string | null>(null);
   const [examplesPage, setExamplesPage] = useState(1), body = useRef<HTMLDivElement>(null);
-  const bodyKey = JSON.stringify([catalog.revision, articleKey, language]);
+  const bodyKey = JSON.stringify([catalog.revision, articleKey]);
   const key = JSON.stringify([bodyKey, examplesPage]);
   useEffect(() => {
     if (!active) return;
     let alive = true; setError(null);
-    window.openingStudy.article({ revision: catalog.revision, key: articleKey, language, examplesPage }).then(value => { if (alive) setData({ key: bodyKey, page: examplesPage, value }); })
+    window.openingStudy.article({ revision: catalog.revision, key: articleKey, examplesPage }).then(value => { if (alive) setData({ key: bodyKey, page: examplesPage, value }); })
       .catch(cause => { if (alive) setError(String(cause.message)); });
     return () => { alive = false; };
   }, [active, key]);
@@ -80,10 +79,9 @@ export function OpeningArticleReader({ catalog, articleKey, language, active, on
     if (article && body.current && !restoredScroll.current) { body.current.scrollTop = initialScroll; restoredScroll.current = true; }
   }, [article, initialScroll]);
   return <article className="opening-article-reader" data-reading aria-label="Opening article reader">
-    <label className="opening-reading-language">Reading language<select aria-label="Article reading language" value={language} onChange={event => onLanguageChange(event.target.value)}>{Object.entries(languageNames).filter(([code]) => code !== 'und').map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>
     {error && <p role="alert">{error}</p>}{!article && !error && <p role="status">Loading article…</p>}
     {article && <><h2>{article.title}</h2><p className="opening-provenance">{article.source} · {article.sourceLanguage || 'Language unavailable'}</p>
-      {article.fallback && <p className="notice" role="status">{languageNames[language] ?? language} has no explanatory body. Showing {languageNames[article.language ?? ''] ?? article.language ?? 'available content'} ({article.sourceLanguage}).</p>}
+      {article.fallback && <p className="notice" role="status">English has no explanatory body. Showing {languageNames[article.language ?? ''] ?? article.language ?? 'available content'} ({article.sourceLanguage}).</p>}
       {!article.meaningful && <p className="notice">A reliable explanatory body could not be identified. The safe available content is shown below.</p>}
       {article.notices.some(n => n.code === 'safe_body_fallback') && <p className="notice">Some source formatting could not be separated reliably; a safe reading fallback is available.</p>}
       <button type="button" disabled={selectedForStudy} onClick={() => onFilter({ key: article.key, title: article.title, source: article.source })}>{selectedForStudy ? 'Explorer limited to this article' : 'Limit explorer to this article'}</button>

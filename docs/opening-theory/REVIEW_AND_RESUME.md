@@ -2,14 +2,15 @@
 
 Annotated examples now open the same `GameReview` used by Games. The
 opening-specific preview, board layout, move buttons and annotation cards were
-removed. `OpeningGameReview` supplies only the validated runtime tree, language
+removed. `OpeningGameReview` supplies only the validated runtime tree, automatic language
 selection, source attribution and study navigation to the shared screen.
 
 The shared board, resizer, score/variation transcript, NAG descriptions,
 keyboard navigation, review settings, engine controls and Piece mode are reused.
-Comments retain before/after/root placement and source sequence. Reading language
-chooses matching text, then untagged text, then a labelled source fallback;
-all languages can be shown. Source prose is encoded as literal text so braces
+Comments retain before/after/root placement and source sequence. Comment text automatically prefers English, then Russian, then any other
+available language at each node and before/after/root placement. Multiple
+comments in that language retain their order; non-English fallback text is
+labelled. Language controls are removed, and old language preferences are ignored. Source prose is encoded as literal text so braces
 and PGN-like directives cannot introduce moves, evaluations or drawings.
 Arrows and squares use the shared board overlays and clear on navigation.
 Unsupported/unmapped annotations remain explicit; no evaluation perspective or

@@ -33,7 +33,6 @@ body:has(.workspace-root[data-workspace=openings]) { min-width: 0; }
   strong { font-size: 18px; } span { font-size: 11px; line-height: 1.5; text-align: right; }
 }
 .opening-material-tabs { display: flex; gap: 4px; margin-bottom: 10px; button { flex: 1; padding: 7px 4px; font-size: 12px; } button[aria-selected=true] { color: white; background: #2b4637; } }
-.opening-reading-language { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 10px 0; }
 .opening-material-card { padding: 13px; margin: 10px 0; background: #fff; border: 1px solid #d9dfd1; border-radius: 7px; overflow-wrap: anywhere;
   h3 { margin: 0 0 8px; font: 17px Georgia, serif; } h3 button { padding: 0; border: 0; text-align: left; font: inherit; }
   p { font-size: 13px; line-height: 1.6; margin: 6px 0; } small { display: block; font-size: 11px; color: #66735f; margin: 6px 0; }

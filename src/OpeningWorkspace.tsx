@@ -6,7 +6,6 @@ import { OpeningGameReview } from './OpeningGameReview';
 export function OpeningWorkspace({ active }: { active: boolean }) {
   const [status, setStatus] = useState<OpeningLibraryStatus>({ catalog: null, path: null, error: null });
   const [opening, setOpening] = useState(false);
-  const [language, setLanguage] = useState('en');
   const [settingsReady, setSettingsReady] = useState(false), [resumeNotice, setResumeNotice] = useState<string | null>(null);
   const [initialExplorer, setInitialExplorer] = useState<OpeningExplorerState | undefined>();
   const [reviewFlipped, setReviewFlipped] = useState(false);
@@ -30,9 +29,6 @@ export function OpeningWorkspace({ active }: { active: boolean }) {
     const current = savedSession.current;
     if (current?.review) { savedSession.current = { ...current, review: { ...current.review, sourcePath, flipped } }; scheduleSave(); }
   }, [scheduleSave]);
-  const changeLanguage = (value: string) => {
-    setLanguage(value); window.openingStudy.settings({ language: value }).catch(cause => setSaveError(String(cause.message)));
-  };
   const [epoch, setEpoch] = useState(0), [selection, setSelection] = useState<OpeningStudySelection | null>(null);
   const [studyData, setStudyData] = useState<{ key: string; value: OpeningStudy } | null>(null), [studyError, setStudyError] = useState<string | null>(null);
   const returnLocation = useRef<{ scroll: number; focus: HTMLElement | null; scrollers: Array<[HTMLElement, number]> } | null>(null);
@@ -74,7 +70,7 @@ export function OpeningWorkspace({ active }: { active: boolean }) {
     Promise.all([window.openingStudy.status(), window.openingStudy.settings().catch(cause => {
       if (alive) setSaveError(String(cause.message)); return {} as OpeningUserState;
     })]).then(([value, settings]) => { if (alive) {
-      setStatus(value); setLanguage(settings.language ?? 'en');
+      setStatus(value);
       const c = value.catalog, s = settings.session;
       if (c) {
         if (s && s.libraryUUID === c.libraryUUID && s.revision === c.revision && s.corpus === c.corpus) {
@@ -116,8 +112,8 @@ export function OpeningWorkspace({ active }: { active: boolean }) {
       <p>No library is bundled. Select a ready library produced by the offline converter.</p>
       <p>Games and its selected archive stay available in their own workspace.</p>
       {status.path && <p>Remembered file: {status.path}</p>}</section>
-      : <><div hidden={!!selection}>{settingsReady && <OpeningExplorer key={`${status.catalog.libraryUUID}:${status.catalog.revision}:${epoch}`} initialState={initialExplorer} onState={explorerState} catalog={status.catalog} active={active && !selection} language={language} onLanguageChange={changeLanguage} onOpenStudy={openStudy} />}</div>
-      {selection && (studyData?.key === selectionKey ? <OpeningGameReview key={selectionKey} study={studyData.value} notice={selection.notice} onClose={closeStudy} language={language} active={active} initialFlipped={reviewFlipped} onPosition={reviewPosition} />
+      : <><div hidden={!!selection}>{settingsReady && <OpeningExplorer key={`${status.catalog.libraryUUID}:${status.catalog.revision}:${epoch}`} initialState={initialExplorer} onState={explorerState} catalog={status.catalog} active={active && !selection} onOpenStudy={openStudy} />}</div>
+      {selection && (studyData?.key === selectionKey ? <OpeningGameReview key={selectionKey} study={studyData.value} notice={selection.notice} onClose={closeStudy} active={active} initialFlipped={reviewFlipped} onPosition={reviewPosition} />
         : <section aria-label="Opening source example"><button type="button" onClick={closeStudy}>Back to study</button>{studyError ? <p role="alert">{studyError}</p> : <p role="status">Loading source example…</p>}</section>)}
       </>}
   </section>;

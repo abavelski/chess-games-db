@@ -6,7 +6,6 @@ import type { OpeningCatalog, OpeningRoute, OpeningExploration, OpeningGameCard,
 
 const tabs = ['articles','games'] as const;
 const labels = { articles: 'Articles', games: 'Game records' };
-const languages = [['en','English'],['de','German'],['fr','French'],['es','Spanish'],['it','Italian'],['nl','Dutch'],['pt','Portuguese']] as const;
 const num = (n: number) => n.toLocaleString();
 type Kind = typeof tabs[number];
 type Material = OpeningGameCard | OpeningArticleCard;
@@ -15,8 +14,8 @@ type Material = OpeningGameCard | OpeningArticleCard;
 const visibleRoute = (route: OpeningRoute): OpeningRoute => ({ ...route, filters: route.filters.articleKeys?.length ? { articleKeys: route.filters.articleKeys } : {} });
 const visibleKind = (kind: OpeningExplorerState['kind']): Kind => kind === 'comments' ? 'games' : kind;
 const visiblePage = (route: OpeningRoute, page: number) => route.filters.roles?.length || route.filters.query || route.filters.annotationLanguages?.length ? 1 : page;
-export function OpeningExplorer({ catalog, active, language, onLanguageChange, onOpenStudy, initialState, onState }: {
-  catalog: OpeningCatalog; active: boolean; language: string; onLanguageChange: (language: string) => void;
+export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, onState }: {
+  catalog: OpeningCatalog; active: boolean;
   initialState?: OpeningExplorerState; onState?: (state: OpeningExplorerState) => void;
   onOpenStudy?: (request: { key: string; treeHash?: string; sourcePath?: string; expectedPositionKey?: string; token?: string; notice?: string }) => void;
 }) {
@@ -174,7 +173,6 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
             const next = tabs[(index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
             setKind(next); setPage(1); document.getElementById(`opening-${next}-tab`)?.focus(); event.preventDefault();
           }}>{labels[tab]}</button>)}</div>
-        <label className="opening-reading-language">Reading language<select aria-label="Opening reading language" value={language} onChange={event => onLanguageChange(event.target.value)}>{languages.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <div id="opening-material-panel" role="tabpanel" aria-labelledby={`opening-${kind}-tab`} aria-busy={!visibleMaterial && !materialError}>
           {materialError && <p role="alert">{materialError}</p>}
           {!visibleMaterial && !materialError && <p role="status">Loading study material…</p>}
@@ -206,10 +204,10 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
         <button ref={articleBack} type="button" className="secondary-button" onClick={closeArticle}>Back to articles</button></header>
       {readerKeys.length > 1 && <button type="button" className="secondary-button" onClick={() => setReaderKeys(current => current.slice(0, -1))}>Previous article</button>}
         {readerKeys.map((entry, i) => <div key={entry.id} hidden={i !== readerKeys.length - 1}>
-          {onOpenStudy && <OpeningArticleReader catalog={catalog} articleKey={entry.key} language={language}
+          {onOpenStudy && <OpeningArticleReader catalog={catalog} articleKey={entry.key}
             selectedForStudy={route.filters.articleKeys?.length === 1 && route.filters.articleKeys[0] === entry.key}
             initialScroll={scrolls.current[entry.key] ?? 0}
-            active={active && articleView === 'reader' && i === readerKeys.length - 1} onArticle={readArticle} onStudy={onOpenStudy} onFilter={studyArticle} onLanguageChange={onLanguageChange} />}
+            active={active && articleView === 'reader' && i === readerKeys.length - 1} onArticle={readArticle} onStudy={onOpenStudy} onFilter={studyArticle} />}
         </div>)}
     </section>
   </div>;

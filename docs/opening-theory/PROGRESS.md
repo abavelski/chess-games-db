@@ -30,6 +30,14 @@ Keep synthetic fixtures redistributable. Mark a task done only when its
 acceptance evidence exists, update this file and the task heading, and commit
 that task before proceeding. Later tasks are not implicitly done by scaffolding.
 
+Latest language simplification: removed reading-language selectors and the
+review all-languages checkbox. Articles and opening-review comments now choose
+English, then Russian, then another available language automatically. Article
+lists remain language-inclusive; saved language preferences are ignored.
+Readable article bodies and non-empty comments outrank placeholders. Build,
+11 native query checks, five review unit tests and article/review/explorer
+desktop smokes pass. OT-13 remains open for player feedback.
+
 Latest navigation simplification: removed Browse all article titles and the
 unused title-catalogue UI. Saved catalogue views now restore Articles, page 1;
 reader Back/Escape returns to regular material. Build and article/explorer

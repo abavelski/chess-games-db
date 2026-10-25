@@ -42,6 +42,7 @@ async function smoke() {
       [...document.querySelectorAll('.opening-material-card h3 button')].find(b=>b.textContent==='Synthetic Sicilian plans').click();
       await waitArticle(()=>articleVisible()?.querySelector('.opening-reading-body'));
       const reader=articleVisible();
+      if(document.querySelector('[aria-label="Opening reading language"], [aria-label="Article reading language"]'))throw Error('Language selector remains');
       if(!reader.textContent.includes('English has no explanatory body. Showing German (GERMAN)'))throw Error('Language fallback is not visible');
       if(!reader.textContent.includes('Original synthetic prose explaining'))throw Error('Explanatory prose lost');
       if(!reader.textContent.includes('Linked example')||!reader.textContent.includes('Same source chapter'))throw Error('Model-game evidence labels lost');

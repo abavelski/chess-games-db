@@ -79,7 +79,7 @@ async function smoke() {
       document.querySelector('[aria-label="Clear article filter"]').click();await expectExplorer(6,10);
     })()`);
     const beforeLanguage = exploreCalls;
-    await window.webContents.executeJavaScript(`(async()=>{changeExplorer('[aria-label="Opening reading language"]','de');await new Promise(r=>setTimeout(r,100));if(explorerCounts()[1]!==10)throw Error('Reading language changed counters');})()`);
+    await window.webContents.executeJavaScript(`(async()=>{if(document.querySelector('[aria-label="Opening reading language"]'))throw Error('Language selector remains');await new Promise(r=>setTimeout(r,100));if(explorerCounts()[1]!==10)throw Error('Reading language changed counters');})()`);
     assert.equal(exploreCalls, beforeLanguage);
     slowE4 = true;
     // Use the board now that the optional text move-entry UI is removed.

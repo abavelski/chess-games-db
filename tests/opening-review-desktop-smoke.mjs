@@ -34,6 +34,7 @@ async function smoke() {
       [...document.querySelectorAll('.opening-material-card')].find(c=>c.textContent.includes('Synthetic White 1')).querySelector('button').click();
       await until(()=>review()?.querySelector('.review-move:not(:disabled)'));
       if(!review().textContent.includes('Synthetic root explanation.')||!review().textContent.includes('Unsupported source annotation: Evaluations'))throw Error('Root annotation coverage lost');
+      if([...review().querySelectorAll('label')].some(label=>label.textContent.includes('Show all source languages')))throw Error('Review language control remains');
       if(!review().querySelector('.review-transcript')||!review().querySelector('[aria-label="Resize board"]'))throw Error('Shared review UI missing');
       selectSource('0.1');await until(()=>review().querySelector('[aria-current="step"]')?.textContent.includes('c6'));
       if(!review().textContent.includes('Prepare a different pawn structure.')||!review().textContent.includes('A second comment in the same language.'))throw Error('Ordered comments lost');

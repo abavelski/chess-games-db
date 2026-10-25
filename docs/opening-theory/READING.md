@@ -12,7 +12,11 @@ and board orientation. Back restores the material list, including its scroll
 and focused control. Filtering
 is a separate, explicit **Limit explorer to this article** action in the reader;
 simply opening an article does not narrow the previous selection. Reading
-language is explicit, with visible fallback and source/chapter attribution.
+versions are selected automatically from readable content: English first,
+Russian second, then any other available language. Source language and
+source/chapter attribution remain visible; there is no reading-language selector.
+The article list includes all languages, and saved language preferences do not
+restrict it.
 
 The renderer accepts typed reading blocks only. Text, emphasis, headings, lists,
 quotations, code, controlled links and local validated FEN diagrams are rendered

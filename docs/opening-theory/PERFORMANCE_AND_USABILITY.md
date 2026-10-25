@@ -204,3 +204,18 @@ to material instead of an inaccessible catalogue. Backend title-query support
 remains compatible. This explicitly supersedes the earlier standalone title-UI
 acceptance scope. Build/typecheck and article/explorer desktop smokes pass,
 including saved-catalogue recovery, safe reading and game-review round trips.
+
+The next feedback removed reading-language controls for both articles and
+opening-review comments. Both now use the same automatic preference: English,
+Russian, then another available language. Article selection uses meaningful
+bodies before navigation-only or safe-body fallbacks. Comments choose non-empty
+text independently at each node/placement, retaining multiple comments in the
+chosen language. Source-language attribution remains visible. The article list
+continues to include every language; saved language preferences are ignored.
+The review all-languages checkbox and obsolete language-control styling are
+removed. No source/runtime library rewrite is required.
+
+Build/typecheck, 11 native query checks, five review unit tests and article,
+review and explorer desktop smokes pass. Tests cover English/Russian/other
+preference, English placeholders, empty comments, legacy explicit language
+requests, preserved annotations and absence of language selectors.

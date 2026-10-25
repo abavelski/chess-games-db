@@ -1,5 +1,6 @@
 import { Node, ChildNode, makePgn } from 'chessops/pgn';
 import { nagDescription } from './nag-descriptions.mjs';
+import { preferredLanguageVersion } from '../lib/opening-language.mjs';
 import { ordinalPathPart } from './pgn.mjs';
 
 export const sourceReviewPath = path => path ? path.split('.').map(Number).map(ordinalPathPart).join('') : '';
@@ -8,7 +9,7 @@ export const reviewSourcePath = path => Array.from({ length: path.length / 2 }, 
 
 // Only the validated runtime tree supplies the review score. Never use the
 // archive's derived PGN or merge duplicate move siblings.
-export function openingReviewGame(study, language, allLanguages = false) {
+export function openingReviewGame(study) {
   const headers = new Map(Object.entries({ White: study.white || '?', Black: study.black || '?',
     Event: study.event || '?', Date: study.date || '?', Result: study.result || '*',
     ECO: study.eco || '?', Annotator: study.annotator || '?', SetUp: '1', FEN: study.startFen }));
@@ -25,12 +26,12 @@ export function openingReviewGame(study, language, allLanguages = false) {
   for (const [id, list] of annotations) {
     const node = nodes.get(id), root = id === rootId || !node;
     for (const a of list) {
-      const bucket = list.filter(b => b.payload.text !== undefined && b.placement === a.placement);
-      const chosen = bucket.find(b => b.language === language) || bucket.find(b => b.language === null) || bucket[0];
-      if (!allLanguages && a.payload.text !== undefined && a.language !== chosen?.language) continue;
+      const bucket = list.filter(b => b.payload.text?.trim() && b.placement === a.placement);
+      const chosen = preferredLanguageVersion(bucket);
+      if (a.payload.text !== undefined && a.language !== chosen?.language) continue;
       let text = '', drawing = false;
       if (a.status !== 'supported') text = `Unsupported source annotation: ${a.type}. Original payload retained in the library; no evaluation inferred.`;
-      else if (a.payload.text !== undefined) text = `${allLanguages || a.language !== language ? '[' + (a.sourceLanguage || 'Untagged') + '] ' : ''}${a.payload.text}`;
+      else if (a.payload.text !== undefined) text = `${a.language !== 'en' ? '[' + (a.sourceLanguage || 'Untagged') + '] ' : ''}${a.payload.text}`;
       else {
         if (a.payload.nags) {
           if (node && !root) node.data.nags = [...node.data.nags || [], ...a.payload.nags];

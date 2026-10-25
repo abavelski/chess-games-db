@@ -212,3 +212,29 @@ test('worker failure rejects queued requests and a new worker recovers', async (
   try { await replacement.ready; assert.equal((await replacement.call('explore', { revision })).gameRecordCount, 6); }
   finally { await replacement.close(); }
 });
+
+test('article reading automatically prefers meaningful English, then Russian, then other languages', () => {
+  const path = join(folder, 'language-preference.sqlite');
+  copyFileSync(args.output, path);
+  const key = 'synthetic:theory/synthetic.cbh:100';
+  const edit = operation => { const db = new Database(path); try { operation(db); } finally { db.close(); } };
+  const read = () => {
+    const reader = new OpeningQueryService(path);
+    try { return reader.article({ revision: reader.catalog().revision, key, language: 'de' }); }
+    finally { reader.close(); }
+  };
+  edit(db => {
+    const row = db.prepare("SELECT * FROM article_versions WHERE language='de' AND meaningful=1").get();
+    row.id = 99001; row.language = 'ru'; row.source_language = 'RUS'; row.title = 'Russian version';
+    const fields = Object.keys(row);
+    db.prepare('INSERT INTO article_versions (' + fields.join(',') + ') VALUES (' + fields.map(() => '?').join(',') + ')').run(...Object.values(row));
+  });
+  assert.equal(read().language, 'ru', 'Russian beats German and the English navigation-only placeholder');
+  edit(db => db.prepare("UPDATE article_versions SET meaningful=1 WHERE language='en'").run());
+  assert.equal(read().language, 'en', 'English wins even with a legacy explicit language preference');
+  edit(db => db.prepare("UPDATE article_versions SET meaningful=0 WHERE language IN ('en','ru')").run());
+  assert.equal(read().language, 'de', 'Other readable languages remain available');
+  edit(db => db.prepare('UPDATE article_versions SET meaningful=0').run());
+  assert.equal(read().language, 'en', 'Safe body fallback still uses the same language order');
+  assert.equal(read().meaningful, false);
+});
