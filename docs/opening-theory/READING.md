@@ -1,7 +1,7 @@
 # OT-11 article reading and controlled navigation
 
 The explorer shows related articles for the selected route and filters.
-Article titles and **Study this article** open a
+Clicking anywhere on an article card opens a
 dedicated article study page. The explorer board, continuations, material list
 and library header are hidden while reading. The page has its own heading,
 reading language, safe prose/diagrams, model-game links and **Back to articles**.

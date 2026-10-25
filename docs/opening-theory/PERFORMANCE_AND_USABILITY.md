@@ -243,3 +243,11 @@ so they remain independently usable. Build/typecheck and review/explorer desktop
 smokes pass, including card-sized hit bounds, background pointer hit testing,
 Enter activation and preserved annotation/restart behavior. Full-library smoke
 selectors now open the card rather than searching for the removed label.
+
+The matching article-list cleanup makes each article card open the dedicated
+study page across its full area. Removed Study this article and Read the
+explanation and explore its model games. Article and game cards share native
+full-card hit targets and hover/focus styles. Article return focus, source links
+and study-page behavior remain intact. Build/typecheck and article/explorer
+desktop smokes pass, including absence of redundant text, card-sized pointer
+hit testing and restored article-selection focus.

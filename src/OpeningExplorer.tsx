@@ -181,10 +181,9 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
           {!visibleMaterial && !materialError && <p role="status">Loading study material…</p>}
           {visibleMaterial?.items.map(item => kind === 'articles' ? (() => {
             const article = item as OpeningArticleCard;
-            return <article key={article.key} className="opening-material-card"><h3><button type="button" onClick={() => readArticle(article.key)}>{article.title}</button></h3>
+            return <article key={article.key} className="opening-material-card opening-article-card"><h3>{article.title}</h3>
               <p>{article.evidence?.includes('explicit_link') ? 'Linked example' : 'Same chapter'}</p><small>{article.source}</small>
-              <button type="button" onClick={() => readArticle(article.key)}>Study this article</button>
-              <small>Read the explanation and explore its model games.</small></article>;
+              <button type="button" className="opening-article-open" aria-label={`Read ${article.title}`} onClick={() => readArticle(article.key)} /></article>;
           })() : (() => {
             const game = item as OpeningGameCard;
             return <article key={game.key} className="opening-material-card opening-game-card"><h3>{game.white || 'Unknown'} — {game.black || 'Unknown'}</h3><p>{[game.event, game.date, game.eco].filter(Boolean).join(' · ')}</p>

@@ -31,8 +31,8 @@ async function smoke() {
         const t=performance.now();document.querySelector('[data-opening-reply="'+uci+'"]').click();
         await until(()=>count()===expected);path.push({uci,displayMs:performance.now()-t});
       }
-      await until(()=>document.querySelector('.opening-material-card h3 button'));
-      let t=performance.now();document.querySelector('.opening-material-card h3 button').click();
+      await until(()=>document.querySelector('.opening-article-open'));
+      let t=performance.now();document.querySelector('.opening-article-open').click();
       await until(()=>[...document.querySelectorAll('.opening-reading-body')].some(visible));const firstArticleMs=performance.now()-t;
       button('Back to articles').click();document.querySelector('#opening-games-tab').click();
       await until(()=>document.querySelector('.opening-game-open'));t=performance.now();document.querySelector('.opening-game-open').click();

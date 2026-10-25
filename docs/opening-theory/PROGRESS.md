@@ -30,6 +30,12 @@ Keep synthetic fixtures redistributable. Mark a task done only when its
 acceptance evidence exists, update this file and the task heading, and commit
 that task before proceeding. Later tasks are not implicitly done by scaffolding.
 
+Latest article-list simplification: the whole article card now opens its study
+page, matching game-card behavior. Removed Study this article and the redundant
+explanatory sentence. Native keyboard access, full-card hover/focus feedback and
+return focus remain supported. Build and article/explorer desktop smokes pass,
+including card-sized pointer hit testing and restored article selection.
+
 Latest game-list simplification: removed the Open annotated example button.
 Each game card now opens review across its full area, with a native keyboard
 button, accessible player label, hover feedback and visible focus outline.

@@ -38,8 +38,8 @@ async function smoke() {
       window.articleButton=text=>[...document.querySelectorAll('.opening-explorer button')].find(e=>e.textContent===text&&!e.closest('[hidden]'));
       window.articleInput=(selector,value)=>{const el=document.querySelector(selector);Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,value);el.dispatchEvent(new Event('input',{bubbles:true}));};
       document.querySelector('[aria-label="Workspaces"] button:nth-child(2)').click();
-      await waitArticle(()=>document.querySelector('.opening-material-card h3 button'));
-      [...document.querySelectorAll('.opening-material-card h3 button')].find(b=>b.textContent==='Synthetic Sicilian plans').click();
+      await waitArticle(()=>document.querySelector('.opening-article-open'));
+      [...document.querySelectorAll('.opening-article-card')].find(c=>c.querySelector('h3').textContent==='Synthetic Sicilian plans').querySelector('.opening-article-open').click();
       await waitArticle(()=>articleVisible()?.querySelector('.opening-reading-body'));
       const reader=articleVisible();
       if(document.querySelector('[aria-label="Opening reading language"], [aria-label="Article reading language"]'))throw Error('Language selector remains');
@@ -62,7 +62,11 @@ async function smoke() {
       articleButton('Back to articles').click();
       const studyCard=()=>[...document.querySelectorAll('.opening-material-card')].find(c=>!c.closest('[hidden]')&&c.textContent.includes('Synthetic Sicilian plans'));
       await waitArticle(()=>!articleVisible()&&studyCard());
-      window.studyAction=[...studyCard().querySelectorAll('button')].find(b=>b.textContent==='Study this article');
+      window.studyAction=studyCard().querySelector('.opening-article-open');
+      if(studyCard().textContent.includes('Study this article')||studyCard().textContent.includes('Read the explanation and explore its model games.'))throw Error('Redundant article actions remain');
+      const area=studyAction.getBoundingClientRect(), bounds=studyCard().getBoundingClientRect();
+      if(Math.abs(area.width-bounds.width)>2||Math.abs(area.height-bounds.height)>2)throw Error('Article hit target does not cover its card');
+      if(document.elementFromPoint(bounds.right-8,bounds.bottom-8)!==studyAction)throw Error('Article card background is not clickable');
       studyAction.focus();studyAction.click();
       await waitArticle(()=>articleVisible()?.textContent.includes('Original synthetic prose explaining'));
       if(document.querySelector('.opening-layout').getClientRects().length)throw Error('Study action did not open dedicated page');
