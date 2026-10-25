@@ -31,7 +31,17 @@ async function smoke() {
       document.querySelector('[aria-label="Workspaces"] button:nth-child(2)').click();
       await until(()=>document.querySelector('#opening-games-tab')); document.querySelector('#opening-games-tab').click();
       await until(()=>[...document.querySelectorAll('.opening-material-card')].some(c=>c.textContent.includes('Synthetic White 1')));
-      [...document.querySelectorAll('.opening-material-card')].find(c=>c.textContent.includes('Synthetic White 1')).querySelector('button').click();
+      const card=[...document.querySelectorAll('.opening-game-card')].find(c=>c.textContent.includes('Synthetic White 1'));
+      if(card.textContent.includes('Open annotated example'))throw Error('Removed example button text remains');
+      const target=card.querySelector('.opening-game-open'), area=target.getBoundingClientRect(), bounds=card.getBoundingClientRect();
+      if(Math.abs(area.width-bounds.width)>2||Math.abs(area.height-bounds.height)>2)throw Error('Game hit target does not cover the card');
+      if(document.elementFromPoint(bounds.right-8,bounds.bottom-8)!==target)throw Error('Game card background is not clickable');
+      target.focus();
+    })()`);
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+    window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+    await window.webContents.executeJavaScript(`(async()=>{${helpers}
       await until(()=>review()?.querySelector('.review-move:not(:disabled)'));
       if(!review().textContent.includes('Synthetic root explanation.')||!review().textContent.includes('Unsupported source annotation: Evaluations'))throw Error('Root annotation coverage lost');
       if([...review().querySelectorAll('label')].some(label=>label.textContent.includes('Show all source languages')))throw Error('Review language control remains');

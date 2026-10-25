@@ -234,3 +234,12 @@ and the material tab stay selected. Keyboard and move-button backward navigation
 remain available. Build/typecheck and explorer/article desktop smokes pass,
 including removed UI, adjacent controls, article-filtered/anchored reset,
 custom-position reset, saved reset state, promotion and narrow-window layout.
+
+The next game-list request removed Open annotated example from each card and
+made the whole card open game review. A native accessible button covers the
+card area with no separate visible label, with hover and focus feedback.
+Matching-source-branch disclosures and buttons stay above the main hit target
+so they remain independently usable. Build/typecheck and review/explorer desktop
+smokes pass, including card-sized hit bounds, background pointer hit testing,
+Enter activation and preserved annotation/restart behavior. Full-library smoke
+selectors now open the card rather than searching for the removed label.

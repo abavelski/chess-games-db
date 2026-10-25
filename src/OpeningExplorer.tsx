@@ -187,9 +187,9 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
               <small>Read the explanation and explore its model games.</small></article>;
           })() : (() => {
             const game = item as OpeningGameCard;
-            return <article key={game.key} className="opening-material-card"><h3>{game.white || 'Unknown'} — {game.black || 'Unknown'}</h3><p>{[game.event, game.date, game.eco].filter(Boolean).join(' · ')}</p>
+            return <article key={game.key} className="opening-material-card opening-game-card"><h3>{game.white || 'Unknown'} — {game.black || 'Unknown'}</h3><p>{[game.event, game.date, game.eco].filter(Boolean).join(' · ')}</p>
               <small>{game.source}{game.annotator ? ` · ${game.annotator}` : ''}</small>{game.annotationCoverage === 'partial' && <p>Partial annotation support</p>}
-              {onOpenStudy && <button type="button" onClick={() => openGame(game)}>Open annotated example</button>}
+              {onOpenStudy && <button type="button" className="opening-game-open" aria-label={`Review ${game.white || 'Unknown'} vs ${game.black || 'Unknown'}`} onClick={() => openGame(game)} />}
               {game.matchCount > 1 && <details><summary>{game.matchCount} matching source branches</summary>{game.matches.map(match => <button type="button" key={match.sourcePath} disabled={!onOpenStudy} onClick={() => openGame(game, match.sourcePath)}>Branch {match.sourcePath || 'root'} · ply {match.ply}</button>)}</details>}
             </article>;
           })())}

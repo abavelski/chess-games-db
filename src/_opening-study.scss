@@ -63,3 +63,11 @@ body:has(.workspace-root[data-workspace=openings]) { min-width: 0; }
 .opening-article-page .opening-material-card { max-width: 760px; }
 
 .opening-workspace:has(.opening-article-page:not([hidden])) > .opening-heading { display: none; }
+
+.opening-game-card { position: relative;
+  &:has(.opening-game-open:hover) { border-color: #829b88; background: #f4f7f0; }
+  details { position: relative; z-index: 2; }
+}
+.opening-explorer .opening-game-open { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer;
+  &:focus-visible { outline: 2px solid #2d5943; outline-offset: 2px; }
+}

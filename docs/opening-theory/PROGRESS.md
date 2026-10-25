@@ -30,6 +30,13 @@ Keep synthetic fixtures redistributable. Mark a task done only when its
 acceptance evidence exists, update this file and the task heading, and commit
 that task before proceeding. Later tasks are not implicitly done by scaffolding.
 
+Latest game-list simplification: removed the Open annotated example button.
+Each game card now opens review across its full area, with a native keyboard
+button, accessible player label, hover feedback and visible focus outline.
+Matching-source-branch controls remain independently interactive. Build and
+review/explorer desktop smokes pass, including full-card pointer hit testing,
+keyboard opening and existing annotation/restart checks.
+
 Latest board simplification: removed Following move order and its row, the
 side-to-move label, Undo and Start. Find other move orders is next to Reset path.
 Reset now restores standard starting FEN/prefix mode, clears all filters and
