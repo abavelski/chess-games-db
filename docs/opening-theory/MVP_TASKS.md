@@ -95,7 +95,7 @@ Acceptance:
 - Review confirms the proposed schema/query approach, or updates the design
   with evidence before committing to its full-corpus build.
 
-## OT-04 — Introduce the independent runtime schema and staging builder
+## OT-04 — Introduce the independent runtime schema and staging builder [DONE]
 
 Dependencies: OT-03. Size: medium.
 
