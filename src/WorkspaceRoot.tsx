@@ -18,7 +18,7 @@ export default function WorkspaceRoot() {
       if (target?.isConnected) target.focus({ preventScroll: true });
     });
   }
-  return <><nav className="workspace-navigation" aria-label="Workspaces">
+  return <div className="workspace-root" data-workspace={workspace}><nav className="workspace-navigation" aria-label="Workspaces">
     <button type="button" aria-pressed={workspace === 'games'} onClick={() => select('games')}>Games</button>
     <button type="button" aria-pressed={workspace === 'openings'} onClick={() => select('openings')}>Openings</button>
   </nav>
@@ -26,5 +26,5 @@ export default function WorkspaceRoot() {
     {openingMounted && <div className="workspace-pane" hidden={workspace !== 'openings'} onFocusCapture={event => { focus.current.openings = event.target; }}>
       <Suspense fallback={<p role="status">Loading opening workspace…</p>}><OpeningWorkspace active={workspace === 'openings'} /></Suspense>
     </div>}
-  </>;
+  </div>;
 }

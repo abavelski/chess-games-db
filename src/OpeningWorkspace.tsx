@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { OpeningLibraryStatus } from './opening-types';
+import { OpeningExplorer } from './OpeningExplorer';
 
 export function OpeningWorkspace({ active }: { active: boolean }) {
   const [status, setStatus] = useState<OpeningLibraryStatus>({ catalog: null, path: null, error: null });
   const [opening, setOpening] = useState(false);
+  const [language, setLanguage] = useState('en');
   useEffect(() => {
     let alive = true;
     if (!window.openingStudy) { setStatus(previous => ({ ...previous, error: 'Open the desktop application to load a local library.' })); return; }
@@ -28,10 +30,10 @@ export function OpeningWorkspace({ active }: { active: boolean }) {
       <p>No library is bundled. Select a ready library produced by the offline converter.</p>
       <p>Games and its selected archive stay available in their own workspace.</p>
       {status.path && <p>Remembered file: {status.path}</p>}</section>
-      : <section aria-label="Opening library information" className="opening-library-info">
-        <h2>Library ready</h2><p>{status.path}</p><p>{status.catalog.coverage.searchableDocuments.toLocaleString()} searchable game records · {status.catalog.coverage.articles.toLocaleString()} articles</p>
+      : <><details aria-label="Opening library information" className="opening-library-info">
+        <summary>Library ready · {status.catalog.coverage.searchableDocuments.toLocaleString()} game records · {status.catalog.coverage.articles.toLocaleString()} articles</summary><p>{status.path}</p>
         <p>{status.catalog.coverage.quarantinedDocuments} quarantined records · {status.catalog.coverage.unsupportedAnnotations.toLocaleString()} unsupported annotations</p>
         <p>{status.catalog.coverage.sourceScope}</p>
-      </section>}
+      </details><OpeningExplorer key={`${status.catalog.libraryUUID}:${status.catalog.revision}`} catalog={status.catalog} active={active} language={language} onLanguageChange={setLanguage} /></>}
   </main>;
 }

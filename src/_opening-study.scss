@@ -5,6 +5,7 @@
   button[aria-pressed=true] { color: #fff; border-color: #829b88; background: #2b463d; }
 }
 .workspace-pane[hidden] { display: none !important; }
+body:has(.workspace-root[data-workspace=openings]) { min-width: 0; }
 .workspace-pane .app-shell { min-height: calc(100vh - 44px); }
 .workspace-pane .review-shell { height: calc(100dvh - 44px); --review-board-size: min(calc(100dvh - 214px), calc(64vw - 20px)); }
 .workspace-pane .review-shell.has-opening { --review-board-size: min(calc(100dvh - 234px), calc(64vw - 20px)); }
@@ -15,3 +16,41 @@
 }
 .opening-empty, .opening-library-info { background: #fff; border: 1px solid #d8dfd4; padding: 24px; border-radius: 10px; overflow-wrap: anywhere; }
 .opening-workspace button { white-space: normal; }
+.opening-library-info { padding: 12px 16px; margin-bottom: 16px; font-size: 13px; summary { cursor: pointer; } }
+.opening-session-label { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.opening-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 12px; margin-bottom: 16px; border-radius: 8px; background: #edf0e8;
+  fieldset { margin: 0; border: 0; padding: 0; display: flex; gap: 10px; } legend { font-size: 12px; margin-bottom: 6px; }
+  >label { display: grid; gap: 4px; font-size: 12px; } input, select { max-width: 100%; border: 1px solid #c3cdbd; border-radius: 4px; padding: 5px; }
+}
+.opening-filter-chip { max-width: 100%; font-size: 12px; overflow-wrap: anywhere; button { margin-left: 8px; } }
+.opening-layout { display: grid; grid-template-columns: minmax(280px, .95fr) minmax(230px, .75fr) minmax(310px, 1.15fr); gap: 18px; align-items: start; }
+.opening-board-panel, .opening-continuations, .opening-material { min-width: 0; }
+.opening-board-container { position: relative; width: 100%; .lpv { width: 100%; } .lpv__board { width: 100%; } }
+.opening-board-container:focus-visible { outline: 2px solid #a37c45; outline-offset: 4px; }
+.opening-board-controls { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.opening-explorer button { border: 1px solid #c9d3c1; color: #2b4637; background: #fff; border-radius: 5px; padding: 6px 9px; }
+.opening-explorer h2 { font: 24px Georgia, serif; margin: 0 0 12px; }
+.opening-breadcrumb { display: flex; gap: 4px; flex-wrap: wrap; margin: 12px 0; button[aria-current] { background: #2b4637; color: white; } }
+.opening-position-tools { margin-top: 12px; font-size: 12px; summary { cursor: pointer; } form { margin: 12px 0; display: grid; gap: 5px; }
+  label { display: grid; gap: 4px; } textarea, input { width: 100%; max-width: 100%; padding: 7px; } code { overflow-wrap: anywhere; display: block; font-size: 10px; }
+}
+.opening-promotion { padding: 12px; background: #f9f5e6; border: 1px solid #b79960; button { margin: 4px; } }
+.opening-counters { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; span { display: grid; font-size: 11px; } strong { font-size: 20px; } }
+.opening-continuations >details { font-size: 12px; line-height: 1.6; margin-bottom: 14px; }
+.opening-replies { display: grid; gap: 6px;
+  button { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px; }
+  strong { font-size: 18px; } span { font-size: 11px; line-height: 1.5; text-align: right; }
+}
+.opening-material-tabs { display: flex; gap: 4px; margin-bottom: 10px; button { flex: 1; padding: 7px 4px; font-size: 12px; } button[aria-selected=true] { color: white; background: #2b4637; } }
+.opening-reading-language { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 10px 0; }
+.opening-material-card { padding: 13px; margin: 10px 0; background: #fff; border: 1px solid #d9dfd1; border-radius: 7px; overflow-wrap: anywhere;
+  h3 { margin: 0 0 8px; font: 17px Georgia, serif; } h3 button { padding: 0; border: 0; text-align: left; font: inherit; }
+  p { font-size: 13px; line-height: 1.6; margin: 6px 0; } small { display: block; font-size: 11px; color: #66735f; margin: 6px 0; }
+}
+.opening-pagination { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 14px 0; font-size: 12px; }
+.opening-coverage { font-size: 11px; color: #6d7766; line-height: 1.6; margin-top: 20px; }
+@media (max-width: 1150px) {
+  .opening-layout { grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr); }
+  .opening-material { grid-column: 1 / -1; }
+  .opening-workspace { padding: 18px; }
+}

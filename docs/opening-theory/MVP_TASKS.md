@@ -229,7 +229,7 @@ Acceptance:
   states. Library loading does not write either existing archive.
 - The renderer has no database handles, arbitrary SQL or filesystem authority.
 
-## OT-10 — Build the move-driven opening explorer
+## OT-10 — Build the move-driven opening explorer [DONE]
 
 Dependencies: OT-08, OT-09. Size: large UI task.
 
