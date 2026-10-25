@@ -2,17 +2,18 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { OpeningPositionBoard } from './OpeningPositionBoard';
 import { OpeningArticleCatalog, OpeningArticleReader } from './OpeningArticles';
 import { OPENING_START_FEN, appendOpeningMove, openingAnchor, openingBoard } from './opening-session.mjs';
-import type { OpeningCatalog, OpeningRoute, OpeningExploration, OpeningGameCard, OpeningArticleCard, OpeningCommentCard, OpeningPage, OpeningExplorerState } from './opening-types';
+import type { OpeningCatalog, OpeningRoute, OpeningExploration, OpeningGameCard, OpeningArticleCard, OpeningPage, OpeningExplorerState } from './opening-types';
 
-const tabs = ['articles','games','comments'] as const;
-const labels = { articles: 'Articles', games: 'Game records', comments: 'Source comments' };
+const tabs = ['articles','games'] as const;
+const labels = { articles: 'Articles', games: 'Game records' };
 const languages = [['en','English'],['de','German'],['fr','French'],['es','Spanish'],['it','Italian'],['nl','Dutch'],['pt','Portuguese']] as const;
 const num = (n: number) => n.toLocaleString();
 type Kind = typeof tabs[number];
-type Material = OpeningGameCard | OpeningArticleCard | OpeningCommentCard;
+type Material = OpeningGameCard | OpeningArticleCard;
 // Controls removed from the workspace must not leave invisible restrictions
 // behind when restoring a session from an earlier build.
 const visibleRoute = (route: OpeningRoute): OpeningRoute => ({ ...route, filters: route.filters.articleKeys?.length ? { articleKeys: route.filters.articleKeys } : {} });
+const visibleKind = (kind: OpeningExplorerState['kind']): Kind => kind === 'comments' ? 'games' : kind;
 const visiblePage = (route: OpeningRoute, page: number) => route.filters.roles?.length || route.filters.query || route.filters.annotationLanguages?.length ? 1 : page;
 export function OpeningExplorer({ catalog, active, language, onLanguageChange, onOpenStudy, initialState, onState }: {
   catalog: OpeningCatalog; active: boolean; language: string; onLanguageChange: (language: string) => void;
@@ -20,11 +21,11 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
   onOpenStudy?: (request: { key: string; treeHash?: string; sourcePath?: string; expectedPositionKey?: string; token?: string; notice?: string }) => void;
 }) {
   const [route, setRoute] = useState<OpeningRoute>(initialState ? visibleRoute(initialState.route) : { mode: 'prefix', rootFen: OPENING_START_FEN, moves: [], filters: {} });
-  const [previous, setPrevious] = useState<{ route: OpeningRoute; page: number; kind: Kind; flipped: boolean } | null>(initialState?.previous ? { ...initialState.previous, route: visibleRoute(initialState.previous.route), page: visiblePage(initialState.previous.route, initialState.previous.page) } : null);
+  const [previous, setPrevious] = useState<{ route: OpeningRoute; page: number; kind: Kind; flipped: boolean } | null>(initialState?.previous ? { ...initialState.previous, route: visibleRoute(initialState.previous.route), kind: visibleKind(initialState.previous.kind), page: initialState.previous.kind === 'comments' ? 1 : visiblePage(initialState.previous.route, initialState.previous.page) } : null);
   const [flipped, setFlipped] = useState(initialState?.flipped ?? false);
   const [error, setError] = useState<string | null>(null), [loading, setLoading] = useState(false);
   const [data, setData] = useState<{ key: string; result: OpeningExploration } | null>(null);
-  const [kind, setKind] = useState<Kind>(initialState?.kind ?? 'articles'), [page, setPage] = useState(initialState ? visiblePage(initialState.route, initialState.page) : 1);
+  const [kind, setKind] = useState<Kind>(initialState ? visibleKind(initialState.kind) : 'articles'), [page, setPage] = useState(initialState && initialState.kind !== 'comments' ? visiblePage(initialState.route, initialState.page) : 1);
   const [material, setMaterial] = useState<{ key: string; value: OpeningPage<Material> } | null>(null);
   const [materialError, setMaterialError] = useState<string | null>(null);
   const [articleNames, setArticleNames] = useState<Record<string, string>>(initialState?.articleNames ?? {});
@@ -75,16 +76,15 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
       .finally(() => { if (alive && requestId === sequence.current) setLoading(false); });
     return () => { alive = false; };
   }, [routeKey, catalog.revision]);
-  const materialLanguage = kind === 'comments' ? language : '';
-  const materialKey = JSON.stringify([result?.token, kind, page, materialLanguage]);
+  const materialKey = JSON.stringify([result?.token, kind, page]);
   useEffect(() => {
     if (!result) return;
     let alive = true; setMaterialError(null);
-    window.openingStudy.materials<Material>({ revision: catalog.revision, token: result.token, kind, page, language }).then(value => {
+    window.openingStudy.materials<Material>({ revision: catalog.revision, token: result.token, kind, page }).then(value => {
       if (alive) setMaterial({ key: materialKey, value });
     }).catch(cause => { if (alive) setMaterialError(String(cause.message)); });
     return () => { alive = false; };
-  }, [result?.token, kind, page, materialLanguage, catalog.revision]);
+  }, [result?.token, kind, page, catalog.revision]);
   const visibleMaterial = material?.key === materialKey ? material.value : null;
   const play = useCallback((uci: string) => {
     const next = appendOpeningMove(route, uci);
@@ -189,18 +189,12 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
               <p>{article.evidence?.includes('explicit_link') ? 'Linked example' : 'Same chapter'}</p><small>{article.source}</small>
               <button type="button" onClick={() => readArticle(article.key)}>Study this article</button>
               <small>Read the explanation and explore its model games.</small></article>;
-          })() : kind === 'games' ? (() => {
+          })() : (() => {
             const game = item as OpeningGameCard;
             return <article key={game.key} className="opening-material-card"><h3>{game.white || 'Unknown'} — {game.black || 'Unknown'}</h3><p>{[game.event, game.date, game.eco].filter(Boolean).join(' · ')}</p>
               <small>{game.source}{game.annotator ? ` · ${game.annotator}` : ''}</small>{game.annotationCoverage === 'partial' && <p>Partial annotation support</p>}
               {onOpenStudy && <button type="button" onClick={() => openGame(game)}>Open annotated example</button>}
               {game.matchCount > 1 && <details><summary>{game.matchCount} matching source branches</summary>{game.matches.map(match => <button type="button" key={match.sourcePath} disabled={!onOpenStudy} onClick={() => openGame(game, match.sourcePath)}>Branch {match.sourcePath || 'root'} · ply {match.ply}</button>)}</details>}
-            </article>;
-          })() : (() => {
-            const comment = item as OpeningCommentCard;
-            return <article key={`${comment.key}:${comment.sequence}`} className="opening-material-card"><h3>{comment.white || 'Unknown'} — {comment.black || 'Unknown'}</h3>
-              <p>{comment.text}{comment.previewTruncated ? '…' : ''}</p><small>{comment.annotator || 'Source author'} · {comment.sourceLanguage || 'untagged'} · {comment.placement} · branch {comment.sourcePath || 'root'}{comment.fallback ? ' · language fallback' : ''}</small>
-              {onOpenStudy && <button type="button" onClick={() => onOpenStudy({ key: comment.key, treeHash: comment.treeHash, sourcePath: comment.sourcePath, expectedPositionKey: board.exactKey, token: result?.token })}>Inspect source comment</button>}
             </article>;
           })())}
           {visibleMaterial?.total === 0 && <p>No {labels[kind].toLowerCase()} match the selected route and filters.</p>}

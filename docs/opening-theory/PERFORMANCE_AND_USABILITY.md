@@ -186,3 +186,12 @@ Two native user-store checks pass, including the optional return-destination
 field and invalid-value rejection. The full-library smoke follows the new Back
 to articles action; full-library performance was not remeasured for this change.
 OT-13 remains in progress pending player feedback.
+
+The player requested removal of the Source comments tab because it duplicated
+game annotations. The explorer now offers only Articles and Game records; the
+comment-card UI is removed. All source annotations remain in shared game review.
+Old saved comment-tab selections and previous move-order views normalize to
+Game records, page 1, rather than leaving an invisible tab selected. The backend
+annotation query contract remains compatible with existing libraries.
+Build/typecheck and explorer/review desktop smokes pass, covering the two-tab
+workspace, saved comment-view recovery and preserved game annotations.

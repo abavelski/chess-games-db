@@ -30,6 +30,13 @@ Keep synthetic fixtures redistributable. Mark a task done only when its
 acceptance evidence exists, update this file and the task heading, and commit
 that task before proceeding. Later tasks are not implicitly done by scaffolding.
 
+Latest simplification: removed the Source comments tab and its preview cards.
+The material tabs are Articles and Game records; source comments, glyphs,
+variations and drawings stay in the shared game review. Legacy saved comment
+views (including previous move-order views) restore as Game records on page 1.
+Build and explorer/review desktop smokes pass, including legacy-session fallback
+and annotation rendering. OT-13 remains open for player feedback.
+
 Latest article feedback fix: Study this article and article titles now open a
 dedicated study page with model-game links and Back to articles / Escape.
 Opening a reader preserves the previous selection; article scope is a separate

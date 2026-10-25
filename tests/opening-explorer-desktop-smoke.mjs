@@ -45,7 +45,7 @@ async function smoke() {
       window.explorerButton=text=>[...document.querySelectorAll('.opening-explorer button')].find(b=>b.textContent===text);
       window.changeExplorer=(selector,value)=>{const el=document.querySelector(selector);const proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:el.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));};
       document.querySelector('[aria-label="Workspaces"] button:nth-child(2)').click();
-      await expectExplorer(6,10);window.originalOpeningBoard=document.querySelector('.opening-board-container cg-board');
+      await expectExplorer(6,10);if(document.querySelectorAll('[aria-label="Study material"] [role="tab"]').length!==2||document.querySelector('#opening-comments-tab'))throw Error('Only articles and games should be shown');window.originalOpeningBoard=document.querySelector('.opening-board-container cg-board');
       window.explorerStage='row';
       document.querySelector('[data-opening-reply="e2e4"]').click();await expectExplorer(3,6);
       if(document.querySelector('.opening-board-container cg-board')!==originalOpeningBoard)throw Error('Board remounted during move/query');
@@ -97,7 +97,7 @@ async function smoke() {
       // custom FEN entry is no longer exposed in the workspace.
       await new Promise(r=>setTimeout(r,250));
       const saved=await openingStudy.settings();
-      await openingStudy.settings({session:{...saved.session,explorer:{...saved.session.explorer,route:{mode:'position',rootFen:'4k3/P7/8/8/8/8/8/4K3 w - - 0 1',moves:[],filters:{}}}}});
+      await openingStudy.settings({session:{...saved.session,explorer:{...saved.session.explorer,kind:'comments',page:7,route:{mode:'position',rootFen:'4k3/P7/8/8/8/8/8/4K3 w - - 0 1',moves:[],filters:{}}}}});
       window.explorerTestHelpers=[waitExplorer,explorerCounts,expectExplorer,explorerButton].map(fn=>fn.toString());
     })()`);
     const helpers = await window.webContents.executeJavaScript('explorerTestHelpers');
@@ -106,6 +106,7 @@ async function smoke() {
       ${['waitExplorer','explorerCounts','expectExplorer','explorerButton'].map((name, i) => `window.${name}=${helpers[i]};`).join('\n')}
       await expectExplorer(0,0);
     })()`);
+    await window.webContents.executeJavaScript(`if(!document.querySelector('#opening-games-tab[aria-selected="true"]')||!document.querySelector('.opening-pagination').textContent.includes('Page 1 of'))throw Error('Saved source comments view did not reset to game records');`);
     slowE4 = false;
     await square(0,7); await square(0,8);
     await window.webContents.executeJavaScript(`(async()=>{
