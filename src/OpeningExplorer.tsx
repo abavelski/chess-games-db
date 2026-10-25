@@ -10,18 +10,22 @@ const languages = [['en','English'],['de','German'],['fr','French'],['es','Spani
 const num = (n: number) => n.toLocaleString();
 type Kind = typeof tabs[number];
 type Material = OpeningGameCard | OpeningArticleCard | OpeningCommentCard;
+// Controls removed from the workspace must not leave invisible restrictions
+// behind when restoring a session from an earlier build.
+const visibleRoute = (route: OpeningRoute): OpeningRoute => ({ ...route, filters: route.filters.articleKeys?.length ? { articleKeys: route.filters.articleKeys } : {} });
+const visiblePage = (route: OpeningRoute, page: number) => route.filters.roles?.length || route.filters.query || route.filters.annotationLanguages?.length ? 1 : page;
 export function OpeningExplorer({ catalog, active, language, onLanguageChange, onOpenArticle, onOpenStudy, initialState, onState }: {
   catalog: OpeningCatalog; active: boolean; language: string; onLanguageChange: (language: string) => void;
   onOpenArticle?: (key: string) => void;
   initialState?: OpeningExplorerState; onState?: (state: OpeningExplorerState) => void;
   onOpenStudy?: (request: { key: string; treeHash?: string; sourcePath?: string; expectedPositionKey?: string; token?: string; notice?: string }) => void;
 }) {
-  const [route, setRoute] = useState<OpeningRoute>(initialState?.route ?? { mode: 'prefix', rootFen: OPENING_START_FEN, moves: [], filters: {} });
-  const [previous, setPrevious] = useState<{ route: OpeningRoute; page: number; kind: Kind; flipped: boolean } | null>(initialState?.previous ?? null);
+  const [route, setRoute] = useState<OpeningRoute>(initialState ? visibleRoute(initialState.route) : { mode: 'prefix', rootFen: OPENING_START_FEN, moves: [], filters: {} });
+  const [previous, setPrevious] = useState<{ route: OpeningRoute; page: number; kind: Kind; flipped: boolean } | null>(initialState?.previous ? { ...initialState.previous, route: visibleRoute(initialState.previous.route), page: visiblePage(initialState.previous.route, initialState.previous.page) } : null);
   const [flipped, setFlipped] = useState(initialState?.flipped ?? false), [fenDraft, setFenDraft] = useState(''), [uciDraft, setUciDraft] = useState('');
   const [error, setError] = useState<string | null>(null), [loading, setLoading] = useState(false);
   const [data, setData] = useState<{ key: string; result: OpeningExploration } | null>(null);
-  const [kind, setKind] = useState<Kind>(initialState?.kind ?? 'articles'), [page, setPage] = useState(initialState?.page ?? 1);
+  const [kind, setKind] = useState<Kind>(initialState?.kind ?? 'articles'), [page, setPage] = useState(initialState ? visiblePage(initialState.route, initialState.page) : 1);
   const [material, setMaterial] = useState<{ key: string; value: OpeningPage<Material> } | null>(null);
   const [materialError, setMaterialError] = useState<string | null>(null);
   const [articleNames, setArticleNames] = useState<Record<string, string>>(initialState?.articleNames ?? {});
@@ -95,18 +99,6 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
       {route.mode === 'position' && previous && <button type="button" onClick={() => {
         setRoute(previous.route); setKind(previous.kind); setPage(previous.page); setFlipped(previous.flipped); setPrevious(null);
       }}>Return to previous move order</button>}</div>
-    <div className="opening-filters" aria-label="Opening filters">
-      <fieldset><legend>Source collection · all if none selected</legend>{(['main_games','theory'] as const).map(role => <label key={role}><input type="checkbox"
-        checked={route.filters.roles?.includes(role) ?? false} onChange={event => {
-          const roles = new Set(route.filters.roles ?? []); if (event.target.checked) roles.add(role); else roles.delete(role); setFilter({ roles: [...roles] });
-        }} />{role === 'main_games' ? 'Main collection' : 'Theory'}</label>)}</fieldset>
-      <label>Title, ECO, player or annotator<input aria-label="Opening metadata filter" value={route.filters.query ?? ''} maxLength={256} onChange={event => setFilter({ query: event.target.value })} /></label>
-      <label>Comments in<select aria-label="Annotation language filter" value={route.filters.annotationLanguages?.[0] ?? ''} onChange={event => setFilter({ annotationLanguages: event.target.value ? [event.target.value] : [] })}>
-        <option value="">Any language</option>{languages.map(([value, label]) => <option key={value} value={value}>{label}</option>)}<option value="und">Untagged text</option>
-      </select></label>
-      {!!route.filters.articleKeys?.length && <div className="opening-filter-chip">Article: {articleNames[route.filters.articleKeys[0]] ?? route.filters.articleKeys[0]}
-        <button type="button" aria-label="Clear article filter" onClick={() => setFilter({ articleKeys: [] })}>×</button></div>}
-    </div>
     {error && <p className="notice error" role="alert">{error}</p>}
     <div className="opening-layout">
       <section className="opening-board-panel" aria-label="Opening board and path">
@@ -148,6 +140,8 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
         </>}
       </section>
       <section className="opening-material" aria-label="Opening study material">
+        {!!route.filters.articleKeys?.length && <div className="opening-filter-chip">Article: {articleNames[route.filters.articleKeys[0]] ?? route.filters.articleKeys[0]}
+          <button type="button" aria-label="Clear article filter" onClick={() => setFilter({ articleKeys: [] })}>×</button></div>}
         <div className="opening-reading-navigation"><button type="button" onClick={() => setArticleView('catalog')}>Browse all article titles</button>
           {articleView !== 'related' && <button type="button" onClick={() => setArticleView('related')}>Back to matching material</button>}
           {articleView === 'reader' && readerKeys.length > 1 && <button type="button" onClick={() => setReaderKeys(current => current.slice(0, -1))}>Previous article</button>}</div>

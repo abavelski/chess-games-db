@@ -57,7 +57,7 @@ try {
   stage = 'loading ready opening library';
   await window.webContents.executeJavaScript(`(async()=>{
     document.querySelector('.opening-heading button').click();
-    await waitOpeningWorkspace(()=>document.querySelector('.opening-library-info')?.textContent.includes('Library ready'));
+    await waitOpeningWorkspace(()=>document.querySelector('.opening-explorer'));
     const selected=await openingStudy.status();if(selected.path!==${JSON.stringify(args.output)})throw Error('Wrong opening file');
     if ((await chessArchive.getCatalog()).path!==${JSON.stringify(archivePath)})throw Error('Opening picker replaced Games archive');
     document.querySelector('[aria-label="Workspaces"] button:first-child').click();

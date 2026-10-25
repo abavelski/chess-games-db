@@ -134,6 +134,15 @@ of an already scoped article. The rebuilt desktop must be restarted to see it.
 Still required: the player's retest of this change and the rest of the two-opening
 and transposition journey. Counter understanding has not yet been confirmed.
 
+The player's next screenshot requested a simpler workspace. Removed the offline
+library eyebrow, introductory sentence, library-information disclosure, and
+the source-role/metadata/comment-language filter panel. On resume, settings for
+those removed controls are cleared and their material pagination resets, so no
+invisible restrictions remain. Article study scope still has a clear action
+beside the study material. Build and the workspace, explorer, article and review
+desktop checks pass after the simplification. The backend filter API remains
+available; the UI acceptance scope now follows this explicit player request.
+
 ```powershell
 node scripts/run-archive-tool.mjs scripts/benchmark-opening-library.mjs data/opening-study/opening-library.sqlite3 data/opening-study/performance-final.json
 $env:CHESS_OPENING_LIBRARY = 'E:\dev\chess-games-db\data\opening-study\opening-library.sqlite3'

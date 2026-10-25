@@ -107,8 +107,7 @@ export function OpeningWorkspace({ active }: { active: boolean }) {
     finally { setOpening(false); }
   }
   return <main className="opening-workspace" aria-label="Opening study workspace" data-active={active}>
-    <header className="opening-heading"><div><div className="eyebrow">OFFLINE STUDY LIBRARY</div><h1 tabIndex={-1}>Openings</h1>
-      <p>Follow a move order, read the source explanations, and study annotated examples.</p></div>
+    <header className="opening-heading"><h1 tabIndex={-1}>Openings</h1>
       <button type="button" className="primary-button" disabled={opening} onClick={() => void openLibrary()}>{opening ? 'Opening…' : 'Open opening library'}</button></header>
     {status.error && <p className="notice error" role="alert">{status.error}</p>}
     {saveError && <p className="notice error" role="alert">Opening settings could not be saved: {saveError}</p>}
@@ -117,11 +116,7 @@ export function OpeningWorkspace({ active }: { active: boolean }) {
       <p>No library is bundled. Select a ready library produced by the offline converter.</p>
       <p>Games and its selected archive stay available in their own workspace.</p>
       {status.path && <p>Remembered file: {status.path}</p>}</section>
-      : <><details aria-label="Opening library information" className="opening-library-info">
-        <summary>Library ready · {status.catalog.coverage.searchableDocuments.toLocaleString()} game records · {status.catalog.coverage.articles.toLocaleString()} articles</summary><p>{status.path}</p>
-        <p>{status.catalog.coverage.quarantinedDocuments} quarantined records · {status.catalog.coverage.unsupportedAnnotations.toLocaleString()} unsupported annotations</p>
-        <p>{status.catalog.coverage.sourceScope}</p>
-      </details><div hidden={!!selection}>{settingsReady && <OpeningExplorer key={`${status.catalog.libraryUUID}:${status.catalog.revision}:${epoch}`} initialState={initialExplorer} onState={explorerState} catalog={status.catalog} active={active && !selection} language={language} onLanguageChange={changeLanguage} onOpenStudy={openStudy} />}</div>
+      : <><div hidden={!!selection}>{settingsReady && <OpeningExplorer key={`${status.catalog.libraryUUID}:${status.catalog.revision}:${epoch}`} initialState={initialExplorer} onState={explorerState} catalog={status.catalog} active={active && !selection} language={language} onLanguageChange={changeLanguage} onOpenStudy={openStudy} />}</div>
       {selection && (studyData?.key === selectionKey ? <OpeningExamplePreview key={selectionKey} study={studyData.value} notice={selection.notice} onClose={closeStudy} language={language} active={active} initialFlipped={reviewFlipped} onPosition={reviewPosition} />
         : <section aria-label="Opening source example"><button type="button" onClick={closeStudy}>Back to study</button>{studyError ? <p role="alert">{studyError}</p> : <p role="status">Loading source example…</p>}</section>)}
       </>}
