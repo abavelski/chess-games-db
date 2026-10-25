@@ -21,17 +21,19 @@ export function createOpeningSource(path) {
     for (const a of f.annotations ?? []) db.prepare(`INSERT INTO game_annotations(game_id,sequence,move_index,annotation_type,language,text,payload_json) VALUES(?,?,?,?,?,?,?)`)
       .run(id, a.sequence, a.move_index, a.annotation_type, a.language, a.text, a.payload_json);
   }
-  for (const id of [100,101]) {
+  for (const id of [100,101,102]) {
     record.run(id, 2, id, 'article');
-    db.prepare("INSERT INTO articles(id,primary_title,header_json) VALUES(?,?,'{}')").run(id, id === 100 ? 'Synthetic Sicilian plans' : 'Standalone synthetic essay');
+    db.prepare("INSERT INTO articles(id,primary_title,header_json) VALUES(?,?,'{}')").run(id, id === 100 ? 'Synthetic Sicilian plans' : id === 101 ? 'Standalone synthetic essay' : 'Unsafe synthetic source example');
   }
-  const html = articleFixtures[0].versions[1].html + articleFixtures[1].html;
+  const html = articleFixtures[0].versions[1].html + '<p>Original synthetic study paragraph. Complete development, protect the king, and compare the central pawn structures before choosing a plan.</p>'.repeat(30) + articleFixtures[1].html;
   db.prepare('INSERT INTO article_bodies(id,article_id,language,title,content) VALUES(1000,100,?,?,?)')
     .run('ENGLISH', 'Synthetic plans', articleFixtures[0].versions[0].html);
   db.prepare('INSERT INTO article_bodies(id,article_id,language,title,content) VALUES(1001,100,?,?,?)')
     .run('GERMAN', 'Ein Plan', html);
   db.prepare('INSERT INTO article_bodies(id,article_id,language,title,content) VALUES(1002,101,?,?,?)')
     .run('ENGLISH', 'Standalone essay', articleFixtures[5].html);
+  db.prepare('INSERT INTO article_bodies(id,article_id,language,title,content) VALUES(1003,102,?,?,?)')
+    .run('ENGLISH', 'Unsafe synthetic source example', articleFixtures[2].html + '</a></svg>' + articleFixtures[3].html);
   const anchors = [...html.matchAll(/<a /g)].map(m => m.index);
   for (const [i, column] of anchors.entries()) db.prepare(`INSERT INTO article_links(id,body_id,ordinal,line,column_no,raw_start_tag,href,arguments_json,target_record_id,position_hint,resolution_status)
     VALUES(?,1001,?,1,?,'<a>','javascript:CBLink(...)','[]',?,?,?)`)

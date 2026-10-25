@@ -251,7 +251,7 @@ Acceptance:
   earlier board; the board remains interactive during expensive queries.
 - Narrow-window and keyboard flows remain usable; controls have accessible names.
 
-## OT-11 — Add article reading and controlled navigation
+## OT-11 — Add article reading and controlled navigation [DONE]
 
 Dependencies: OT-06, OT-08, OT-09. Size: medium.
 

@@ -34,7 +34,7 @@ export interface ReadingBlock {
 }
 export interface ArticleTarget {
   anchor: string; kind: string; status: string; documentKey: string | null; treeHash: string | null; articleKey: string | null;
-  positionHint: string | null; evidence: { notice?: string | null; candidates?: Array<{ stableKey: string | null; documentId: number | null }> };
+  positionHint: string | null; evidence: { notice?: string | null; candidates?: Array<{ stableKey: string | null; documentId: number | null; white?: string | null; black?: string | null; treeHash?: string | null; source?: string | null }> };
 }
 export interface OpeningArticle {
   key: string; title: string; source: string; language: string | null; sourceLanguage: string | null; fallback: boolean; meaningful: boolean;
@@ -56,6 +56,9 @@ export interface OpeningStudy {
   result: string | null; eco: string | null; annotator: string | null; source: string; role: string; startFen: string;
   annotationCoverage: string; nodes: OpeningSourceNode[]; annotations: OpeningAnnotation[];
   matchPath: string; matchingPaths: string[]; notice: string | null;
+}
+export interface OpeningStudySelection {
+  key: string; treeHash?: string; sourcePath?: string; expectedPositionKey?: string; token?: string; notice?: string;
 }
 export interface OpeningStudyAPI {
   status(): Promise<OpeningLibraryStatus>;

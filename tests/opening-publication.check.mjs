@@ -28,11 +28,11 @@ test('complete synthetic pipeline publishes a closed source-independent ready ar
     const before = fileHash(args.source);
     convertAll(args);
     const report = publishOpeningLibrary(args);
-    assert.equal(report.coverage.sourceItems, 15);
+    assert.equal(report.coverage.sourceItems, 16);
     assert.equal(report.coverage.searchableDocuments, 7);
     assert.equal(report.coverage.quarantinedDocuments, 6);
     assert.equal(report.coverage.sourceAnnotations, 10);
-    assert.equal(report.coverage.articles, 2);
+    assert.equal(report.coverage.articles, 3);
     assert.equal(fileHash(args.source), before);
     assert.equal(fileHash(args.output), report.artifactSHA256);
     assert.equal(readFileSync(args.output + '.sha256', 'utf8').trim(), report.artifactSHA256);

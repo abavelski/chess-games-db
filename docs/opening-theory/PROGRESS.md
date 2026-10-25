@@ -15,13 +15,14 @@ Packaging: same repository/build, separate Games / Openings workspaces.
 | OT-08 | Done | [Query service](QUERY_SERVICE.md); eight native oracle/worker checks; full-data prefix smoke |
 | OT-09 | Done | [Workspace](WORKSPACE.md); build, isolated opening workspace and existing Games desktop smokes pass |
 | OT-10 | Done | [Explorer](EXPLORER.md); legal input/session tests, build, explorer and Games desktop smokes pass |
-| OT-11 | Next | Article reading, title catalog, controlled links and local diagrams |
-| OT-12–OT-14 | Pending | Execute in task-list order after dependencies pass |
+| OT-11 | Done | [Reading](READING.md); build, publication/query checks and hostile-content article desktop smoke pass |
+| OT-12 | Next | Full annotated source review, session return and independent preferences/resume store |
+| OT-13–OT-14 | Pending | Execute in task-list order after dependencies pass |
 
 ## Resume
 
 Read this file, `MVP_TASKS.md`, and the last task commit on the branch. Check
-`git status` before editing. Continue OT-11. Source:
+`git status` before editing. Continue OT-12. Source:
 `data/tmp/opening-theory.sqlite`; open read-only, never migrate or repair it.
 All source payloads and real-data reports belong under ignored `data/`.
 Keep synthetic fixtures redistributable. Mark a task done only when its

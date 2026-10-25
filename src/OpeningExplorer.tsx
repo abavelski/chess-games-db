@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OpeningPositionBoard } from './OpeningPositionBoard';
+import { OpeningArticleCatalog, OpeningArticleReader } from './OpeningArticles';
 import { OPENING_START_FEN, appendOpeningMove, openingAnchor, openingBoard } from './opening-session.mjs';
 import type { OpeningCatalog, OpeningRoute, OpeningExploration, OpeningGameCard, OpeningArticleCard, OpeningCommentCard, OpeningPage } from './opening-types';
 
 const tabs = ['articles','games','comments'] as const;
 const labels = { articles: 'Articles', games: 'Game records', comments: 'Source comments' };
-const languages = [['en','English'],['de','German'],['fr','French'],['es','Spanish'],['it','Italian'],['nl','Dutch']] as const;
+const languages = [['en','English'],['de','German'],['fr','French'],['es','Spanish'],['it','Italian'],['nl','Dutch'],['pt','Portuguese']] as const;
 const num = (n: number) => n.toLocaleString();
 type Kind = typeof tabs[number];
 type Material = OpeningGameCard | OpeningArticleCard | OpeningCommentCard;
@@ -23,6 +24,9 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
   const [material, setMaterial] = useState<{ key: string; value: OpeningPage<Material> } | null>(null);
   const [materialError, setMaterialError] = useState<string | null>(null);
   const [articleNames, setArticleNames] = useState<Record<string, string>>({});
+  const [articleView, setArticleView] = useState<'related' | 'catalog' | 'reader'>('related');
+  const [readerKeys, setReaderKeys] = useState<Array<{ key: string; id: number }>>([]);
+  const nextReaderId = useRef(0);
   const sequence = useRef(0), continuationPanel = useRef<HTMLElement>(null);
   const board = useMemo(() => openingBoard(route.rootFen, route.moves), [route.rootFen, route.moves]);
   const routeKey = JSON.stringify(route), result = data?.key === routeKey ? data.result : null;
@@ -62,6 +66,11 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
   const setFilter = (patch: Partial<OpeningRoute['filters']>) => { setRoute(current => ({ ...current, filters: { ...current.filters, ...patch } })); setPage(1); };
   const studyArticle = (article: OpeningArticleCard) => {
     setArticleNames(current => ({ ...current, [article.key]: article.title })); setFilter({ articleKeys: [article.key] });
+  };
+  const readArticle = (key: string) => {
+    const id = ++nextReaderId.current;
+    setReaderKeys(current => current.at(-1)?.key === key ? current : [...current, { key, id }].slice(-8));
+    setArticleView('reader'); onOpenArticle?.(key);
   };
   const openGame = (game: OpeningGameCard, sourcePath = game.match.sourcePath) => onOpenStudy?.({ key: game.key, treeHash: game.treeHash,
     sourcePath, expectedPositionKey: board.exactKey, token: result?.token });
@@ -131,6 +140,10 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
         </>}
       </section>
       <section className="opening-material" aria-label="Opening study material">
+        <div className="opening-reading-navigation"><button type="button" onClick={() => setArticleView('catalog')}>Browse all article titles</button>
+          {articleView !== 'related' && <button type="button" onClick={() => setArticleView('related')}>Back to matching material</button>}
+          {articleView === 'reader' && readerKeys.length > 1 && <button type="button" onClick={() => setReaderKeys(current => current.slice(0, -1))}>Previous article</button>}</div>
+        <div hidden={articleView !== 'related'}>
         <div className="opening-material-tabs" role="tablist" aria-label="Study material">{tabs.map((tab, index) => <button key={tab} type="button" role="tab"
           id={`opening-${tab}-tab`} aria-controls="opening-material-panel" aria-selected={kind === tab} tabIndex={kind === tab ? 0 : -1}
           onClick={() => { setKind(tab); setPage(1); }} onKeyDown={event => {
@@ -144,7 +157,7 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
           {!visibleMaterial && !materialError && <p role="status">Loading study material…</p>}
           {visibleMaterial?.items.map(item => kind === 'articles' ? (() => {
             const article = item as OpeningArticleCard;
-            return <article key={article.key} className="opening-material-card"><h3>{onOpenArticle ? <button type="button" onClick={() => onOpenArticle(article.key)}>{article.title}</button> : article.title}</h3>
+            return <article key={article.key} className="opening-material-card"><h3><button type="button" onClick={() => readArticle(article.key)}>{article.title}</button></h3>
               <p>{article.evidence?.includes('explicit_link') ? 'Linked example' : 'Same chapter'}</p><small>{article.source}</small>
               <button type="button" onClick={() => studyArticle(article)}>Study this article</button></article>;
           })() : kind === 'games' ? (() => {
@@ -165,6 +178,12 @@ export function OpeningExplorer({ catalog, active, language, onLanguageChange, o
         </div>
         <div className="opening-pagination"><button type="button" disabled={page <= 1 || !visibleMaterial} onClick={() => setPage(value => value - 1)}>Previous</button>
           <span>Page {page} of {pageCount}</span><button type="button" disabled={page >= pageCount || !visibleMaterial} onClick={() => setPage(value => value + 1)}>Next</button></div>
+        </div>
+        <div hidden={articleView !== 'catalog'}><OpeningArticleCatalog catalog={catalog} active={active && articleView === 'catalog'} onOpen={readArticle} /></div>
+        {readerKeys.map((entry, i) => <div key={entry.id} hidden={articleView !== 'reader' || i !== readerKeys.length - 1}>
+          {onOpenStudy && <OpeningArticleReader catalog={catalog} articleKey={entry.key} language={language}
+            active={active && articleView === 'reader' && i === readerKeys.length - 1} onArticle={readArticle} onStudy={onOpenStudy} onFilter={studyArticle} onLanguageChange={onLanguageChange} />}
+        </div>)}
       </section>
     </div>
     <p className="opening-coverage">Indexed subset: {catalog.coverage.quarantinedDocuments} quarantined records; {catalog.coverage.deletedRecords} source-deleted records excluded; {num(catalog.coverage.unsupportedAnnotations)} unsupported annotations. Source theory is not claimed complete or current.</p>
