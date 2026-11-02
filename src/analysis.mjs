@@ -23,6 +23,15 @@ export function sourcePosition(viewer) {
   }
   return replayPosition(viewer.game.initial.fen, moves);
 }
+export function switchSideToMove(current) {
+  const setup = current.position.toSetup();
+  setup.turn = current.turn === 'white' ? 'black' : 'white';
+  // An en-passant target belongs to the previous turn and cannot be carried
+  // over when choosing a new side to move in the same piece arrangement.
+  setup.epSquare = undefined;
+  const position = Chess.fromSetup(setup).unwrap();
+  return replayPosition(makeFen(position.toSetup()), []);
+}
 export function appendMove(current, from, to, promotion = 'queen') {
   const position = current.position.clone();
   const move = parseUci(from + to);

@@ -7,8 +7,22 @@ positions with no matches still show an explicit empty-result message.
 Clicking anywhere on an article card opens a
 dedicated article study page. The explorer board, continuations, material list
 and library header are hidden while reading. The page has its own heading,
-compact interactive board, safe prose/diagrams, model-game links and **Back to articles**.
+resizable review board, safe prose/diagrams, model-game links and **Back to articles**.
 Escape also returns to article selection.
+
+Articles use `GameReview` with an article reading-pane slot, sharing `PgnBoard`,
+the two-column review layout, move navigation, `useBoardResize`, `EnginePanel`
+and Piece mode with game review. The resize handle supports dragging, keyboard
+adjustments and double-click reset, using the same saved board-size preference.
+Stockfish/Maia analysis, candidate arrows, evaluation bar and line exploration
+use the shared review session. Engines pause when the article is hidden or Piece
+mode is open. The article content is memoized across engine updates.
+Under the article board, **Start from beginning** loads the standard chess setup.
+**Switch side to move** keeps the pieces, castling rights and move counters,
+clears en passant and starts a fresh analysis line for the other side. A turn
+indicator shows who moves next; switching is disabled when it would leave the
+nonmoving king in check. **Reset position** resets the current setup. The separate
+**Starting position** button was removed to simplify these controls.
 
 Opening an article preserves the previous route, filters, material pagination,
 and board orientation. Back restores the material list, including its scroll
@@ -31,12 +45,12 @@ that placeholder. Other missing media retain readable notices; invalid FEN diagr
 and their placeholder messages are hidden.
 Clicking a diagram, its FEN, or a valid
 complete FEN in article text loads the left study board. Legal moves, promotion,
-previous/next, flip, reset to the selected position and starting position work
+previous/next, flip, reset to the selected position and standard starting setup work
 independently of the explorer. Article boards remain mounted during game review.
-The board stacks above the article in narrow windows. Articles are filtered by
+The board and reading pane use the same responsive sizing as game review. Articles are filtered by
 their relationships to games matching the explorer's move sequence or position
 anchor. Opening an article captures that explorer board position as its starting
-position; Starting position returns there. The snapshot is saved with each
+position. The snapshot is saved with each
 article-history entry and restored on reload. Older saved entries use the
 restored explorer position. Returning from review or paging examples preserves
 the current board exploration. The first article diagram does not override the

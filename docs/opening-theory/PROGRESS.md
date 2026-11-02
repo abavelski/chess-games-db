@@ -22,6 +22,14 @@ Packaging: same repository/build, separate Games / Openings workspaces.
 
 ## Resume
 
+Shared article/game review: article reading now supplies a content slot to
+`GameReview`, reusing its board, layout, resize preference/handle, navigation,
+Stockfish/Maia analysis, engine previews and Piece mode. FEN/diagram selections
+update the existing viewer without remounting it. Article scroll, model-game
+return focus and starting-position snapshots remain intact. Build and article,
+game-review, engine and desktop smoke tests cover the shared flows, including
+article drag/keyboard resizing and analysis pause/return.
+
 Article dead-link cleanup: hide paragraphs containing only unavailable links
 (including source game/shop navigation). Preserve inline author credits as
 plain text and remove the parenthesized unavailable labels. Controlled working

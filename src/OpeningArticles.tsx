@@ -1,9 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { ArticleTarget, OpeningArticle, OpeningCatalog, OpeningStudySelection, ReadingBlock } from './opening-types';
 import { OpeningPositionBoard } from './OpeningPositionBoard';
-import { OPENING_START_FEN, openingBoard } from './opening-session.mjs';
+import { GameReview, type ReviewGame } from './GameReview';
+import { openingBoard } from './opening-session.mjs';
 
 const emptyMoves: string[] = [];
+const noop = () => {};
 const fenPattern = /((?:[prnbqkPRNBQK1-8]+\/){7}[prnbqkPRNBQK1-8]+\s+[wb]\s+(?:[KQkq]+|-)\s+(?:[a-h][36]|-)\s+\d+\s+\d+)/g;
 const languageNames: Record<string, string> = { en: 'English', de: 'German', fr: 'French', es: 'Spanish', it: 'Italian', nl: 'Dutch', pt: 'Portuguese', ru: 'Russian', und: 'untagged' };
 function OpeningDiagram({ fen, onPosition }: { fen: string; onPosition: (fen: string) => void }) {
@@ -85,19 +87,19 @@ function ReadingBlocks({ blocks, targets, onArticle, onStudy, onPosition, path =
   })}</>;
 }
 
-export function OpeningArticleReader({ catalog, articleKey, startFen, active, onArticle, onStudy, initialScroll = 0 }: {
+export function OpeningArticleReader({ catalog, articleKey, startFen, active, onArticle, onStudy, onClose, initialScroll = 0 }: {
   catalog: OpeningCatalog; articleKey: string; active: boolean;
   onArticle: (key: string) => void; onStudy: (request: OpeningStudySelection) => void;
+  onClose: () => void;
   initialScroll?: number; startFen: string;
 }) {
   const [data, setData] = useState<{ key: string; page: number; value: OpeningArticle } | null>(null), [error, setError] = useState<string | null>(null);
   const [examplesPage, setExamplesPage] = useState(1), body = useRef<HTMLDivElement>(null);
-  const [study, setStudy] = useState({ key: '', rootFen: OPENING_START_FEN, moves: emptyMoves, cursor: 0 });
-  const [flipped, setFlipped] = useState(false);
-  const moves = useMemo(() => study.moves.slice(0, study.cursor), [study.moves, study.cursor]);
-  const board = useMemo(() => openingBoard(study.rootFen, moves), [study.rootFen, moves]);
+  const game = useMemo<ReviewGame>(() => ({ id: 0, personal: { lines: [], comments: [] },
+    pgn: `[SetUp "1"]\n[FEN "${openingBoard(startFen, []).fen}"]\n\n*`, start_fen: startFen,
+    white: null, black: null, event: null, site: null, date: null, result: '*', eco: null,
+    source_title: 'Article study', favourite: 0 }), [startFen]);
   const bodyKey = JSON.stringify([catalog.revision, articleKey]);
-  const onPosition = (fen: string) => setStudy({ key: bodyKey, rootFen: fen, moves: [], cursor: 0 });
   const key = JSON.stringify([bodyKey, examplesPage]);
   useEffect(() => {
     if (!active) return;
@@ -105,7 +107,6 @@ export function OpeningArticleReader({ catalog, articleKey, startFen, active, on
     window.openingStudy.article({ revision: catalog.revision, key: articleKey, examplesPage }).then(value => {
       if (alive) {
         setData({ key: bodyKey, page: examplesPage, value });
-        setStudy(current => current.key === bodyKey ? current : { key: bodyKey, rootFen: startFen, moves: [], cursor: 0 });
       }
     })
       .catch(cause => { if (alive) setError(String(cause.message)); });
@@ -119,21 +120,10 @@ export function OpeningArticleReader({ catalog, articleKey, startFen, active, on
   }, [article, initialScroll]);
   return <article className="opening-article-reader" data-reading aria-label="Opening article reader">
     {error && <p role="alert">{error}</p>}{!article && !error && <p role="status">Loading article…</p>}
-    {article && <><h2>{article.title}</h2>
-      <div className="opening-article-layout">
-      <aside className="opening-article-board" aria-label="Article study board">
-        <OpeningPositionBoard initialFen={study.rootFen} moves={moves} flipped={flipped} active={active} onPlay={uci => setStudy(current => ({ ...current, moves: [...current.moves.slice(0, current.cursor), uci], cursor: current.cursor + 1 }))} />
-        <div className="opening-board-controls">
-          <button type="button" onClick={() => setFlipped(value => !value)}>Flip</button>
-          <button type="button" disabled={!study.cursor} onClick={() => setStudy(current => ({ ...current, cursor: current.cursor - 1 }))}>Previous</button>
-          <button type="button" disabled={study.cursor === study.moves.length} onClick={() => setStudy(current => ({ ...current, cursor: current.cursor + 1 }))}>Next</button>
-          <button type="button" onClick={() => setStudy(current => ({ ...current, moves: [], cursor: 0 }))}>Reset position</button>
-          <button type="button" onClick={() => onPosition(startFen)}>Starting position</button>
-        </div>
-        <p className="opening-board-status" role="status">{board.turn === 'white' ? 'White' : 'Black'} to move{board.position.isCheck() ? ' · Check' : ''}</p>
-        {!!board.sans.length && <nav className="opening-breadcrumb" aria-label="Article board moves">{board.sans.map((san, i) => <button key={i} type="button" onClick={() => setStudy(current => ({ ...current, cursor: i + 1 }))}>{san}</button>)}</nav>}
-      </aside>
-      <div className="opening-reading-body" ref={body} data-opening-scroll data-opening-scroll-key={articleKey} tabIndex={0} aria-label="Article text">
+    {article && <GameReview game={game} initialPath="" sourceReview suspended={!active}
+      onClose={onClose} onFindPosition={noop} onPersonalSaved={noop} onToggleFavourite={noop}
+      savingFavourite={false} favouriteError={null}
+      article={{ key: articleKey, title: article.title, bodyRef: body, render: onPosition => <>
       {article.fallback && <p className="notice" role="status">English has no explanatory body. Showing {languageNames[article.language ?? ''] ?? article.language ?? 'available content'} ({article.sourceLanguage}).</p>}
       {!article.meaningful && <p className="notice">A reliable explanatory body could not be identified. The safe available content is shown below.</p>}
         {article.blocks.length ? <ReadingBlocks blocks={article.blocks} targets={targets} onArticle={onArticle} onStudy={onStudy} onPosition={onPosition} /> : <p>No explanatory text is available in this source article.</p>}
@@ -148,7 +138,6 @@ export function OpeningArticleReader({ catalog, articleKey, startFen, active, on
       {article.examplesTotal > 20 && <div className="opening-pagination"><button type="button" disabled={!examplesReady || examplesPage <= 1} onClick={() => setExamplesPage(value => value - 1)}>Previous examples</button><span>Page {examplesPage}</span><button type="button" disabled={!examplesReady || examplesPage * 20 >= article.examplesTotal} onClick={() => setExamplesPage(value => value + 1)}>Next examples</button></div>}
       {article.notices.some(n => n.code === 'unavailable_example') && <p className="opening-unavailable">Some source examples are unavailable in the validated subset.</p>}
       <details><summary>Source and coverage</summary><p>{article.source} · Source language: {article.sourceLanguage}. Copied editions remain separate game records. Source year is provenance; this library does not claim current or complete opening theory.</p></details>
-      </div></div>
-    </>}
+      </> }} />}
   </article>;
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { configureFakeEngines } from './fixtures/fake-engine-config.mjs';
 import { createHash } from 'node:crypto';
 import { app } from 'electron';
 import { fixtureArchive } from './fixtures/opening-archive.mjs';
@@ -14,7 +14,7 @@ const db = fixtureArchive(path, ['1.e4 {Book note [%crit opening] [%cal Ge2e4] [
 const hash = () => createHash('sha256').update(readFileSync(path)).digest('hex');
 const original = hash();
 writeFileSync(join(temporary, 'archive.json'), JSON.stringify({ path }));
-writeFileSync(join(temporary, 'engines.json'), JSON.stringify({ stockfishPath: fileURLToPath(new URL('./fixtures/fake-uci.mjs', import.meta.url)), pythonPath: fileURLToPath(new URL('./fixtures/fake-maia.mjs', import.meta.url)), checkpointPath: fileURLToPath(new URL('./fixtures/fake-maia.mjs', import.meta.url)), device: 'cpu', threads: 1, hash: 16, budget: 100 }));
+configureFakeEngines(temporary);
 const errors = [];
 app.on('browser-window-created', (_event, window) => {
   window.webContents.on('console-message', event => { if (event.level === 'error') errors.push(event.message); });
@@ -66,7 +66,9 @@ async function smoke() {
       if (document.querySelector('.review-move[aria-current="step"]').dataset.reviewPath !== criticalPath) throw new Error('Piece mode lost critical position');
       button('First position').click(); await wait(() => !document.querySelector('.review-move[aria-current="step"]'));
       if (button('Stockfish').getAttribute('aria-pressed') !== 'false' || button('Maia').getAttribute('aria-pressed') !== 'false') throw new Error('Engines must default off');
-      if (document.querySelectorAll('.review-analysis > .analysis-toggles button').length !== 6) throw new Error('Settings, engine toggles and personal comment controls should appear');
+      for (const label of ['Game review settings', 'Stockfish', 'Maia', 'Add comment', 'Save my comments', 'Delete my lines and comments', 'Piece mode']) {
+        if (!button(label)) throw new Error('Missing review control: ' + label);
+      }
       button('Stockfish').click(); await wait(() => document.querySelectorAll('.engine-line').length === 3);
       await wait(() => document.querySelector('svg.cg-shapes line[stroke="#27854c"]'));
       await window.smokeSetting('Evaluation bar', true); await wait(() => document.querySelector('.evaluation-bar'));
@@ -178,7 +180,7 @@ async function smoke() {
       button('Stockfish').click(); await wait(() => document.querySelector('.stockfish-analysis .engine-error'));
       if (!document.querySelector('.review-comment')) throw new Error('Missing engine blocked book review');
       button('Stockfish').click(); await window.chessEngine.configure(settings);
-      document.querySelector('.review-header > button').click(); await wait(() => !document.querySelector('.review-shell'));
+      document.querySelector('.review-header-actions button:last-child').click(); await wait(() => !document.querySelector('.review-shell'));
       document.querySelectorAll('.result-item')[1].click(); await wait(() => document.querySelector('.review-shell cg-board'));
       if (document.querySelector('.review-critical-navigation')) throw new Error('Critical navigation shown in unmarked game');
       if (button('Stockfish').getAttribute('aria-pressed') !== 'false') throw new Error('Enable state should default off for a new review');

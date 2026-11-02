@@ -8,7 +8,7 @@ import type { DrawShape } from '@lichess-org/chessground/draw';
 import { FavouriteButton } from './FavouriteButton';
 import { PieceMode } from './PieceMode';
 import { EnginePanel, EvaluationBar, readReviewPreferences, type ReviewDisplay } from './EnginePanel';
-import { appendMove, replayPosition, sourcePosition, type AnalysisPosition } from './analysis.mjs';
+import { appendMove, replayPosition, sourcePosition, switchSideToMove, type AnalysisPosition } from './analysis.mjs';
 import { useEngineAnalysis } from './useEngineAnalysis';
 import type { AnalysisOptions } from './engine-types';
 import { Path } from '@lichess-org/pgn-viewer/path';
@@ -19,14 +19,22 @@ import { useBoardResize } from './useBoardResize';
 import { criticalNavigation, criticalReveal, criticalRevealStage } from './critical-positions.mjs';
 import { emptyPersonal, mergePersonal, personalPath, personalReviewTokens, updatePersonalComment, removePersonalMove } from './personal.mjs';
 import { Chess } from 'chessops/chess';
-import { parseFen } from 'chessops/fen';
+import { INITIAL_FEN, parseFen } from 'chessops/fen';
 import { extendReviewLine, reviewPgn } from './pgn.mjs';
 import { reviewPositionKey, reviewedSearchFen } from './review-navigation.mjs';
 import type { GameDetail } from './types';
 
 export type ReviewGame = Pick<GameDetail, 'id' | 'personal' | 'pgn' | 'white' | 'black' | 'event' | 'site' | 'date' | 'result' | 'eco' | 'start_fen' | 'source_title' | 'favourite' | 'opening'>;
 
-export function GameReview({ sourceReview = false, initialFlipped = false, onReviewPosition, reviewTools, game, initialPath, matchedPositionKey = null, navigationNotice = null, positionSearchNavigation = false, suspended = false, onFindPosition, onClose, onToggleFavourite, savingFavourite, favouriteError, onPersonalSaved }: {
+export interface ReviewArticle {
+  key: string; title: string; bodyRef: React.RefObject<HTMLDivElement | null>;
+  render: (selectPosition: (fen: string) => void) => React.ReactNode;
+}
+
+// Articles supply the reading pane; board, analysis, resizing and exploration
+// remain the same session used for game review.
+export function GameReview({ article, sourceReview = false, initialFlipped = false, onReviewPosition, reviewTools, game, initialPath, matchedPositionKey = null, navigationNotice = null, positionSearchNavigation = false, suspended = false, onFindPosition, onClose, onToggleFavourite, savingFavourite, favouriteError, onPersonalSaved }: {
+  article?: ReviewArticle;
   sourceReview?: boolean; initialFlipped?: boolean; onReviewPosition?: (path: string, flipped: boolean) => void; reviewTools?: React.ReactNode;
   onPersonalSaved: () => void; game: ReviewGame; initialPath: string;
   matchedPositionKey?: string | null; navigationNotice?: string | null; positionSearchNavigation?: boolean;
@@ -38,7 +46,12 @@ export function GameReview({ sourceReview = false, initialFlipped = false, onRev
   const [showCommentEditor, setShowCommentEditor] = useState(false);
   useEffect(() => { if (showCommentEditor) commentEditor.current?.focus(); }, [showCommentEditor]);
   const transcript = useRef<HTMLDivElement>(null);
+  const bindTranscript = useCallback((element: HTMLDivElement | null) => {
+    transcript.current = element;
+    if (article) article.bodyRef.current = element;
+  }, [article?.bodyRef]);
   const [path, setPath] = useState(initialPath);
+  const [viewerScore, setViewerScore] = useState(game.pgn);
   const [navigationWarning, setNavigationWarning] = useState(navigationNotice);
   const [personal, setPersonal] = useState(() => game.personal || emptyPersonal());
   const [saved, setSaved] = useState(() => JSON.stringify(game.personal || emptyPersonal()));
@@ -94,6 +107,13 @@ export function GameReview({ sourceReview = false, initialFlipped = false, onRev
   const closeRef = useRef(closeReview);
   closeRef.current = closeReview;
   const [sourceScore, setSourceScore] = useState({ base: game.pgn, pgn: game.pgn });
+  const selectPosition = useCallback((fen: string) => {
+    const legal = replayPosition(fen, []);
+    selectedPath.current = '';
+    setPath(''); setPromotion(null);
+    setSourceScore({ base: game.pgn, pgn: `[SetUp "1"]\n[FEN "${legal.fen}"]\n\n*` });
+  }, [game.pgn]);
+  const articleContent = useMemo(() => article?.render(selectPosition), [article?.render, selectPosition]);
   const reviewScore = sourceReview && sourceScore.base === game.pgn ? sourceScore.pgn : game.pgn;
   const merged = useMemo(() => {
     try { return { ...mergePersonal(reviewScore, personal), error: null }; }
@@ -166,12 +186,21 @@ export function GameReview({ sourceReview = false, initialFlipped = false, onRev
       setPath(value.path.path);
     }
   }, [matchedPositionKey, initialFlipped]);
-  const onPathChange = useCallback((value: string) => { selectedPath.current = value; setPromotion(null); setPath(value); }, []);
+  const onPathChange = useCallback((value: string) => {
+    selectedPath.current = value; setPromotion(null); setPath(value);
+    // Replacing a FEN can keep the same root path. Track the viewer's applied
+    // score too so analysis reads the new position after PgnBoard updates it.
+    setViewerScore(viewer.current?.opts.pgn ?? '');
+  }, []);
   const source = useMemo(() => {
     if (!ready || !viewer.current) return null;
     try { return sourcePosition(viewer.current); } catch { return null; }
-  }, [ready, path, merged.pgn]);
+  }, [ready, path, merged.pgn, viewerScore]);
   const position = source;
+  const alternateTurn = useMemo(() => {
+    if (!article || !position) return null;
+    try { return switchSideToMove(position); } catch { return null; }
+  }, [!!article, position]);
   // Reuse the real viewer's legal replay, not the board's possibly modified
   // Chessground FEN, a selected ply, or a manually reconstructed move.
   const searchTarget = useMemo(() => {
@@ -238,7 +267,7 @@ export function GameReview({ sourceReview = false, initialFlipped = false, onRev
   useEffect(() => {
     const previousTitle = document.title;
     if (suspended) return;
-    document.title = `Game review · ${game.white || game.event || game.source_title}`;
+    document.title = article ? `Article study · ${article.title}` : `Game review · ${game.white || game.event || game.source_title}`;
     const keydown = (event: KeyboardEvent) => {
       if (pieceMode || confirmExit) return; // Native dialogs own Escape and focus.
       const target = event.target;
@@ -264,7 +293,7 @@ export function GameReview({ sourceReview = false, initialFlipped = false, onRev
       window.removeEventListener('keydown', keydown, true);
       document.title = previousTitle;
     };
-  }, [game.white, game.event, game.source_title, onClose, pieceMode, confirmExit, suspended]);
+  }, [article?.title, game.white, game.event, game.source_title, onClose, pieceMode, confirmExit, suspended]);
   useEffect(() => {
     const current = transcript.current?.querySelector('[aria-current="step"]');
     current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -273,26 +302,27 @@ export function GameReview({ sourceReview = false, initialFlipped = false, onRev
   const title = game.white || game.black ? `${game.white || 'Unknown'} vs ${game.black || 'Unknown'}` : game.event || 'Study position';
   const go = (direction: 'first' | 'prev' | 'next' | 'last') => viewer.current?.goTo(direction, false);
   const currentNode = viewer.current?.game.nodeAt(new Path(path));
-  return <main className={"review-shell" + (game.opening?.name ? " has-opening" : "")}>
+  const ReviewRoot = article ? 'section' : 'main';
+  return <ReviewRoot className={"review-shell" + (game.opening?.name ? " has-opening" : "")}>
     <header className="review-header">
       <div>
-        <div className="eyebrow">GAME REVIEW · {game.source_title}</div>
-        <div className="review-title"><h1>{title}</h1>{!sourceReview && <FavouriteButton favourite={!!game.favourite} disabled={savingFavourite} onClick={onToggleFavourite} label={title} />}</div>
+        {!article && <div className="eyebrow">GAME REVIEW · {game.source_title}</div>}
+        <div className="review-title">{article ? <h2>{article.title}</h2> : <h1>{title}</h1>}{!sourceReview && <FavouriteButton favourite={!!game.favourite} disabled={savingFavourite} onClick={onToggleFavourite} label={title} />}</div>
         {game.opening?.name && <p className="review-opening-name" title={game.opening.name}>{game.opening.name} · {game.opening.eco}{game.eco && game.eco !== game.opening.eco ? ` · Source ECO ${game.eco}` : ''}</p>}
-        <p>{[game.event, game.site, game.date, game.opening?.name ? null : game.eco, revealed.paused ? null : game.result].filter(value => value && value !== '?').join(' · ')}</p>
+        {!article && <p>{[game.event, game.site, game.date, game.opening?.name ? null : game.eco, revealed.paused ? null : game.result].filter(value => value && value !== '?').join(' · ')}</p>}
       </div>
-      <div className="review-header-actions">
+      {!article && <div className="review-header-actions">
         {!sourceReview && <button className="secondary-button" type="button"
           disabled={!searchTarget.fen || !!pieceMode || !!promotion || !!merged.error || !!model.error || !!model.data?.positionError || savingPersonal || suspended}
           title={pieceMode ? 'Return from Piece mode before searching a legal position.' : searchTarget.reason ?? 'Search other games at the current review position'}
           onClick={findPosition}><Search size={16} />Find games with this position</button>}
         <button className="secondary-button" disabled={savingPersonal} onClick={() => void closeReview()} autoFocus><ArrowLeft size={16} /> {sourceReview ? 'Back to study' : 'Back to games'}</button>
-      </div>
+      </div>}
     </header>
     {favouriteError && <div role="alert" className="notice error">{favouriteError}</div>}
     {navigationWarning && <div role="status" className="notice position-navigation-notice">{navigationWarning}</div>}
     <div className={"review-workspace" + (resize.resizing ? " resizing-board" : "")} ref={resize.workspace}>
-      <section ref={resize.board} className="review-board" data-fen={position?.fen} aria-label="Game review board">
+      <section ref={resize.board} className={"review-board" + (article ? " opening-article-board" : "")} data-fen={position?.fen} aria-label={article ? 'Article study board' : 'Game review board'}>
         <div className={"analysis-board-frame" + (display.bar && analysisOptions.stockfish ? " with-bar" : "")}><div className="review-board-surface"><PgnBoard ordinalPaths={sourceReview} pgn={merged.pgn} reviewPath={selectedPath.current} review initialPath={initialPath} canSelectPath={canSelectPath} onReady={onReady} onPathChange={onPathChange} configureBoard={configureBoard} /><button {...resize.handle} data-board-resize className="board-resize-handle" title="Drag to resize board. Double-click to reset." /></div>{display.bar && analysisOptions.stockfish && <EvaluationBar state={engines.stockfish} enabled={analysisOptions.stockfish} flipped={flipped} />}</div>
 
         <div className="review-board-footer" ref={resize.footer}><div className="review-controls" role="group" aria-label="Move navigation">
@@ -302,11 +332,19 @@ export function GameReview({ sourceReview = false, initialFlipped = false, onRev
           <button title="Next move" aria-label="Next move" disabled={!ready || !currentNode?.children.some(node => canSelectPath(node.data.path.path))} onClick={() => go('next')}><ChevronRight size={24} /></button>
           <button title="Last mainline position" aria-label="Last mainline position" disabled={!ready || revealed.paused || !viewer.current?.game.mainline.length} onClick={() => go('last')}><ChevronsRight size={21} /></button>
         </div>
-        <p className="review-help">Select any move or variation to explore it. ← / → moves · Home / End first / last · F flips · Esc returns to {sourceReview ? 'study' : 'games'}.</p>
-        {game.start_fen && <details className="review-position"><summary>Starting position</summary><code>{game.start_fen}</code></details>}
+        {article && <div className="opening-board-controls">
+          <button type="button" onClick={() => { if (position) selectPosition(position.initialFen); }}>Reset position</button>
+          <button type="button" onClick={() => selectPosition(INITIAL_FEN)} title="Return to the standard chess starting position">Start from beginning</button>
+          <button type="button" disabled={!alternateTurn || !!promotion}
+            title={alternateTurn ? `Set ${alternateTurn.turn === 'white' ? 'White' : 'Black'} to move without moving any pieces` : 'Cannot switch turns while the current side is in check'}
+            onClick={() => { if (alternateTurn) selectPosition(alternateTurn.fen); }}>Switch side to move</button>
+          {position && <span className="opening-board-status" role="status">{position.turn === 'white' ? 'White' : 'Black'} to move</span>}
+        </div>}
+        <p className="review-help">Select any move or variation to explore it. ← / → moves · Home / End first / last · F flips · Esc returns to {article ? 'articles' : sourceReview ? 'study' : 'games'}.</p>
+        {!article && game.start_fen && <details className="review-position"><summary>Starting position</summary><code>{game.start_fen}</code></details>}
         </div>
       </section>
-      <section className="review-score" aria-label="Game score and annotations">
+      <section className="review-score" aria-label={article ? 'Article and position analysis' : 'Game score and annotations'}>
         {critical.total > 0 && <div className="piece-entry">
           <div className="review-critical-navigation" role="group" aria-label="Study stops">
             <button aria-label="Previous study stop" title="Previous study stop (critical positions and medals, including variations)"
@@ -345,7 +383,10 @@ export function GameReview({ sourceReview = false, initialFlipped = false, onRev
             onClick={() => { if (position) setPersonal(previous => updatePersonalComment(previous, position.moves, '')); }}><Trash2 size={16} aria-hidden="true" /></button>
         </div>}
         {promotion && <div className="promotion-choice" role="group" aria-label="Choose promotion">Promote to {(['queen', 'rook', 'bishop', 'knight'] as const).map(role => <button key={role} onClick={() => { explore(appendMove(promotion.position, promotion.from, promotion.to, role)); setPromotion(null); }}>{role}</button>)}</div>}
-        <div className="review-transcript" ref={transcript}>
+        <div className={"review-transcript" + (article ? " opening-reading-body" : "")} ref={bindTranscript}
+          data-opening-scroll={article ? true : undefined} data-opening-scroll-key={article?.key}
+          tabIndex={article ? 0 : undefined} aria-label={article ? 'Article text' : undefined}>
+          {article ? articleContent : <>
           {reviewTools}
           {model.error && <div className="notice error">{model.error}</div>}
           {model.data?.positionError && <div className="notice error">{model.data.positionError}</div>}
@@ -357,6 +398,7 @@ export function GameReview({ sourceReview = false, initialFlipped = false, onRev
             {model.data?.headers.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}
           </dl></details>
           <details className="review-original"><summary>{sourceReview ? 'Source score (PGN export)' : 'Original PGN'}</summary><pre>{game.pgn}</pre></details></>}
+          </>}
         </div>
       </section>
     </div>
@@ -364,7 +406,7 @@ export function GameReview({ sourceReview = false, initialFlipped = false, onRev
       onSave={async () => { if (await savePersonal()) finishExit(true); }}
       onDiscard={() => finishExit(false)} onCancel={() => { setConfirmExit(false); setPendingFindFen(null); resumeFocus.current = null; }} />}
     {pieceMode && <PieceMode fen={pieceMode.fen} orientation={pieceMode.orientation} onReturn={returnFromPieceMode} />}
-  </main>;
+  </ReviewRoot>;
 }
 
 function UnsavedChangesDialog({ saving, error, searching = false, onSave, onDiscard, onCancel }: {

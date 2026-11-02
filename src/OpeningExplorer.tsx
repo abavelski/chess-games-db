@@ -202,7 +202,7 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
         {readerKeys.map((entry, i) => <div key={entry.id} hidden={i !== readerKeys.length - 1}>
           {onOpenStudy && <OpeningArticleReader catalog={catalog} articleKey={entry.key} startFen={entry.startFen ?? board.fen}
             initialScroll={scrolls.current[entry.key] ?? 0}
-            active={active && articleView === 'reader' && i === readerKeys.length - 1} onArticle={readArticle} onStudy={onOpenStudy} />}
+            active={active && articleView === 'reader' && i === readerKeys.length - 1} onArticle={readArticle} onStudy={onOpenStudy} onClose={closeArticle} />}
         </div>)}
     </section>
   </div>;
