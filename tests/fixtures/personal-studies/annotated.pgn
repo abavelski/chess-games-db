@@ -1,0 +1,18 @@
+[Event "Local tournament"]
+[Site "Copenhagen"]
+[Date "2026.11.02"]
+[Round "3"]
+[White "Alice"]
+[Black "Bob"]
+[WhiteElo "1850"]
+[BlackElo "1900"]
+[Result "*"]
+[CustomHeader "Keep me"]
+
+{Root notes: København [%cal Ge2e4,Rd2d4,Bg1f3,Yc2c4] [%csl Ge4,Rd4,Bf3,Yc4]}
+1. e4 $1 {Space [%eval 0.2] [%unknown preserve]} e5
+(1... c5 $2 {Sicilian} 2. Nf3 (2. Nc3 $3 Nc6) d6)
+(1... c5 {Distinct duplicate sibling} 2. c3)
+2. Nf3 $4 Nc6 3. Bb5 $5 a6 4. Ba4 $6 Nf6 5. O-O Be7
+6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Nb8 10. d4 Nbd7
+11. c4 c6 12. Nc3 Qc7 13. Be3 Bb7 *
