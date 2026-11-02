@@ -42,7 +42,7 @@
 
 ## Milestone B — true editable one-game tree
 
-### PS-07 · Pure study PGN codec and branch identity
+### [x] PS-07 · Pure study PGN codec and branch identity
 - **Depends on:** PS-01, PS-03.
 - **Build:** strict single-game standard-root PGN parser/serializer using existing `chessops`; explicit ordered move tree, supported metadata+NAGs+comments/directives; safe node identity and ordinal viewer-path mapping; parse/replay *all* branches, not just mainline. Import untouched source bytes until first committed edit where feasible.
 - **Acceptance:** identical semantic tree after serialize→parse, including root comments and distinct imported same-SAN siblings; bad FEN/variant, illegal nested moves and multiple games rejected before DB mutation; nested edit/navigation never selects a different sibling. Unknown annotations preserved or clearly warned about.
