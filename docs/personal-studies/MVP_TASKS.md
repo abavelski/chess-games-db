@@ -86,7 +86,7 @@
 - **Acceptance:** single-game import usable completely offline; malformed/unsupported FEN/Variant, multiple games, invalid move and oversized file rejected before write; canceled file dialog no-op; imports never overwrite existing studies. Lichess chapter fixture shows drawings.
 - **Files likely:** import dialog, IPC open-file helper with bounded content, codec+desktop tests.
 
-### PS-14 · Export/copy annotated PGN
+### [x] PS-14 · Export/copy annotated PGN
 - **Depends on:** PS-07, PS-10–PS-13.
 - **Build:** copy current **saved or explicitly chosen draft** study to clipboard and Save As `.pgn` using an exact one-game full-tree serializer and supported tags/drawings. Distinguish draft vs saved export in UI, and prevent accidental file overwrite.
 - **Acceptance:** imported exported PGN is parseable by `chessops` and Lichess with the same mainline, variations, comments, glyphs and shapes; unknown headers not silently dropped; cancel/failure doesn't change the DB; local free-form tags do not masquerade as remote metadata.

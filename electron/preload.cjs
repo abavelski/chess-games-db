@@ -3,6 +3,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('personalStudies', Object.freeze({
+  copyPgn: request => ipcRenderer.invoke('personal-studies:copyPgn', request),
+  savePgn: request => ipcRenderer.invoke('personal-studies:savePgn', request),
   openPgn: () => ipcRenderer.invoke('personal-studies:openPgn'),
   onCloseRequest: callback => {
     const listener = () => callback();

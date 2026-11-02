@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, clipboard } from 'electron';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -71,7 +71,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  personalStudies = registerPersonalStudies({ app, ipcMain, dialog, getWindow: () => window,
+  personalStudies = registerPersonalStudies({ app, ipcMain, dialog, clipboard, getWindow: () => window,
     authorize: event => Boolean(window && event.sender === window.webContents) });
   registerEngineIpc({ app, ipcMain, dialog });
   openingWorkspace = registerOpeningWorkspace({ app, ipcMain, dialog, getWindow: () => window,

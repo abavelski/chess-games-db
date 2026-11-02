@@ -1,11 +1,19 @@
 import { join } from 'node:path';
-import { openSync, readSync, closeSync, fstatSync } from 'node:fs';
+import { openSync, readSync, closeSync, fstatSync, writeFileSync } from 'node:fs';
 import { PersonalStudiesStore } from '../lib/personal-studies/storage.mjs';
 import { object, validatePgn, MAX_PGN_BYTES } from '../lib/personal-studies/validation.mjs';
 
-export function registerPersonalStudies({ app, ipcMain, authorize, dialog, getWindow }) {
+export function registerPersonalStudies({ app, ipcMain, authorize, dialog, getWindow, clipboard }) {
  const store=new PersonalStudiesStore(join(app.getPath('userData'),'personal-studies.sqlite3'));
+ function exportText(request){object(request,['id','mode','pgn']);if(!['saved','draft'].includes(request.mode))throw Error('Choose saved or draft PGN for export.');const saved=store.get(request.id),pgn=request.mode==='saved'?saved.pgn:request.pgn;validatePgn(pgn);return pgn;}
  const actions={
+  copyPgn:request=>{clipboard.writeText(exportText(request));return true;},
+  savePgn:async request=>{
+   const pgn=exportText(request),answer=await dialog.showSaveDialog(getWindow(),{title:`Export ${request.mode} study as one chapter PGN`,defaultPath:'study.pgn',filters:[{name:'PGN',extensions:['pgn']}]});
+   if(answer.canceled||!answer.filePath)return {canceled:true};
+   try{writeFileSync(answer.filePath,pgn,{encoding:'utf8',flag:'wx'});}catch(error){if(error.code==='EEXIST')throw Error('That file already exists. Choose a new filename to keep the existing export.');throw error;}
+   return {canceled:false};
+  },
   openPgn:async()=>{
    const answer=await dialog.showOpenDialog(getWindow(),{title:'Import one game / Lichess chapter PGN',properties:['openFile'],filters:[{name:'PGN',extensions:['pgn']}]});
    if(answer.canceled||!answer.filePaths.length)return {canceled:true};

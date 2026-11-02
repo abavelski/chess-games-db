@@ -10,6 +10,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
  const [path,setPath]=useState(''),[error,setError]=useState('');
  const [query,setQuery]=useState<StudyQuery>({limit:40,offset:0,sort:'updated'});
  const [importing,setImporting]=useState(false);
+ const [exportMode,setExportMode]=useState<'saved'|'draft'>('saved'),[notice,setNotice]=useState('');
  const [page,setPage]=useState<{rows:Omit<Study,'pgn'>[];total:number}>({rows:[],total:0});
  const [saved,setSaved]=useState<Study|null>(null),[draft,setDraft]=useState<StudyDraft|null>(null),[busy,setBusy]=useState(false);
  const [pendingLeave,setPendingLeave]=useState<(()=>void)|null>(null),[editorEpoch,setEditorEpoch]=useState(0);
@@ -41,6 +42,11 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
   <details><summary>Local storage and help</summary><p>Storage: {path||'Opening storage…'}</p><p>Local tags and titles belong to this collection. PGN transports one game (one Lichess chapter).</p></details>
   {saved&&draft?<section aria-label="Study editor">
     <p role="status" className="study-save-status">{busy?'Saving or loading…':dirty?'Unsaved changes':`Saved · revision ${saved.revision}`}</p>
+    <div className="study-actions"><label>PGN export version<select aria-label="PGN export version" value={exportMode} onChange={e=>setExportMode(e.target.value as 'saved'|'draft')}><option value="saved">Saved study</option><option value="draft">Current draft (includes unsaved changes)</option></select></label>
+     <button disabled={busy} onClick={()=>void action(async()=>{await window.personalStudies.copyPgn({id:saved.id,mode:exportMode,pgn:exportMode==='draft'?draft.pgn:undefined});setNotice(`Copied ${exportMode} chapter PGN.`);})}>Copy chapter PGN</button>
+     <button disabled={busy} onClick={()=>void action(async()=>{const answer=await window.personalStudies.savePgn({id:saved.id,mode:exportMode,pgn:exportMode==='draft'?draft.pgn:undefined});if(!answer.canceled)setNotice(`Exported ${exportMode} chapter PGN.`);})}>Export chapter PGN</button>
+     {notice&&<span role="status">{notice}</span>}
+    </div>
     <div className="study-actions"><button disabled={busy} onClick={()=>leave(()=>{setSaved(null);setDraft(null);})}>Back to studies</button><button disabled={busy} onClick={()=>void action(save)}>Save study</button>
     <button disabled={busy} onClick={()=>leave(()=>void action(async()=>open(await window.personalStudies.duplicate({id:saved.id}))))}>Duplicate saved study</button>
     <button disabled={busy} onClick={()=>leave(()=>{if(window.confirm(`Delete “${saved.title}” permanently? This cannot be undone.`))void action(async()=>{await window.personalStudies.delete({id:saved.id,expectedRevision:saved.revision});setSaved(null);setDraft(null);});})}>Delete study</button></div>
