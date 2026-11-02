@@ -17,6 +17,9 @@ adjustments and double-click reset, using the same saved board-size preference.
 Stockfish/Maia analysis, candidate arrows, evaluation bar and line exploration
 use the shared review session. Engines pause when the article is hidden or Piece
 mode is open. The article content is memoized across engine updates.
+Piece mode also offers legal play against Maia with a strength selector, free
+editing, reset and drawing tools; see [Piece mode](../piece-mode.md). The same
+component supplies these controls in article and game review.
 Under the article board, **Start from beginning** loads the standard chess setup.
 **Switch side to move** keeps the pieces, castling rights and move counters,
 clears en passant and starts a fresh analysis line for the other side. A turn

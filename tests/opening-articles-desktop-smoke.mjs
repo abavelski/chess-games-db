@@ -68,6 +68,7 @@ async function smoke() {
       await waitArticle(()=>reader.querySelector('.opening-article-board').dataset.fen.startsWith('4k3/8/8/8/8/8/4P3/4K3 w'));
       tool('Piece mode').focus();tool('Piece mode').click();
       await waitArticle(()=>reader.querySelector('.piece-mode[open] cg-board'));
+      if(!reader.querySelector('.piece-mode [aria-label="Maia strength"]')||![...reader.querySelectorAll('.piece-mode button')].some(b=>b.textContent==='Continue with Maia'))throw Error('Article Piece mode is missing shared Maia play');
       await waitArticle(()=>reader.querySelector('.stockfish-analysis .engine-status').textContent.includes('paused'));
       [...reader.querySelectorAll('.piece-mode button')].find(b=>b.textContent==='Return to review').click();
       await waitArticle(()=>!reader.querySelector('.piece-mode'));

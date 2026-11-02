@@ -344,9 +344,15 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .piece-mode { position: fixed; inset: 0; margin: 0; border: 0; padding: 12px; width: 100vw; height: 100dvh; max-width: none; max-height: none; background: #f6f3ec; color: #304633; overflow: hidden; }
 .piece-mode[open] { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; }
 .piece-mode::backdrop { background: #f6f3ec; }
-.piece-board { width: min(calc(100dvh - 85px), calc(100vw - 30px)); height: min(calc(100dvh - 85px), calc(100vw - 30px)); flex-shrink: 0; position: relative; }
-.piece-board square.selected { background: transparent; }
-.piece-actions { display: flex; gap: 10px; }
+.piece-board-area { flex: 1; min-height: 0; width: 100%; container-type: size; display: flex; align-items: center; justify-content: center; }
+.piece-board { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); flex-shrink: 0; position: relative; }
+.piece-mode[data-mode=free] .piece-board square.selected { background: transparent; }
+.piece-mode-controls { width: 100%; max-height: 45dvh; overflow-y: auto; flex-shrink: 0; text-align: center; }
+.piece-actions { display: flex; gap: 10px; align-items: end; justify-content: center; flex-wrap: wrap; }
+.piece-actions label { display: grid; gap: 4px; font-size: 12px; text-align: left; }
+.piece-actions select { padding: 7px; border: 1px solid #d0d9c8; border-radius: 5px; background: #fffefa; color: #38513d; }
+.piece-status { margin: 8px 0 0; font-size: 13px; }
+.piece-drawing-help { margin: 6px 0 0; font-size: 11px; color: #687461; }
 .piece-actions button { padding: 8px 14px; border: 1px solid #d0d9c8; border-radius: 5px; background: #fffefa; color: #38513d; font-size: 12px; }
 .piece-board.cg-wrap { padding-bottom: 0; box-sizing: border-box; }
 .engine-setup fieldset { margin: 16px 0; padding: 8px 14px; border: 1px solid #d7dfd1; border-radius: 6px; }

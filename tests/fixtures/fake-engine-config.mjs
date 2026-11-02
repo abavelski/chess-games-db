@@ -5,9 +5,9 @@ import { EngineManager, UciProcess } from '../../electron/engines.mjs';
 
 // Run the synthetic UCI scripts through Node on every OS, including Windows
 // where a .mjs file cannot be spawned directly as an executable.
-export function configureFakeEngines(directory) {
+export function configureFakeEngines(directory, { maiaFile = 'fake-maia.mjs' } = {}) {
   const stockfishPath = fileURLToPath(new URL('./fake-uci.mjs', import.meta.url));
-  const pythonPath = fileURLToPath(new URL('./fake-maia.mjs', import.meta.url));
+  const pythonPath = fileURLToPath(new URL(`./${maiaFile}`, import.meta.url));
   writeFileSync(join(directory, 'engines.json'), JSON.stringify({ stockfishPath, pythonPath,
     checkpointPath: pythonPath, device: 'cpu', threads: 1, hash: 16, budget: 100 }));
   const session = EngineManager.prototype.session;

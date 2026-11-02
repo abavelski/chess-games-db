@@ -125,9 +125,9 @@ async function smoke() {
       document.querySelector('.review-transcript').scrollTop = 25;
       window.beforePiece = { pgn: document.querySelector('.review-original pre').textContent, path: document.querySelector('[aria-current="step"]')?.dataset.reviewPath || '', scroll: document.querySelector('.review-transcript').scrollTop };
       button('Piece mode').focus(); button('Piece mode').click(); await wait(() => document.querySelector('.piece-mode[open] cg-board'));
-      if (document.querySelector('.piece-mode').querySelector('svg, .evaluation-bar, .review-comment, .review-move, square.last-move, square.check')) throw new Error('Piece mode leaked annotations');
+      if (document.querySelector('.piece-mode').querySelector('svg line, svg circle, .evaluation-bar, .review-comment, .review-move, square.last-move, square.check')) throw new Error('Piece mode leaked annotations');
       if (!document.querySelector('.piece-mode .orientation-black')) throw new Error('Piece mode lost orientation');
-      if (document.querySelectorAll('.piece-mode button').length !== 2) throw new Error('Piece mode must have only two minimal controls');
+      if (!button('Continue with Maia') || !document.querySelector('.piece-mode [aria-label="Maia strength"]')) throw new Error('Piece mode must expose Maia play and strength');
       window.pieceStart = document.querySelector('.piece-board').dataset.fen;
       await wait(() => document.querySelector('.stockfish-analysis .engine-status').textContent.includes('paused'));
     })()`);
