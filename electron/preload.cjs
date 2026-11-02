@@ -2,6 +2,16 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+contextBridge.exposeInMainWorld('personalStudies', Object.freeze({
+  status: () => ipcRenderer.invoke('personal-studies:status'),
+  list: request => ipcRenderer.invoke('personal-studies:list', request),
+  get: request => ipcRenderer.invoke('personal-studies:get', request),
+  create: request => ipcRenderer.invoke('personal-studies:create', request),
+  update: request => ipcRenderer.invoke('personal-studies:update', request),
+  duplicate: request => ipcRenderer.invoke('personal-studies:duplicate', request),
+  delete: request => ipcRenderer.invoke('personal-studies:delete', request),
+}));
+
 contextBridge.exposeInMainWorld('openingStudy', Object.freeze({
   status: () => ipcRenderer.invoke('opening-study:status'),
   settings: patch => ipcRenderer.invoke('opening-study:settings', patch),

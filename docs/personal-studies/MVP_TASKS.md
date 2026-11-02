@@ -22,7 +22,7 @@
 - **Acceptance:** search/title/White/Black/Event, tag AND/OR policy defined and tested; stale revision is a conflict; invalid field/oversized payload never commits; deleting one study cascades only its tags; duplicate gets a new ID. An empty result is valid.
 - **Files likely:** storage/query and validators, SQLite fixture tests.
 
-### PS-04 · Secure Electron IPC / file lifecycle
+### [x] PS-04 · Secure Electron IPC / file lifecycle
 - **Depends on:** PS-03.
 - **Build:** register `personal-studies:*` handlers in main through a separate module; expose narrow `window.personalStudies` methods and TypeScript declarations; userData path/status; no renderer SQL, arbitrary file or Node access.
 - **Acceptance:** only allowlisted validated parameters/actions reach the store; unknown ID and storage failure messages are safe; close handles at app shutdown; archive/openings IPC and their selected files are unchanged.

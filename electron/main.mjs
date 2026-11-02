@@ -5,12 +5,14 @@ import { fileURLToPath } from 'node:url';
 import { ChessArchive } from './database.mjs';
 import { registerEngineIpc } from './engine-ipc.mjs';
 import { registerOpeningWorkspace } from './opening-workspace.mjs';
+import { registerPersonalStudies } from './personal-studies.mjs';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 let window;
 let archive;
 let currentPath = null;
 let openingWorkspace;
+let personalStudies;
 
 const preferencePath = () => join(app.getPath('userData'), 'archive.json');
 
@@ -66,6 +68,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  personalStudies = registerPersonalStudies({ app, ipcMain,
+    authorize: event => Boolean(window && event.sender === window.webContents) });
   registerEngineIpc({ app, ipcMain, dialog });
   openingWorkspace = registerOpeningWorkspace({ app, ipcMain, dialog, getWindow: () => window,
     authorize: event => Boolean(BrowserWindow.fromWebContents(event.sender)) });
@@ -112,6 +116,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+  personalStudies?.close();
   void openingWorkspace?.close();
   archive?.close();
   archive = null;
