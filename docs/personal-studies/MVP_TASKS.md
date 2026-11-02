@@ -80,7 +80,7 @@
 
 ## Milestone C — Lichess-compatible portable PGN
 
-### PS-13 · Import PGN (paste and file)
+### [x] PS-13 · Import PGN (paste and file)
 - **Depends on:** PS-06–PS-07, PS-10–PS-11.
 - **Build:** import one UTF-8 standard-game PGN with branches, comments, NAGs, `[%cal]`/`[%csl]`; parse headers into indexed metadata; choose local title and tags independently; optional user-entered Lichess source URL for provenance only.
 - **Acceptance:** single-game import usable completely offline; malformed/unsupported FEN/Variant, multiple games, invalid move and oversized file rejected before write; canceled file dialog no-op; imports never overwrite existing studies. Lichess chapter fixture shows drawings.

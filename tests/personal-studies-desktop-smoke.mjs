@@ -82,6 +82,13 @@ try {
  })()`);
  win.close();
  await win.webContents.executeJavaScript(`(async()=>{await studyWait(()=>document.querySelector('dialog[aria-label="Unsaved study changes"][open]'));studyButton('Cancel leaving').click();if(document.querySelector('[aria-label="Study title"]').value!=='Close draft')throw Error('Close cancel lost draft');studyButton('Back to studies').click();await studyWait(()=>document.querySelector('dialog[open]'));studyButton('Discard and leave').click();await studyWait(()=>document.querySelector('.study-list'));})()`);
+ await win.webContents.executeJavaScript(`(async()=>{
+  studyButton('Import chapter PGN').click();await studyWait(()=>document.querySelector('[aria-label="Import PGN text"]'));
+  const el=document.querySelector('[aria-label="Import PGN text"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(annotated)});el.dispatchEvent(new Event('input',{bubbles:true}));
+  await studyWait(()=>!studyButton('Import as new study').disabled);studyButton('Import as new study').click();
+  await studyWait(()=>document.querySelector('[aria-label="Study title"]')?.value==='Imported chapter');
+  await studyWait(()=>document.querySelector('.study-review svg.cg-shapes line, .study-review svg.cg-shapes circle'));
+ })()`);
  assert.equal(existsSync(studyPath),true);assert.deepEqual(readFileSync(archive),before);
  console.log('Personal studies desktop passed: lazy storage, three workspaces, preserved Games move and preference.');
 }catch(error){console.error(error);code=1;}finally{clearTimeout(timeout);finishDesktopTest(app,code);}

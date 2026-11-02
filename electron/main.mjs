@@ -71,7 +71,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  personalStudies = registerPersonalStudies({ app, ipcMain,
+  personalStudies = registerPersonalStudies({ app, ipcMain, dialog, getWindow: () => window,
     authorize: event => Boolean(window && event.sender === window.webContents) });
   registerEngineIpc({ app, ipcMain, dialog });
   openingWorkspace = registerOpeningWorkspace({ app, ipcMain, dialog, getWindow: () => window,

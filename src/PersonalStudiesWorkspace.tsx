@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Study, StudyDraft, StudyQuery } from './personal-studies-types';
 import { StudyMetadata } from './StudyMetadata';
 import { PersonalStudyEditor } from './PersonalStudyEditor';
+import { StudyImportDialog } from './StudyImportDialog';
 
 export const studyDraft=(study:Study):StudyDraft=>({title:study.title,kind:study.kind,pgn:study.pgn,tags:study.tags,origin_kind:study.origin_kind,origin_url:study.origin_url});
 
 export default function PersonalStudiesWorkspace({ active }: {active: boolean}) {
  const [path,setPath]=useState(''),[error,setError]=useState('');
  const [query,setQuery]=useState<StudyQuery>({limit:40,offset:0,sort:'updated'});
+ const [importing,setImporting]=useState(false);
  const [page,setPage]=useState<{rows:Omit<Study,'pgn'>[];total:number}>({rows:[],total:0});
  const [saved,setSaved]=useState<Study|null>(null),[draft,setDraft]=useState<StudyDraft|null>(null),[busy,setBusy]=useState(false);
  const [pendingLeave,setPendingLeave]=useState<(()=>void)|null>(null),[editorEpoch,setEditorEpoch]=useState(0);
@@ -46,6 +48,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
     <StudyMetadata draft={draft} onChange={setDraft} disabled={busy}/>
   </section>:<>
    <button disabled={busy} onClick={()=>void action(async()=>open(await window.personalStudies.create({title:'Untitled study'})))}>New study</button>
+   <button disabled={busy} onClick={()=>setImporting(true)}>Import chapter PGN</button>
    <div className="study-filters">
     <label>Search title, player or event<input aria-label="Search studies" value={query.search??''} onChange={e=>filter({search:e.target.value})}/></label>
     <label>Year<input aria-label="Filter study year" type="number" min={1} max={9999} value={query.year??''} onChange={e=>filter({year:e.target.value?Number(e.target.value):undefined})}/></label>
@@ -59,6 +62,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
    <button disabled={!query.offset||busy} onClick={()=>setQuery(q=>({...q,offset:Math.max(0,(q.offset??0)-40)}))}>Previous studies</button>
    <button disabled={(query.offset??0)+40>=page.total||busy} onClick={()=>setQuery(q=>({...q,offset:(q.offset??0)+40}))}>Next studies</button>
   </>}
+  {importing&&<StudyImportDialog onClose={()=>setImporting(false)} onImport={async value=>{open(await window.personalStudies.create(value));await refresh();}}/>}
   {pendingLeave&&<LeaveDialog busy={busy} onCancel={()=>setPendingLeave(null)} onDiscard={()=>{if(saved)setDraft(studyDraft(saved));blocked.current=false;setEditorEpoch(e=>e+1);const proceed=pendingLeave;setPendingLeave(null);setTimeout(proceed,0);}} onSave={()=>void saveAndLeave()}/>}
  </main>;
 }

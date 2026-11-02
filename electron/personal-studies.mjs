@@ -1,10 +1,24 @@
 import { join } from 'node:path';
+import { openSync, readSync, closeSync, fstatSync } from 'node:fs';
 import { PersonalStudiesStore } from '../lib/personal-studies/storage.mjs';
-import { object } from '../lib/personal-studies/validation.mjs';
+import { object, validatePgn, MAX_PGN_BYTES } from '../lib/personal-studies/validation.mjs';
 
-export function registerPersonalStudies({ app, ipcMain, authorize }) {
+export function registerPersonalStudies({ app, ipcMain, authorize, dialog, getWindow }) {
  const store=new PersonalStudiesStore(join(app.getPath('userData'),'personal-studies.sqlite3'));
  const actions={
+  openPgn:async()=>{
+   const answer=await dialog.showOpenDialog(getWindow(),{title:'Import one game / Lichess chapter PGN',properties:['openFile'],filters:[{name:'PGN',extensions:['pgn']}]});
+   if(answer.canceled||!answer.filePaths.length)return {canceled:true};
+   const fd=openSync(answer.filePaths[0],'r');
+   try{
+    if(!fstatSync(fd).isFile()||fstatSync(fd).size>MAX_PGN_BYTES)throw Error('Select a PGN file up to 2 MiB.');
+    const data=Buffer.alloc(MAX_PGN_BYTES+1);let size=0,n;
+    while(size<data.length&&(n=readSync(fd,data,size,data.length-size,null))>0)size+=n;
+    if(size>MAX_PGN_BYTES)throw Error('PGN file exceeds 2 MiB.');
+    let pgn;try{pgn=new TextDecoder('utf-8',{fatal:true}).decode(data.subarray(0,size));}catch{throw Error('PGN file must use UTF-8 encoding.');}
+    validatePgn(pgn);return {canceled:false,pgn};
+   }finally{closeSync(fd);}
+  },
   status:()=>{store.open();return {path:store.path,schemaVersion:1};},
   list:request=>store.list(request),
   get:request=>{object(request,['id']);return store.get(request.id);},
@@ -15,11 +29,12 @@ export function registerPersonalStudies({ app, ipcMain, authorize }) {
  };
  for(const [action,run] of Object.entries(actions))ipcMain.handle('personal-studies:'+action,(event,request)=>{
   if(!authorize(event))throw Error('Personal studies access denied.');
-  try{return run(request);}catch(error){
+  const fail=error=>{
    // SQLite errors may contain schema details; expose only our actionable errors.
    if(error.code?.startsWith('SQLITE'))throw Error('Personal studies storage failed. Check disk space and permissions; your draft has not been discarded.');
    throw Error(error.message);
-  }
+  };
+  try{const result=run(request);return result instanceof Promise?result.catch(fail):result;}catch(error){return fail(error);}
  });
  return {close:()=>store.close()};
 }
