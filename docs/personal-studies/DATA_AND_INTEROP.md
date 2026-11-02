@@ -1,6 +1,6 @@
 # Personal Studies — data model, editing contract and Lichess transport
 
-**Status:** proposed v1 storage and codec contract; finalize fixture-driven details in Personal Studies PS-02/PS-07 before shipping. SQLite schema below is illustrative, not a migration executed by this documentation.
+**Status:** v1 storage and codec implemented. The schema below describes the store; executable schema and validators live in `lib/personal-studies/`. See [CONTRACT.md](CONTRACT.md) for concrete limits and [INTEROPERABILITY.md](INTEROPERABILITY.md) for the pending real Lichess check.
 
 ## 1. Separate store and ownership
 

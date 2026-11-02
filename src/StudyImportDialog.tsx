@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { StudyDraft } from './personal-studies-types';
 
-export function StudyImportDialog({onImport,onClose}:{onImport:(draft:StudyDraft)=>Promise<void>;onClose:()=>void}) {
+export function StudyImportDialog({onImport,onClose,onBusy}:{onImport:(draft:StudyDraft)=>Promise<void>;onClose:()=>void;onBusy:(busy:boolean)=>void}) {
  const dialog=useRef<HTMLDialogElement>(null);
- const [pgn,setPgn]=useState(''),[title,setTitle]=useState('Imported chapter'),[tags,setTags]=useState(''),[url,setUrl]=useState(''),[file,setFile]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const [pgn,setPgn]=useState(''),[title,setTitle]=useState('Imported chapter'),[tags,setTags]=useState(''),[url,setUrl]=useState(''),[file,setFile]=useState(false),[busy,setBusyState]=useState(false),[error,setError]=useState('');
+ function setBusy(value:boolean){setBusyState(value);onBusy(value);}
  useEffect(()=>{dialog.current?.showModal();},[]);
  async function choose(){setBusy(true);setError('');try{const answer=await window.personalStudies.openPgn();if(!answer.canceled){setPgn(answer.pgn!);setFile(true);}}catch(e){setError(String(e));}finally{setBusy(false);}}
  async function submit(){setBusy(true);setError('');try{await onImport({title,pgn,tags:tags.split(',').filter(t=>t.trim()),origin_kind:url?'lichess-pgn':file?'pgn-file':'pgn-paste',origin_url:url||null});onClose();}catch(e){setError(String(e));}finally{setBusy(false);}}

@@ -1,6 +1,6 @@
 # Personal Studies — ordered MVP implementation tasks
 
-**Status:** implementation in progress; completed tasks are checked below. This is the executable backlog, not a claim that the feature exists. Each task is a small reviewable change with independent unit/fixture tests and **no writes to users' real databases**. Task IDs are scoped here as **Personal Studies PS-xx** (not `docs/tasks/position-search/`).
+**Status:** PS-01?PS-18 completed and checked below. Automated verification passes; real Lichess verification remains an explicit release blocker (see PS-15 and VERIFICATION.md). This is the executable backlog, not a claim that the feature exists. Each task is a small reviewable change with independent unit/fixture tests and **no writes to users' real databases**. Task IDs are scoped here as **Personal Studies PS-xx** (not `docs/tasks/position-search/`).
 
 ## Milestone A — isolated foundation
 
@@ -112,7 +112,7 @@
 - **Acceptance:** backup contains PGN, metadata and tags across app restart; restore into disposable profile preserves data; cancel/overwrite prompt works; no partial or incorrectly copied live WAL state. Instructions prominently distinguish full DB backup from one-study PGN export.
 - **Files likely:** Electron backup handler, tests, docs.
 
-### PS-18 · Desktop regression & MVP release gate
+### [x] PS-18 · Desktop regression & MVP release gate
 - **Depends on:** PS-01–PS-17.
 - **Build:** automate create → edit branch → comment → draw → Save → reopen → import/export → delete across workspaces; measure list and variation rendering on representative fixtures; write release verification record and known limitations.
 - **Acceptance:** `npm test`, `npm run build`, `npm run test:desktop` pass in supported GUI environment; actual Games/Openings DB bytes/row counts unchanged; existing archive comments, search, opening study sessions, engine modes still work; 200+ move variation fixture responsive, keyboard labels usable. Any unavailable desktop/manual Lichess check is reported as **not verified**, not passed.

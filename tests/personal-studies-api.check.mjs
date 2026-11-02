@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PersonalStudiesStore } from '../lib/personal-studies/storage.mjs';
+import { performance } from 'node:perf_hooks';
 
 test('bounded CRUD, literal search, AND tags, metadata, conflicts and atomic validation',()=>{
  const dir=mkdtempSync(join(tmpdir(),'study-api-')),store=new PersonalStudiesStore(join(dir,'studies.db'));
@@ -28,5 +29,14 @@ test('bounded CRUD, literal search, AND tags, metadata, conflicts and atomic val
   for(const query of [{limit:101},{sort:'injection'},{offset:-1},{year:'2026'},{sql:'DROP'}])assert.throws(()=>store.list(query));
   assert.throws(()=>store.delete(a.id,1),/conflict/);store.delete(a.id,2);assert.equal(store.list().total,2);assert.deepEqual(store.get(b.id).tags,['Endgame']);
   assert.equal(store.open().prepare('SELECT count(*) n FROM study_tags WHERE study_id=?').get(a.id).n,0);
+ }finally{store.close();rmSync(dir,{recursive:true,force:true});}
+});
+test('indexed collection pages do not load PGN payloads and stay responsive',t=>{
+ const dir=mkdtempSync(join(tmpdir(),'study-list-perf-')),store=new PersonalStudiesStore(join(dir,'studies.db'));
+ try{
+  for(let i=0;i<240;i++)store.create({title:'Study '+String(i).padStart(3,'0'),tags:['Collection']});
+  const start=performance.now(),page=store.list({tags:['collection'],sort:'title',limit:100,offset:100}),elapsed=performance.now()-start;
+  assert.equal(page.total,240);assert.equal(page.rows.length,100);assert.equal(page.rows[0].title,'Study 100');assert.equal(Object.hasOwn(page.rows[0],'pgn'),false);
+  t.diagnostic(`100-row page from 240 studies: ${elapsed.toFixed(1)} ms`);assert.ok(elapsed<2000);
  }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });

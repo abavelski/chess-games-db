@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, dialog, clipboard } from 'electron';
 import { once } from 'node:events';
 import { join } from 'node:path';
 import { existsSync, writeFileSync, readFileSync } from 'node:fs';
@@ -6,12 +6,25 @@ import assert from 'node:assert/strict';
 import { desktopTestDirectory, finishDesktopTest } from './fixtures/desktop-test.mjs';
 import { fixtureArchive } from './fixtures/opening-archive.mjs';
 import { configureFakeEngines } from './fixtures/fake-engine-config.mjs';
+import Database from 'better-sqlite3';
+import { createOpeningSource } from './fixtures/opening-study-source.mjs';
+import { initializeBuild } from '../scripts/build-opening-library.mjs';
+import { publishOpeningLibrary } from '../lib/opening-publication.mjs';
 
 const dir=desktopTestDirectory();app.setPath('userData',dir);
 configureFakeEngines(dir);
+const opening={source:join(dir,'opening-source.db'),staging:join(dir,'opening-staging.db'),output:join(dir,'opening-runtime.db'),corpus:'synthetic',progress:()=>{}};
+createOpeningSource(opening.source);initializeBuild(opening);initializeBuild({...opening,resume:true,phase:'trees'});initializeBuild({...opening,resume:true,phase:'articles'});publishOpeningLibrary(opening);
+writeFileSync(join(dir,'opening-library.json'),JSON.stringify({path:opening.output}));
+const openingBefore=readFileSync(opening.output);
+const counts=path=>{const db=new Database(path,{readonly:true});try{return db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(({name})=>[name,db.prepare('SELECT count(*) n FROM "'+name.replaceAll('"','""')+'"').get().n]);}finally{db.close();}};
+const openingCounts=counts(opening.output);
+let exportPath=join(dir,'chapter.pgn');
+dialog.showSaveDialog=async()=>({canceled:false,filePath:exportPath});
 const archive=join(dir,'games.db'),db=fixtureArchive(archive,['1. e4 e5 *']);db.close();
 writeFileSync(join(dir,'archive.json'),JSON.stringify({path:archive}));
 const before=readFileSync(archive),studyPath=join(dir,'personal-studies.sqlite3');
+const archiveCounts=counts(archive);
 const timeout=setTimeout(()=>{console.error('Personal studies desktop timeout');app.exit(1);},30000);
 async function smoke() {
 let code=0;
@@ -101,9 +114,40 @@ try {
   studyButton('Piece mode').click();await studyWait(()=>document.querySelector('.piece-mode[open]'));studyButton('Return to review').click();await studyWait(()=>!document.querySelector('.piece-mode'));
   document.querySelector('[aria-label="Workspaces"] button:first-child').click();await studyWait(()=>document.querySelector('.personal-studies-workspace').closest('[hidden]'));
   await studyWait(()=>document.querySelector('.personal-studies-workspace .stockfish-analysis .engine-status').textContent.includes('paused'));
+  document.querySelector('[aria-label="Workspaces"] button:nth-child(3)').click();await studyWait(()=>!document.querySelector('.personal-studies-workspace').closest('[hidden]'));
+  studyButton('!').click();await studyWait(()=>document.querySelector('.study-save-status').textContent==='Unsaved changes');
+  document.querySelector('[aria-label="Study first position"]').click();await studyWait(()=>!document.querySelector('.study-review .review-move[aria-current="step"]'));
+  const root=document.querySelector('[aria-label="Study position comment"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(root,'Root release note');root.dispatchEvent(new Event('input',{bubbles:true}));
+  studyButton('Back to studies').click();await studyWait(()=>document.querySelector('dialog[aria-label="Unsaved study changes"][open]'));studyButton('Save and leave').click();await studyWait(()=>document.querySelector('.study-list'));
+  studyField('Search studies','Untitled study');await studyWait(()=>document.querySelector('.study-list button')?.textContent==='Untitled study');document.querySelector('.study-list button').click();await studyWait(()=>document.querySelector('.study-review cg-board'));
+  if(document.querySelector('[aria-label="Study position comment"]').value!=='Root release note'||!document.querySelector('.study-review .review-glyph'))throw Error('Root notes or NAG lost on reopen');
+  studyButton('Copy chapter PGN').click();await studyWait(()=>document.querySelector('.personal-studies-workspace').textContent.includes('Copied saved chapter PGN.'));
+  studyButton('Export chapter PGN').click();await studyWait(()=>document.querySelector('.personal-studies-workspace').textContent.includes('Exported saved chapter PGN.'));
  })()`);
+ assert.match(clipboard.readText(),/Root release note/);assert.match(clipboard.readText(),/\$1/);assert.equal(readFileSync(exportPath,'utf8'),clipboard.readText());
+ exportPath=join(dir,'collection-backup.sqlite3');
+ await win.webContents.executeJavaScript(`(async()=>{studyButton('Back up entire studies database').click();await studyWait(()=>document.querySelector('.personal-studies-workspace').textContent.includes('Full saved personal studies collection backed up.'));window.confirm=()=>true;studyField('Study title','Remove after saving');await studyWait(()=>document.querySelector('.study-save-status').textContent==='Unsaved changes');studyButton('Delete study').click();await studyWait(()=>document.querySelector('dialog[aria-label="Unsaved study changes"][open]'));studyButton('Save and leave').click();await studyWait(()=>document.querySelector('.study-list'));if((await personalStudies.list({search:'Remove after saving'})).total!==0)throw Error('Deleted study remains');})()`);
+ assert.equal(existsSync(exportPath),true);
+ const metrics=await win.webContents.executeJavaScript(`(async()=>{
+  let pgn='';for(let n=1;n<=256;n++)pgn+=n+'. '+(n%2?'Nf3 Nf6':'Ng1 Ng8')+' ';pgn=pgn.replace('Nf3 Nf6','Nf3 (1. d4 d5 (1... Nf6) 2. c4) Nf6')+'*';
+  await personalStudies.create({title:'Long performance fixture',pgn});studyField('Search studies','Long performance fixture');await studyWait(()=>document.querySelector('.study-list button')?.textContent==='Long performance fixture');
+  const start=performance.now();document.querySelector('.study-list button').click();await studyWait(()=>document.querySelectorAll('.study-review .review-move').length>=512&&document.querySelector('.study-review cg-board'));
+  const rendered=performance.now()-start;document.dispatchEvent(new KeyboardEvent('keydown',{key:'End',bubbles:true,cancelable:true}));await studyWait(()=>document.querySelector('.study-review .review-move[aria-current="step"]')?.textContent.includes('Ng8'));
+  const board=document.querySelector('.study-review .review-board').getBoundingClientRect(),metadata=document.querySelector('.study-metadata').getBoundingClientRect();if(board.bottom>metadata.top+1)throw Error('Study board overlaps metadata');
+  if(rendered>5000)throw Error('Large study render exceeded budget: '+rendered);return {moves:document.querySelectorAll('.study-review .review-move').length,renderMs:Math.round(rendered)};
+ })()`);
+ console.log('Personal studies rendering:',JSON.stringify(metrics));
+ const squares=await win.webContents.executeJavaScript(`(async()=>{
+  studyButton('Back to studies').click();await studyWait(()=>document.querySelector('.study-list'));
+  await personalStudies.create({title:'Promotion fixture',pgn:'1. a4 h5 2. a5 h4 3. a6 h3 4. axb7 hxg2 *'});studyField('Search studies','Promotion fixture');await studyWait(()=>document.querySelector('.study-list button')?.textContent==='Promotion fixture');document.querySelector('.study-list button').click();await studyWait(()=>document.querySelector('.study-review cg-board'));
+  document.querySelector('[aria-label="Study last position"]').click();await studyWait(()=>document.querySelector('.study-review .review-move[aria-current="step"]')?.textContent.includes('hxg2'));
+  const box=document.querySelector('.study-review cg-board').getBoundingClientRect();return [[1,1],[0,0]].map(([file,rank])=>({x:Math.round(box.x+(file+.5)*box.width/8),y:Math.round(box.y+(rank+.5)*box.height/8)}));
+ })()`);
+ for(const point of squares){win.webContents.sendInputEvent({type:'mouseMove',...point});win.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...point});win.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...point});}
+ await win.webContents.executeJavaScript(`(async()=>{await studyWait(()=>document.querySelector('dialog[aria-label="Choose promotion"][open]'));studyButton('Knight').click();await studyWait(()=>document.querySelector('.study-review .review-move[aria-current="step"]')?.textContent.includes('bxa8=N'));studyButton('Save study').click();await studyWait(()=>document.querySelector('.study-save-status').textContent.startsWith('Saved'));})()`);
  assert.equal(existsSync(studyPath),true);assert.deepEqual(readFileSync(archive),before);
- console.log('Personal studies desktop passed: lazy storage, three workspaces, preserved Games move and preference.');
+ assert.deepEqual(readFileSync(opening.output),openingBefore);assert.deepEqual(counts(archive),archiveCounts);assert.deepEqual(counts(opening.output),openingCounts);
+ console.log('Personal studies desktop passed: create/edit/save/reopen, nested branches, prose, drawings, NAGs, conflict/close guards, import/export, engines/Piece mode, backup/delete, workspace state and archive/opening byte and row preservation.');
 }catch(error){console.error(error);code=1;}finally{clearTimeout(timeout);finishDesktopTest(app,code);}
 }
 void smoke();

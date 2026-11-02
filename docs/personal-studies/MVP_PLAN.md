@@ -1,6 +1,6 @@
 # Personal Studies — MVP product and technical plan
 
-**Status:** plan only; no application code or user data changed by this document.
+**Status:** implemented through PS-18; this document records the product contract. See [VERIFICATION.md](VERIFICATION.md) for automated evidence and the remaining manual release blocker.
 
 ## 1. Problem, outcome and boundary
 

@@ -9,6 +9,11 @@
   .study-metadata, .study-filters { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: .7rem; margin: 1rem 0; }
   .study-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
   .study-list { padding: 0; list-style: none; li { display: flex; gap: 1rem; align-items: center; margin: .6rem 0; } }
+  dialog { max-width: min(680px,calc(100vw - 40px)); max-height: 85vh; overflow: auto; padding: 1.5rem; border: 1px solid #c5d2c0; border-radius: 8px; background: #fffefa; color: #2f4837;
+    &::backdrop { background: #15251a66; }
+    fieldset { display: grid; gap: .7rem; }
+    button { margin: .25rem; }
+  }
 }
 @import './opening-study';
 

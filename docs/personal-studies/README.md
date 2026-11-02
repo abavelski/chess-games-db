@@ -1,6 +1,6 @@
 # Personal Studies — MVP
 
-**Status:** proposed design and implementation backlog; **not implemented**.
+**Status:** MVP implementation delivered through Personal Studies PS-18. Automated verification is recorded in [VERIFICATION.md](VERIFICATION.md). Real Lichess chapter verification remains an explicit release blocker; see [INTEROPERABILITY.md](INTEROPERABILITY.md).
 **Owner's rule:** one personal study = one chess game (including an unfinished game or a line with variations). Unlike a Lichess study, a personal study has no chapters. Standard starting position only for MVP.
 
 ## Purpose

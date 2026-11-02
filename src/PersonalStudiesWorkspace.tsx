@@ -13,6 +13,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
  const [exportMode,setExportMode]=useState<'saved'|'draft'>('saved'),[notice,setNotice]=useState('');
  const [page,setPage]=useState<{rows:Omit<Study,'pgn'>[];total:number}>({rows:[],total:0});
  const [saved,setSaved]=useState<Study|null>(null),[draft,setDraft]=useState<StudyDraft|null>(null),[busy,setBusy]=useState(false);
+ const savedRef=useRef(saved);savedRef.current=saved;
  const [pendingLeave,setPendingLeave]=useState<(()=>void)|null>(null),[editorEpoch,setEditorEpoch]=useState(0);
  const dirty=!!saved&&!!draft&&JSON.stringify(draft)!==JSON.stringify(studyDraft(saved));
  const blocked=useRef(false);blocked.current=dirty||busy;
@@ -31,7 +32,8 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
  useEffect(()=>{void refresh();return()=>{generation.current++;};},[refresh]);
  useEffect(()=>{window.personalStudies.status().then(s=>setPath(s.path)).catch(e=>setError(String(e)));},[]);
  async function action(run:()=>Promise<void>){setBusy(true);setError('');try{await run();await refresh();}catch(e){setError(String(e));}finally{setBusy(false);}}
- function open(study:Study){setSaved(study);setDraft(studyDraft(study));}
+ function open(study:Study){savedRef.current=study;setSaved(study);setDraft(studyDraft(study));setNotice('');}
+ function deleteSaved(){const target=savedRef.current;if(target&&window.confirm(`Delete “${target.title}” permanently? This cannot be undone.`))void action(async()=>{await window.personalStudies.delete({id:target.id,expectedRevision:target.revision});setSaved(null);setDraft(null);});}
  async function save(){if(!draft||!saved)return;const updated=await window.personalStudies.update({id:saved.id,draft:{...draft,tags:draft.tags?.filter(t=>t.trim())},expectedRevision:saved.revision});open(updated);blocked.current=false;}
  async function saveAndLeave(){const proceed=pendingLeave;if(!proceed)return;setBusy(true);setError('');try{await save();await refresh();setPendingLeave(null);setBusy(false);blocked.current=false;setTimeout(proceed,0);}catch(e){setError(String(e));}finally{setBusy(false);}}
  function filter(patch:StudyQuery){setQuery(q=>({...q,...patch,offset:0}));}
@@ -54,7 +56,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
     </div>
     <div className="study-actions"><button disabled={busy} onClick={()=>leave(()=>{setSaved(null);setDraft(null);})}>Back to studies</button><button disabled={busy} onClick={()=>void action(save)}>Save study</button>
     <button disabled={busy} onClick={()=>leave(()=>void action(async()=>open(await window.personalStudies.duplicate({id:saved.id}))))}>Duplicate saved study</button>
-    <button disabled={busy} onClick={()=>leave(()=>{if(window.confirm(`Delete “${saved.title}” permanently? This cannot be undone.`))void action(async()=>{await window.personalStudies.delete({id:saved.id,expectedRevision:saved.revision});setSaved(null);setDraft(null);});})}>Delete study</button></div>
+    <button disabled={busy} onClick={()=>leave(deleteSaved)}>Delete study</button></div>
     <PersonalStudyEditor key={saved.id+':'+editorEpoch} draft={draft} active={active} onChange={setDraft} disabled={busy}/>
     <StudyMetadata draft={draft} onChange={setDraft} disabled={busy}/>
   </section>:<>
@@ -73,7 +75,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
    <button disabled={!query.offset||busy} onClick={()=>setQuery(q=>({...q,offset:Math.max(0,(q.offset??0)-40)}))}>Previous studies</button>
    <button disabled={(query.offset??0)+40>=page.total||busy} onClick={()=>setQuery(q=>({...q,offset:(q.offset??0)+40}))}>Next studies</button>
   </>}
-  {importing&&<StudyImportDialog onClose={()=>setImporting(false)} onImport={async value=>{open(await window.personalStudies.create(value));await refresh();}}/>}
+  {importing&&<StudyImportDialog onBusy={setBusy} onClose={()=>setImporting(false)} onImport={async value=>{open(await window.personalStudies.create(value));await refresh();}}/>}
   {pendingLeave&&<LeaveDialog busy={busy} onCancel={()=>setPendingLeave(null)} onDiscard={()=>{if(saved)setDraft(studyDraft(saved));blocked.current=false;setEditorEpoch(e=>e+1);const proceed=pendingLeave;setPendingLeave(null);setTimeout(proceed,0);}} onSave={()=>void saveAndLeave()}/>}
  </main>;
 }

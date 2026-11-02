@@ -37,7 +37,7 @@ export function PersonalStudyEditor({draft,active,onChange,disabled=false}:{draf
   return replayPosition(INITIAL_FEN,moves);
  },[pgn,path]);
  const engines=useEngineAnalysis(position,options,!active||pieceMode||disabled);
- function commit(id:string){const output=serializeStudy(tree.current.tree),target=pathForIdentity(tree.current.tree,id);tree.current.pgn=output;setPath(target);onChange({...draft,pgn:output});if(viewer.current?.game.nodeAt(new Path(target)))viewer.current.toPath(new Path(target),false);}
+ function commit(id:string){let output:string;try{output=serializeStudy(tree.current.tree);}catch(error){tree.current.tree=parseStudy(tree.current.pgn);throw error;}const target=pathForIdentity(tree.current.tree,id);tree.current.pgn=output;setPath(target);onChange({...draft,pgn:output});if(viewer.current?.game.nodeAt(new Path(target)))viewer.current.toPath(new Path(target),false);}
  function play(input:string){try {const id=addMove(tree.current.tree,identityAtPath(tree.current.tree,path),input);commit(id);setMoveInput('');setPromotion(null);setError('');}catch(e){setError(String(e));viewer.current?.toPath(new Path(path),false);}}
  function draw(shapes:StudyShape[]){try{setDrawings(tree.current.tree,selectedId,shapes);commit(selectedId);setError('');}catch(e){setError(String(e));}}
  const handlers=useRef({play,draw});handlers.current={play,draw};
@@ -71,6 +71,11 @@ export function PersonalStudyEditor({draft,active,onChange,disabled=false}:{draf
     <button disabled={!ready} onClick={()=>viewer.current?.flip()}>Flip study board</button>
     <button disabled={!ready||disabled} onClick={()=>setPieceMode(true)}>Piece mode</button>
    </div>
+   {error&&<p role="alert">{error}</p>}
+   {promotion&&<Promotion onPick={suffix=>play(promotion.from+promotion.to+suffix)} onCancel={()=>setPromotion(null)}/>}
+   {active&&pieceMode&&<PieceMode fen={position.fen} orientation={viewer.current?.orientation()??'white'} onReturn={()=>setPieceMode(false)}/>}
+  </section>
+  <section className="review-transcript" aria-label="Study moves"><ReviewMoves tokens={model.tokens} path={path} ready={ready} onSelect={select}/>
    <form onSubmit={e=>{e.preventDefault();play(moveInput);}}><label>Enter move (SAN or UCI)<input aria-label="Study move" value={moveInput} onChange={e=>setMoveInput(e.target.value)} disabled={disabled}/></label><button disabled={disabled||!moveInput}>Add move</button></form>
    <button disabled={disabled||!path} onClick={()=>{try{commit(deleteMove(tree.current.tree,identityAtPath(tree.current.tree,path)));}catch(e){setError(String(e));}}}>Delete selected move and descendants</button>
    <details><summary>Arrows and square highlights</summary><p>Right-drag for an arrow; right-click a square to highlight it. Use Shift/Alt/Ctrl with the right button for other colors, or use the controls below. Repeat a drawing to remove it.</p>
@@ -80,15 +85,10 @@ export function PersonalStudyEditor({draft,active,onChange,disabled=false}:{draf
     <button disabled={disabled} onClick={()=>{const shape={brush,orig:origin,dest:destination||undefined} as StudyShape,current=drawings(tree.current.tree,selectedId),has=current.some(s=>s.brush===brush&&s.orig===origin&&s.dest===(destination||undefined));draw(has?current.filter(s=>!(s.brush===brush&&s.orig===origin&&s.dest===(destination||undefined))):[...current,shape]);}}>Toggle drawing</button>
     <button disabled={disabled} onClick={()=>draw([])}>Clear position drawings</button>
    </details>
-   {error&&<p role="alert">{error}</p>}
-   {promotion&&<Promotion onPick={suffix=>play(promotion.from+promotion.to+suffix)} onCancel={()=>setPromotion(null)}/>}
-   {active&&pieceMode&&<PieceMode fen={position.fen} orientation={viewer.current?.orientation()??'white'} onReturn={()=>setPieceMode(false)}/>}
-  </section>
-  <section className="review-transcript" aria-label="Study moves"><ReviewMoves tokens={model.tokens} path={path} ready={ready} onSelect={select}/>
    <fieldset disabled={disabled}><legend>{path?'Selected position annotations':'Starting position notes'}</legend>
     <label>Position comment<textarea aria-label="Study position comment" maxLength={24000} value={notes.text} onChange={e=>{try{setComment(tree.current.tree,selectedId,e.target.value);commit(selectedId);setError('');}catch(error){setError(String(error));}}}/></label>
     <label>Numeric move glyphs (comma separated)<input aria-label="Study NAGs" key={selectedId+':'+notes.nags.join(',')} disabled={!path} defaultValue={notes.nags.join(',')} onBlur={e=>{try{setNags(tree.current.tree,selectedId,e.target.value.trim()?e.target.value.split(',').map(Number):[]);commit(selectedId);setError('');}catch(error){setError(String(error));}}}/></label>
-    <div className="study-actions">{['!','?','!!','??','!?','?!'].map((glyph,index)=><button key={glyph} disabled={!path} aria-pressed={notes.nags.includes(index+1)} onClick={()=>{setNags(tree.current.tree,selectedId,notes.nags.includes(index+1)?notes.nags.filter(n=>n!==index+1):[...notes.nags,index+1]);commit(selectedId);}}>{glyph}</button>)}</div>
+    <div className="study-actions">{['!','?','!!','??','!?','?!'].map((glyph,index)=><button key={glyph} disabled={!path} aria-pressed={notes.nags.includes(index+1)} onClick={()=>{try{setNags(tree.current.tree,selectedId,notes.nags.includes(index+1)?notes.nags.filter(n=>n!==index+1):[...notes.nags,index+1]);commit(selectedId);}catch(error){setError(String(error));}}}>{glyph}</button>)}</div>
    </fieldset>
    <EnginePanel options={options} setOptions={setOptions} display={display} setDisplay={setDisplay} states={engines} position={position} onFlip={()=>viewer.current?.flip()} canFlip={ready} onPreview={moves=>{if(moves.slice(0,position.moves.length).every((m,i)=>m===position.moves[i]))setSuggestion({id:selectedId,moves:moves.slice(position.moves.length)});}}/>
    {suggestion?.id===selectedId&&suggestion.moves.length>0&&<div><p>Suggested continuation: {suggestion.moves.join(' ')}. Add it to this study?</p><button disabled={disabled} onClick={()=>{try{commit(addContinuation(tree.current.tree,selectedId,suggestion.moves));setSuggestion(null);}catch(e){setError(String(e));}}}>Add suggested continuation</button><button onClick={()=>setSuggestion(null)}>Cancel suggestion</button></div>}
