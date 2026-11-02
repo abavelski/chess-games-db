@@ -60,7 +60,7 @@
 - **Acceptance:** edit changes only the selected study; illegal move and invalid promotion never alter tree; deleting a branch leaves siblings intact and moves selection to surviving ancestor; 2+ nested levels and initial position pass desktop tests. Never inadvertently merge imported duplicate siblings.
 - **Files likely:** pure tree-edit module, editor action tests.
 
-### PS-10 · Prose comments, root notes and NAG editor
+### [x] PS-10 · Prose comments, root notes and NAG editor
 - **Depends on:** PS-07–PS-09.
 - **Build:** editable position comments (including move zero), add/remove NAGs, preserve annotations attached to sibling branches; render using existing review-score/comment styles; reserve room for future evaluations.
 - **Acceptance:** comments and numeric NAGs survive save/reopen/export and child/sibling deletion; non-ASCII text and escaped PGN content safe; comment and NAG changes mark document dirty without touching Games personal-analysis store.

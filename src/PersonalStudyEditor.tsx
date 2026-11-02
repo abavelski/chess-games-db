@@ -8,6 +8,7 @@ import { chessgroundDests } from 'chessops/compat';
 import { parseSquare } from 'chessops/util';
 import { parseStudy, serializeStudy, identityAtPath, pathForIdentity, positionById } from '../lib/personal-studies/pgn.mjs';
 import { addMove, deleteMove } from '../lib/personal-studies/edits.mjs';
+import { annotation, setComment, setNags } from '../lib/personal-studies/annotations.mjs';
 import type { StudyDraft } from './personal-studies-types';
 
 export function PersonalStudyEditor({draft,active,onChange,disabled=false}:{draft:StudyDraft;active:boolean;onChange:(draft:StudyDraft)=>void;disabled?:boolean}) {
@@ -18,6 +19,7 @@ export function PersonalStudyEditor({draft,active,onChange,disabled=false}:{draf
  const tree=useRef({pgn,tree:initialTree});
  if(tree.current.pgn!==pgn)tree.current={pgn,tree:parseStudy(pgn)};
  const [moveInput,setMoveInput]=useState(''),[error,setError]=useState(''),[promotion,setPromotion]=useState<{from:string;to:string}|null>(null);
+ const selectedId=identityAtPath(tree.current.tree,path),notes=annotation(tree.current.tree,selectedId);
  function commit(id:string){const output=serializeStudy(tree.current.tree),target=pathForIdentity(tree.current.tree,id);tree.current.pgn=output;setPath(target);onChange({...draft,pgn:output});if(viewer.current?.game.nodeAt(new Path(target)))viewer.current.toPath(new Path(target),false);}
  function play(input:string){try {const id=addMove(tree.current.tree,identityAtPath(tree.current.tree,path),input);commit(id);setMoveInput('');setPromotion(null);setError('');}catch(e){setError(String(e));viewer.current?.toPath(new Path(path),false);}}
  const handlers=useRef({play});handlers.current={play};
@@ -52,7 +54,13 @@ export function PersonalStudyEditor({draft,active,onChange,disabled=false}:{draf
    {error&&<p role="alert">{error}</p>}
    {promotion&&<Promotion onPick={suffix=>play(promotion.from+promotion.to+suffix)} onCancel={()=>setPromotion(null)}/>}
   </section>
-  <section className="review-transcript" aria-label="Study moves"><ReviewMoves tokens={model.tokens} path={path} ready={ready} onSelect={select}/></section>
+  <section className="review-transcript" aria-label="Study moves"><ReviewMoves tokens={model.tokens} path={path} ready={ready} onSelect={select}/>
+   <fieldset disabled={disabled}><legend>{path?'Selected position annotations':'Starting position notes'}</legend>
+    <label>Position comment<textarea aria-label="Study position comment" maxLength={24000} value={notes.text} onChange={e=>{try{setComment(tree.current.tree,selectedId,e.target.value);commit(selectedId);setError('');}catch(error){setError(String(error));}}}/></label>
+    <label>Numeric move glyphs (comma separated)<input aria-label="Study NAGs" key={selectedId+':'+notes.nags.join(',')} disabled={!path} defaultValue={notes.nags.join(',')} onBlur={e=>{try{setNags(tree.current.tree,selectedId,e.target.value.trim()?e.target.value.split(',').map(Number):[]);commit(selectedId);setError('');}catch(error){setError(String(error));}}}/></label>
+    <div className="study-actions">{['!','?','!!','??','!?','?!'].map((glyph,index)=><button key={glyph} disabled={!path} aria-pressed={notes.nags.includes(index+1)} onClick={()=>{setNags(tree.current.tree,selectedId,notes.nags.includes(index+1)?notes.nags.filter(n=>n!==index+1):[...notes.nags,index+1]);commit(selectedId);}}>{glyph}</button>)}</div>
+   </fieldset>
+  </section>
  </div>;
 }
 
