@@ -66,7 +66,7 @@ try {
   studyField('Study drawing origin','d2');studyField('Study drawing destination','d4');studyButton('Toggle drawing').click();
   await studyWait(()=>document.querySelector('.study-review .review-move[aria-current="step"] .lucide-compass'));
   const prose=document.querySelector('[aria-label="Study position comment"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(prose,'My branch — København');prose.dispatchEvent(new Event('input',{bubbles:true}));
-  await studyWait(()=>document.querySelector('.study-review .review-comment')?.textContent.includes('My branch'));
+  await studyWait(()=>[...document.querySelectorAll('.study-review .review-comment')].some(el=>el.textContent.includes('My branch')));
   studyButton('Save study').click();await new Promise(r=>setTimeout(r,150));
   const record=(await personalStudies.list({search:'Renamed example'})).rows[0],stored=await personalStudies.get({id:record.id});
   if(!stored.pgn.includes('[%cal Gd2d4]')||!stored.pgn.includes('My branch — København'))throw Error('Drawing or prose not persisted');
