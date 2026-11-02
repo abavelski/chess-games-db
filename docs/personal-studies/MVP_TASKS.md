@@ -16,7 +16,7 @@
 - **Acceptance:** new/missing DB initializes on first My Studies use; reopen preserves records; unknown future schema, corrupt DB and wrong app ID fail with actionable errors; no old library is accessed/modified. Transactions/foreign keys verified.
 - **Files likely:** `lib/personal-studies/storage.mjs` + migration SQL + isolated tests.
 
-### PS-03 · Typed, bounded study storage API
+### [x] PS-03 · Typed, bounded study storage API
 - **Depends on:** PS-02.
 - **Build:** create/list/filter/get/update/duplicate/delete; offset or cursor pagination with bounded page size, tag normalization, deterministic sort, optional year/kind/tag filters; transactional metadata+PGN+tags save, optimistic `expectedRevision`.
 - **Acceptance:** search/title/White/Black/Event, tag AND/OR policy defined and tested; stale revision is a conflict; invalid field/oversized payload never commits; deleting one study cascades only its tags; duplicate gets a new ID. An empty result is valid.
