@@ -28,7 +28,7 @@
 - **Acceptance:** only allowlisted validated parameters/actions reach the store; unknown ID and storage failure messages are safe; close handles at app shutdown; archive/openings IPC and their selected files are unchanged.
 - **Files likely:** `electron/personal-studies.mjs`, `electron/main.mjs`, `electron/preload.cjs`, typings.
 
-### PS-05 · Third workspace / state preservation
+### [x] PS-05 · Third workspace / state preservation
 - **Depends on:** PS-04.
 - **Build:** add lazily mounted **My Studies** navigation in `src/WorkspaceRoot.tsx`; independent focus, scroll and resume behavior; preserve current Games/Openings initialization and their existing saved workspace preference. Explicitly decide whether the new workspace itself remembers its selection, without breaking `OpeningUserStore`'s `games|openings` validation.
 - **Acceptance:** switching all three panes never discards Games/opening review, filters, selected moves, focused control or scroll; no engine processing in suspended pane; keyboard/screen-reader nav labels work; reopening app retains existing Games/Openings choice.
