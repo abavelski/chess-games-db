@@ -100,7 +100,7 @@
 
 ## Milestone D — integration and shipping
 
-### PS-16 · Stockfish/Maia & Piece mode, opt-in continuation
+### [x] PS-16 · Stockfish/Maia & Piece mode, opt-in continuation
 - **Depends on:** PS-08–PS-12.
 - **Build:** hook existing `useEngineAnalysis`, `EnginePanel`, `PieceMode` and replay utilities to active personal-study position; accept a chosen engine continuation into the selected branch **only after explicit user action**. Suspend hidden workspace and free-board analysis as Games already does.
 - **Acceptance:** both engines can be toggled when configured; missing binary yields current helpful error; engine arrows/evals aren't persisted implicitly; selected candidate is appended only when clicked; reopen verifies chosen line; switching workspaces stops stale analysis.

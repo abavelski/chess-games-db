@@ -5,8 +5,10 @@ import { existsSync, writeFileSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { desktopTestDirectory, finishDesktopTest } from './fixtures/desktop-test.mjs';
 import { fixtureArchive } from './fixtures/opening-archive.mjs';
+import { configureFakeEngines } from './fixtures/fake-engine-config.mjs';
 
 const dir=desktopTestDirectory();app.setPath('userData',dir);
+configureFakeEngines(dir);
 const archive=join(dir,'games.db'),db=fixtureArchive(archive,['1. e4 e5 *']);db.close();
 writeFileSync(join(dir,'archive.json'),JSON.stringify({path:archive}));
 const before=readFileSync(archive),studyPath=join(dir,'personal-studies.sqlite3');
@@ -88,6 +90,17 @@ try {
   await studyWait(()=>!studyButton('Import as new study').disabled);studyButton('Import as new study').click();
   await studyWait(()=>document.querySelector('[aria-label="Study title"]')?.value==='Imported chapter');
   await studyWait(()=>document.querySelector('.study-review svg.cg-shapes line, .study-review svg.cg-shapes circle'));
+  studyButton('Back to studies').click();await studyWait(()=>document.querySelector('.study-list'));studyButton('New study').click();await studyWait(()=>document.querySelector('[aria-label="Study title"]'));
+  studyButton('Stockfish').click();studyButton('Maia').click();
+  await studyWait(()=>document.querySelector('.study-review .engine-line button')&&document.querySelector('.study-review .maia-candidates button'));
+  if(document.querySelector('.study-save-status').textContent==='Unsaved changes')throw Error('Engine evaluation persisted implicitly');
+  document.querySelector('.study-review .engine-line button').click();await studyWait(()=>studyButton('Add suggested continuation'));
+  if(document.querySelector('.study-save-status').textContent==='Unsaved changes')throw Error('Candidate preview changed draft');
+  studyButton('Add suggested continuation').click();await studyWait(()=>document.querySelector('.study-save-status').textContent==='Unsaved changes');
+  studyButton('Save study').click();await studyWait(()=>document.querySelector('.study-save-status').textContent.startsWith('Saved'));
+  studyButton('Piece mode').click();await studyWait(()=>document.querySelector('.piece-mode[open]'));studyButton('Return to review').click();await studyWait(()=>!document.querySelector('.piece-mode'));
+  document.querySelector('[aria-label="Workspaces"] button:first-child').click();await studyWait(()=>document.querySelector('.personal-studies-workspace').closest('[hidden]'));
+  await studyWait(()=>document.querySelector('.personal-studies-workspace .stockfish-analysis .engine-status').textContent.includes('paused'));
  })()`);
  assert.equal(existsSync(studyPath),true);assert.deepEqual(readFileSync(archive),before);
  console.log('Personal studies desktop passed: lazy storage, three workspaces, preserved Games move and preference.');
