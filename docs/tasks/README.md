@@ -1,5 +1,10 @@
 # Implementation tasks
 
+## Personal Studies (planned)
+
+The third workspace **My Studies** is specified under [docs/personal-studies](../personal-studies/README.md), with a [product/architecture MVP plan](../personal-studies/MVP_PLAN.md), [storage and Lichess PGN interoperability](../personal-studies/DATA_AND_INTEROP.md), and [18 ordered implementation tasks](../personal-studies/MVP_TASKS.md). One local study equals one editable game; its SQLite database stays separate from the Games and Openings libraries. Planning only; no runtime behavior is changed.
+
+
 ## Unified local game import (planned)
 
 The [unified import plan](unified-import/README.md) covers a common book/CBH/CBV/PGN
