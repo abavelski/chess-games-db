@@ -10,6 +10,7 @@ export interface Study extends Required<Omit<StudyDraft,'origin_url'>> {
 }
 export interface StudyQuery {search?: string; kind?: string; year?: number; tags?: string[]; sort?: string; offset?: number; limit?: number}
 export interface PersonalStudiesAPI {
+ backup():Promise<{canceled:boolean}>;
  copyPgn(request:{id:string;mode:'saved'|'draft';pgn?:string}):Promise<boolean>;
  savePgn(request:{id:string;mode:'saved'|'draft';pgn?:string}):Promise<{canceled:boolean}>;
  openPgn():Promise<{canceled:boolean;pgn?:string}>;

@@ -7,6 +7,11 @@ export function registerPersonalStudies({ app, ipcMain, authorize, dialog, getWi
  const store=new PersonalStudiesStore(join(app.getPath('userData'),'personal-studies.sqlite3'));
  function exportText(request){object(request,['id','mode','pgn']);if(!['saved','draft'].includes(request.mode))throw Error('Choose saved or draft PGN for export.');const saved=store.get(request.id),pgn=request.mode==='saved'?saved.pgn:request.pgn;validatePgn(pgn);return pgn;}
  const actions={
+  backup:async()=>{
+   const answer=await dialog.showSaveDialog(getWindow(),{title:'Back up entire personal studies collection',defaultPath:'personal-studies-backup.sqlite3',filters:[{name:'Personal studies SQLite backup',extensions:['sqlite3']}]});
+   if(answer.canceled||!answer.filePath)return {canceled:true};
+   await store.backup(answer.filePath);return {canceled:false};
+  },
   copyPgn:request=>{clipboard.writeText(exportText(request));return true;},
   savePgn:async request=>{
    const pgn=exportText(request),answer=await dialog.showSaveDialog(getWindow(),{title:`Export ${request.mode} study as one chapter PGN`,defaultPath:'study.pgn',filters:[{name:'PGN',extensions:['pgn']}]});

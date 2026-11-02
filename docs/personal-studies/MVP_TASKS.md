@@ -106,7 +106,7 @@
 - **Acceptance:** both engines can be toggled when configured; missing binary yields current helpful error; engine arrows/evals aren't persisted implicitly; selected candidate is appended only when clicked; reopen verifies chosen line; switching workspaces stops stale analysis.
 - **Files likely:** editor adapter to existing engine hooks and mocks.
 
-### PS-17 · Backup, restore guidance and failure tests
+### [x] PS-17 · Backup, restore guidance and failure tests
 - **Depends on:** PS-02–PS-04, PS-12–PS-14.
 - **Build:** safe online SQLite backup of full **personal** studies DB to user-selected location, exported-file distinction, short close-app restore procedure and clear warning of replacement; no migration of original archive. Test WAL-active backups and corrupt/unsupported schema.
 - **Acceptance:** backup contains PGN, metadata and tags across app restart; restore into disposable profile preserves data; cancel/overwrite prompt works; no partial or incorrectly copied live WAL state. Instructions prominently distinguish full DB backup from one-study PGN export.

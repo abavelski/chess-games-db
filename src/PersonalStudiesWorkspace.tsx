@@ -39,7 +39,12 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
   <h1>My Studies</h1>
   {error&&<p role="alert">{error}</p>}
   <p>Private local studies. One study contains one game and its variations.</p>
-  <details><summary>Local storage and help</summary><p>Storage: {path||'Opening storage…'}</p><p>Local tags and titles belong to this collection. PGN transports one game (one Lichess chapter).</p></details>
+  <details><summary>Local storage and help</summary><p>Storage: {path||'Opening storage…'}</p><p>Local tags and titles belong to this collection. PGN transports one game (one Lichess chapter).</p>
+   <button disabled={busy} onClick={()=>void action(async()=>{const answer=await window.personalStudies.backup();if(!answer.canceled)setNotice('Full saved personal studies collection backed up. Unsaved drafts are not included.');})}>Back up entire studies database</button>
+   <p>A database backup includes every saved study, metadata and tags. A chapter PGN export includes one game. Unsaved drafts are excluded from both saved exports and backups.</p>
+   <p>Restore: close the app first, preserve a backup of the current database, then replace personal-studies.sqlite3 at the path above with a verified database backup. Remove its old -wal and -shm sidecars only while the app is closed. Reopen the app. Restoring replaces all newer local studies; it does not merge collections or change Games/Openings.</p>
+   {notice&&<p role="status">{notice}</p>}
+  </details>
   {saved&&draft?<section aria-label="Study editor">
     <p role="status" className="study-save-status">{busy?'Saving or loading…':dirty?'Unsaved changes':`Saved · revision ${saved.revision}`}</p>
     <div className="study-actions"><label>PGN export version<select aria-label="PGN export version" value={exportMode} onChange={e=>setExportMode(e.target.value as 'saved'|'draft')}><option value="saved">Saved study</option><option value="draft">Current draft (includes unsaved changes)</option></select></label>

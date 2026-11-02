@@ -28,8 +28,10 @@ test('saved/draft export preserves exact PGN, cancellation and exclusive writes 
   call('copyPgn',{id:study.id,mode:'saved',pgn:'*'});assert.equal(copied,pgn);
   call('copyPgn',{id:study.id,mode:'draft',pgn:'1. d4 *'});assert.equal(copied,'1. d4 *');
   assert.equal((await call('savePgn',{id:study.id,mode:'saved'})).canceled,true);assert.equal(existsSync(path),false);
+  assert.equal((await call('backup')).canceled,true);assert.equal(existsSync(path),false);
   canceled=false;await call('savePgn',{id:study.id,mode:'saved'});assert.equal(readFileSync(path,'utf8'),pgn);
   await assert.rejects(()=>call('savePgn',{id:study.id,mode:'draft',pgn:'1. c4 *'}),/already exists/);
+  await assert.rejects(()=>call('backup'),/already exists/);
   assert.equal(call('get',{id:study.id}).revision,1);assert.equal(readFileSync(path,'utf8'),pgn);
  }finally{service.close();rmSync(dir,{recursive:true,force:true});}
 });
