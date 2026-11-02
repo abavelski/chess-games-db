@@ -92,7 +92,7 @@
 - **Acceptance:** imported exported PGN is parseable by `chessops` and Lichess with the same mainline, variations, comments, glyphs and shapes; unknown headers not silently dropped; cancel/failure doesn't change the DB; local free-form tags do not masquerade as remote metadata.
 - **Files likely:** export dialog, codec tests, desktop tests.
 
-### PS-15 · Interoperability matrix & real Lichess manual check
+### [x] PS-15 · Interoperability matrix & real Lichess manual check
 - **Depends on:** PS-13–PS-14.
 - **Build:** fixture matrix comparing normalized chess tree + annotations after import/export; manual process documented for **Lichess chapter PGN → local → Lichess chapter → local**. Verify the supported annotation subset and record known losses (e.g. chapter arrangement, privacy, gamebook).
 - **Acceptance:** fixtures pass offline; one tested manual Lichess round trip documented (without account tokens in repo), or explicit release blocker until performed; import/export affordances use accurate "chapter" labels and never claim cloud sync.
