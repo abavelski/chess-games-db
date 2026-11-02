@@ -18,7 +18,8 @@ export default function WorkspaceRoot() {
     }).catch(() => {});
     return () => { alive = false; };
   }, []);
-  function select(next: Workspace) {
+  function select(next: Workspace, approved = false) {
+    if (workspace === 'studies' && next !== workspace && !approved && !window.dispatchEvent(new CustomEvent('personal-studies:leave', {cancelable: true, detail: () => select(next, true)}))) return;
     selected.current = true;
     if (next === workspace) return;
     // Studies resumes during this session; existing persisted games/openings choice remains intact.

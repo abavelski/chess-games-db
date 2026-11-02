@@ -3,6 +3,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('personalStudies', Object.freeze({
+  onCloseRequest: callback => {
+    const listener = () => callback();
+    ipcRenderer.on('personal-studies:request-close', listener);
+    return () => ipcRenderer.removeListener('personal-studies:request-close', listener);
+  },
   status: () => ipcRenderer.invoke('personal-studies:status'),
   list: request => ipcRenderer.invoke('personal-studies:list', request),
   get: request => ipcRenderer.invoke('personal-studies:get', request),

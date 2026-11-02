@@ -72,7 +72,7 @@
 - **Acceptance:** each of four arrow and square colors exports and reimports; drawings at two different variations and at root remain independent; removing a shape does not delete prose, unknown PGN directives or engine arrows. Board flip does not change square IDs.
 - **Files likely:** drawing codec, `PgnBoard` opt-in hooks, study controls, tests.
 
-### PS-12 · Explicit save, dirty-exit and recovery
+### [x] PS-12 · Explicit save, dirty-exit and recovery
 - **Depends on:** PS-06–PS-11.
 - **Build:** dirty tracking for tree/headers/tags/drawings, Save/Discard/Cancel guard for leaving study or changing workspace, revision-aware atomic commit with retained draft on failure. Prevent closing while pending write without confirmation. Include stable saved-vs-draft indicator.
 - **Acceptance:** save/reopen identical study; leave-cancel keeps edits; discard restores last persisted state; injected IO failure and revision conflict retain local draft with readable error; switching to Games/Openings cannot silently lose study work.

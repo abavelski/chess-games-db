@@ -10,13 +10,27 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
  const [query,setQuery]=useState<StudyQuery>({limit:40,offset:0,sort:'updated'});
  const [page,setPage]=useState<{rows:Omit<Study,'pgn'>[];total:number}>({rows:[],total:0});
  const [saved,setSaved]=useState<Study|null>(null),[draft,setDraft]=useState<StudyDraft|null>(null),[busy,setBusy]=useState(false);
+ const [pendingLeave,setPendingLeave]=useState<(()=>void)|null>(null),[editorEpoch,setEditorEpoch]=useState(0);
+ const dirty=!!saved&&!!draft&&JSON.stringify(draft)!==JSON.stringify(studyDraft(saved));
+ const blocked=useRef(false);blocked.current=dirty||busy;
+ const leaveRef=useRef<(proceed:()=>void)=>void>(()=>{});
+ function leave(proceed:()=>void){if(blocked.current)setPendingLeave(()=>proceed);else proceed();}
+ leaveRef.current=leave;
+ useEffect(()=>{
+  const request=(event:Event)=>{if(blocked.current){event.preventDefault();leaveRef.current((event as CustomEvent<()=>void>).detail);}};
+  const unload=(event:BeforeUnloadEvent)=>{if(blocked.current){event.preventDefault();event.returnValue='';}};
+  window.addEventListener('personal-studies:leave',request);window.addEventListener('beforeunload',unload);
+  const off=window.personalStudies.onCloseRequest(()=>leaveRef.current(()=>window.close()));
+  return()=>{window.removeEventListener('personal-studies:leave',request);window.removeEventListener('beforeunload',unload);off();};
+ },[]);
  const generation=useRef(0);
  const refresh=useCallback(async()=>{const current=++generation.current;try {const result=await window.personalStudies.list(query);if(current===generation.current)setPage(result);}catch(e){if(current===generation.current)setError(String(e));}},[query]);
  useEffect(()=>{void refresh();return()=>{generation.current++;};},[refresh]);
  useEffect(()=>{window.personalStudies.status().then(s=>setPath(s.path)).catch(e=>setError(String(e)));},[]);
  async function action(run:()=>Promise<void>){setBusy(true);setError('');try{await run();await refresh();}catch(e){setError(String(e));}finally{setBusy(false);}}
  function open(study:Study){setSaved(study);setDraft(studyDraft(study));}
- async function save(){if(!draft||!saved)return;const updated=await window.personalStudies.update({id:saved.id,draft:{...draft,tags:draft.tags?.filter(t=>t.trim())},expectedRevision:saved.revision});open(updated);}
+ async function save(){if(!draft||!saved)return;const updated=await window.personalStudies.update({id:saved.id,draft:{...draft,tags:draft.tags?.filter(t=>t.trim())},expectedRevision:saved.revision});open(updated);blocked.current=false;}
+ async function saveAndLeave(){const proceed=pendingLeave;if(!proceed)return;setBusy(true);setError('');try{await save();await refresh();setPendingLeave(null);setBusy(false);blocked.current=false;setTimeout(proceed,0);}catch(e){setError(String(e));}finally{setBusy(false);}}
  function filter(patch:StudyQuery){setQuery(q=>({...q,...patch,offset:0}));}
  return <main className="personal-studies-workspace" aria-label="My Studies" data-active={active}>
   <h1>My Studies</h1>
@@ -24,10 +38,11 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
   <p>Private local studies. One study contains one game and its variations.</p>
   <details><summary>Local storage and help</summary><p>Storage: {path||'Opening storage…'}</p><p>Local tags and titles belong to this collection. PGN transports one game (one Lichess chapter).</p></details>
   {saved&&draft?<section aria-label="Study editor">
-    <div className="study-actions"><button disabled={busy} onClick={()=>{setSaved(null);setDraft(null);}}>Back to studies</button><button disabled={busy} onClick={()=>void action(save)}>Save study</button>
-    <button disabled={busy} onClick={()=>void action(async()=>open(await window.personalStudies.duplicate({id:saved.id})))}>Duplicate saved study</button>
-    <button disabled={busy} onClick={()=>{if(window.confirm(`Delete “${saved.title}” permanently? This cannot be undone.`))void action(async()=>{await window.personalStudies.delete({id:saved.id,expectedRevision:saved.revision});setSaved(null);setDraft(null);});}}>Delete study</button></div>
-    <PersonalStudyEditor key={saved.id} draft={draft} active={active} onChange={setDraft} disabled={busy}/>
+    <p role="status" className="study-save-status">{busy?'Saving or loading…':dirty?'Unsaved changes':`Saved · revision ${saved.revision}`}</p>
+    <div className="study-actions"><button disabled={busy} onClick={()=>leave(()=>{setSaved(null);setDraft(null);})}>Back to studies</button><button disabled={busy} onClick={()=>void action(save)}>Save study</button>
+    <button disabled={busy} onClick={()=>leave(()=>void action(async()=>open(await window.personalStudies.duplicate({id:saved.id}))))}>Duplicate saved study</button>
+    <button disabled={busy} onClick={()=>leave(()=>{if(window.confirm(`Delete “${saved.title}” permanently? This cannot be undone.`))void action(async()=>{await window.personalStudies.delete({id:saved.id,expectedRevision:saved.revision});setSaved(null);setDraft(null);});})}>Delete study</button></div>
+    <PersonalStudyEditor key={saved.id+':'+editorEpoch} draft={draft} active={active} onChange={setDraft} disabled={busy}/>
     <StudyMetadata draft={draft} onChange={setDraft} disabled={busy}/>
   </section>:<>
    <button disabled={busy} onClick={()=>void action(async()=>open(await window.personalStudies.create({title:'Untitled study'})))}>New study</button>
@@ -44,5 +59,11 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
    <button disabled={!query.offset||busy} onClick={()=>setQuery(q=>({...q,offset:Math.max(0,(q.offset??0)-40)}))}>Previous studies</button>
    <button disabled={(query.offset??0)+40>=page.total||busy} onClick={()=>setQuery(q=>({...q,offset:(q.offset??0)+40}))}>Next studies</button>
   </>}
+  {pendingLeave&&<LeaveDialog busy={busy} onCancel={()=>setPendingLeave(null)} onDiscard={()=>{if(saved)setDraft(studyDraft(saved));blocked.current=false;setEditorEpoch(e=>e+1);const proceed=pendingLeave;setPendingLeave(null);setTimeout(proceed,0);}} onSave={()=>void saveAndLeave()}/>}
  </main>;
+}
+
+function LeaveDialog({busy,onCancel,onDiscard,onSave}:{busy:boolean;onCancel:()=>void;onDiscard:()=>void;onSave:()=>void}) {
+ const dialog=useRef<HTMLDialogElement>(null);useEffect(()=>{dialog.current?.showModal();},[]);
+ return <dialog ref={dialog} aria-label="Unsaved study changes" onCancel={e=>{e.preventDefault();onCancel();}}><h2>Unsaved study changes</h2><p>{busy?'A write is pending. Wait for it to finish before leaving.':'Save your changes before leaving this study?'}</p><button disabled={busy} onClick={onSave}>Save and leave</button><button disabled={busy} onClick={onDiscard}>Discard and leave</button><button autoFocus onClick={onCancel}>Cancel leaving</button></dialog>;
 }

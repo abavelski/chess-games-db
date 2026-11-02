@@ -70,7 +70,18 @@ try {
   studyButton('Save study').click();await new Promise(r=>setTimeout(r,150));
   const record=(await personalStudies.list({search:'Renamed example'})).rows[0],stored=await personalStudies.get({id:record.id});
   if(!stored.pgn.includes('[%cal Gd2d4]')||!stored.pgn.includes('My branch — København'))throw Error('Drawing or prose not persisted');
+  studyField('Study title','Local draft');await studyWait(()=>document.querySelector('.study-save-status').textContent==='Unsaved changes');
+  document.querySelector('[aria-label="Workspaces"] button:first-child').click();await studyWait(()=>document.querySelector('dialog[aria-label="Unsaved study changes"][open]'));
+  studyButton('Cancel leaving').click();if(document.querySelector('.workspace-root').dataset.workspace!=='studies')throw Error('Cancel lost workspace');
+  await personalStudies.update({id:stored.id,expectedRevision:stored.revision,draft:{title:'Concurrent copy',pgn:stored.pgn,tags:stored.tags}});
+  studyButton('Save study').click();await studyWait(()=>document.querySelector('.personal-studies-workspace [role="alert"]')?.textContent.includes('conflict'));
+  if(document.querySelector('[aria-label="Study title"]').value!=='Local draft')throw Error('Conflict lost draft');
+  studyButton('Back to studies').click();await studyWait(()=>document.querySelector('dialog[open]'));studyButton('Discard and leave').click();await studyWait(()=>document.querySelector('.study-list'));
+  studyField('Search studies','Concurrent copy');await studyWait(()=>document.querySelector('.study-list button')?.textContent==='Concurrent copy');document.querySelector('.study-list button').click();await studyWait(()=>document.querySelector('[aria-label="Study title"]'));
+  studyField('Study title','Close draft');await studyWait(()=>document.querySelector('.study-save-status').textContent==='Unsaved changes');
  })()`);
+ win.close();
+ await win.webContents.executeJavaScript(`(async()=>{await studyWait(()=>document.querySelector('dialog[aria-label="Unsaved study changes"][open]'));studyButton('Cancel leaving').click();if(document.querySelector('[aria-label="Study title"]').value!=='Close draft')throw Error('Close cancel lost draft');studyButton('Back to studies').click();await studyWait(()=>document.querySelector('dialog[open]'));studyButton('Discard and leave').click();await studyWait(()=>document.querySelector('.study-list'));})()`);
  assert.equal(existsSync(studyPath),true);assert.deepEqual(readFileSync(archive),before);
  console.log('Personal studies desktop passed: lazy storage, three workspaces, preserved Games move and preference.');
 }catch(error){console.error(error);code=1;}finally{clearTimeout(timeout);finishDesktopTest(app,code);}

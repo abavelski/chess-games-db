@@ -22,6 +22,9 @@ test('bounded CRUD, literal search, AND tags, metadata, conflicts and atomic val
   assert.equal(store.get(a.id).title,'Saved');assert.deepEqual(store.get(a.id).tags,['New']);
   for(const invalid of [{...draft,title:' '},{...draft,pgn:'1. e4 e5 (1... c5 2. Bh6) *'},{...draft,pgn:'x'.repeat(2097153)},{...draft,tags:[' ']}])assert.throws(()=>store.update(a.id,invalid,2));
   assert.equal(store.get(a.id).revision,2);assert.equal(store.list().total,3);
+  store.open().exec("CREATE TRIGGER injected_failure BEFORE UPDATE ON studies BEGIN SELECT RAISE(ABORT,'injected IO failure'); END");
+  assert.throws(()=>store.update(a.id,{...draft,title:'Failed disk write'},2),/injected IO/);
+  assert.equal(store.get(a.id).revision,2);assert.deepEqual(store.get(a.id).tags,['New']);store.open().exec('DROP TRIGGER injected_failure');
   for(const query of [{limit:101},{sort:'injection'},{offset:-1},{year:'2026'},{sql:'DROP'}])assert.throws(()=>store.list(query));
   assert.throws(()=>store.delete(a.id,1),/conflict/);store.delete(a.id,2);assert.equal(store.list().total,2);assert.deepEqual(store.get(b.id).tags,['Endgame']);
   assert.equal(store.open().prepare('SELECT count(*) n FROM study_tags WHERE study_id=?').get(a.id).n,0);

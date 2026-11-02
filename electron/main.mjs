@@ -52,6 +52,9 @@ function desktopWindow(title) {
   });
   desktop.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   desktop.webContents.on('will-navigate', (event) => event.preventDefault());
+  desktop.webContents.on('will-prevent-unload', () => {
+    desktop.webContents.send('personal-studies:request-close');
+  });
   return {
     desktop,
     load: () => !app.isPackaged && process.argv.includes('--dev')
