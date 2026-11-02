@@ -31,7 +31,7 @@ function FilterInput({ label, value, onChange, year = false }: {
     placeholder={year ? 'Any' : 'Any ' + label.toLowerCase()} onChange={event => onChange(event.target.value)} /></label>;
 }
 
-export default function App() {
+export default function App({ active = true }: { active?: boolean }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const catalogPath = useRef(catalog?.path);
   catalogPath.current = catalog?.path;
@@ -324,7 +324,7 @@ export default function App() {
       <GameReview game={session.game} onPersonalSaved={() => setFavouriteRevision(value => value + 1)}
         initialPath={session.navigation?.path ?? ''} matchedPositionKey={session.navigation?.positionKey ?? null}
         navigationNotice={session.navigation?.notice ?? null} positionSearchNavigation={!!session.navigation}
-        suspended={activeReviewKey !== session.key} onFindPosition={fen => findFromReview(session.key, fen)}
+        suspended={!active || activeReviewKey !== session.key} onFindPosition={fen => findFromReview(session.key, fen)}
         onClose={() => closeReview(session.key)} onToggleFavourite={() => void toggleFavourite(session.game)}
         savingFavourite={savingFavourites.has(session.game.id)} favouriteError={favouriteError} />
     </div>)}

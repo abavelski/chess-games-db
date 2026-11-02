@@ -29,6 +29,7 @@
     "import:games": "node scripts/run-archive-tool.mjs scripts/import-games.mjs"
   },
   "dependencies": {
+    "@lichess-org/chessground": "10.4.2",
     "@lichess-org/pgn-viewer": "^2.6.4",
     "better-sqlite3": "^12.4.1",
     "chessops": "^0.15.1",

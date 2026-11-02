@@ -152,7 +152,7 @@ async function smoke() {
     await run(`button('Back to games').click(); await wait(() => document.querySelector('.unsaved-changes-dialog[open]'));`);
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
-    await run(`await wait(() => !document.querySelector('.unsaved-changes-dialog')); if (!document.querySelector('.personal-move')) throw new Error('Dialog Escape lost unsaved line'); document.querySelector('.review-header > button').focus();`);
+    await run(`await wait(() => !document.querySelector('.unsaved-changes-dialog')); if (!document.querySelector('.personal-move')) throw new Error('Dialog Escape lost unsaved line'); document.querySelector('.review-header-actions button:last-child').focus();`);
     window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
     await run(`
