@@ -48,7 +48,7 @@
 - **Acceptance:** identical semantic tree after serialize→parse, including root comments and distinct imported same-SAN siblings; bad FEN/variant, illegal nested moves and multiple games rejected before DB mutation; nested edit/navigation never selects a different sibling. Unknown annotations preserved or clearly warned about.
 - **Files likely:** `lib/personal-studies/pgn.mjs`, codec tests. **Do not reuse `mergePersonal` as study ownership model.**
 
-### PS-08 · Editable board/move tree shell
+### [x] PS-08 · Editable board/move tree shell
 - **Depends on:** PS-05–PS-07.
 - **Build:** editor with `PgnBoard`, `ReviewMoves`, existing resize/nav/flip controls; opt-in editable board mode without changing Games default; selected move/variation correctly tracks after PGN rerenders.
 - **Acceptance:** blank, complete and incomplete games open; flip/keyboard/path navigation and review layout work; can select every nested variation; existing game review remains visually/behaviorally unchanged.

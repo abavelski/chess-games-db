@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Study, StudyDraft, StudyQuery } from './personal-studies-types';
 import { StudyMetadata } from './StudyMetadata';
+import { PersonalStudyEditor } from './PersonalStudyEditor';
 
 export const studyDraft=(study:Study):StudyDraft=>({title:study.title,kind:study.kind,pgn:study.pgn,tags:study.tags,origin_kind:study.origin_kind,origin_url:study.origin_url});
 
@@ -26,6 +27,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
     <div className="study-actions"><button disabled={busy} onClick={()=>{setSaved(null);setDraft(null);}}>Back to studies</button><button disabled={busy} onClick={()=>void action(save)}>Save study</button>
     <button disabled={busy} onClick={()=>void action(async()=>open(await window.personalStudies.duplicate({id:saved.id})))}>Duplicate saved study</button>
     <button disabled={busy} onClick={()=>{if(window.confirm(`Delete “${saved.title}” permanently? This cannot be undone.`))void action(async()=>{await window.personalStudies.delete({id:saved.id,expectedRevision:saved.revision});setSaved(null);setDraft(null);});}}>Delete study</button></div>
+    <PersonalStudyEditor key={saved.id} draft={draft} active={active}/>
     <StudyMetadata draft={draft} onChange={setDraft} disabled={busy}/>
   </section>:<>
    <button disabled={busy} onClick={()=>void action(async()=>open(await window.personalStudies.create({title:'Untitled study'})))}>New study</button>

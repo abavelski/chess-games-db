@@ -1,6 +1,7 @@
 @import './viewer';
 
 .personal-studies-workspace { padding: 1.5rem; max-width: 1500px; margin: auto;
+  .study-review { height: min(72vh,780px); min-height: 400px; margin: 1rem 0; }
   button, input, select, textarea { font: inherit; }
   button { cursor: pointer; padding: .45rem .7rem; }
   label { display: flex; flex-direction: column; gap: .25rem; }

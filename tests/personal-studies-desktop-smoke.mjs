@@ -46,6 +46,19 @@ try {
   studyField('Search studies','missing');await studyWait(()=>document.querySelector('.personal-studies-workspace [role="status"]').textContent==='0 studies');
   studyField('Search studies','Alice');await studyWait(()=>document.querySelector('.study-list button'));
  })()`);
+ const annotated=readFileSync(new URL('./fixtures/personal-studies/annotated.pgn',import.meta.url),'utf8');
+ await win.webContents.executeJavaScript(`(async()=>{
+  await personalStudies.create({title:'Nested example',pgn:${JSON.stringify(annotated)}});
+  studyField('Search studies','Nested example');await studyWait(()=>document.querySelector('.study-list button')?.textContent==='Nested example');
+  document.querySelector('.study-list button').click();await studyWait(()=>document.querySelector('.study-review cg-board'));
+  const moves=[...document.querySelectorAll('.study-review .review-move')];
+  const nested=moves.find(b=>b.textContent.includes('Nc3'));if(!nested)throw Error('Nested branch absent');nested.click();
+  await studyWait(()=>document.querySelector('.study-review .review-move[aria-current="step"]')?.textContent.includes('Nc3'));
+  const selected=document.querySelector('.study-review .review-move[aria-current="step"]').dataset.reviewPath;
+  studyButton('Flip study board').click();
+  studyField('Study title','Renamed example');
+  if(document.querySelector('.study-review .review-move[aria-current="step"]').dataset.reviewPath!==selected)throw Error('Metadata rerender lost nested selection');
+ })()`);
  assert.equal(existsSync(studyPath),true);assert.deepEqual(readFileSync(archive),before);
  console.log('Personal studies desktop passed: lazy storage, three workspaces, preserved Games move and preference.');
 }catch(error){console.error(error);code=1;}finally{clearTimeout(timeout);finishDesktopTest(app,code);}
