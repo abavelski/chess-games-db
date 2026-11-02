@@ -22,6 +22,31 @@ Packaging: same repository/build, separate Games / Openings workspaces.
 
 ## Resume
 
+Article dead-link cleanup: hide paragraphs containing only unavailable links
+(including source game/shop navigation). Preserve inline author credits as
+plain text and remove the parenthesized unavailable labels. Controlled working
+links, ambiguous choices and diagram interactions remain available.
+Invalid/unsupported FEN diagram placeholders are also hidden, including the
+converter's unavailable blocks and invalid diagram blocks received by the reader.
+Build and article desktop smoke pass for dead links and invalid-FEN cleanup.
+
+Article Study UI revision: reduced header/title spacing, removed top provenance,
+safe-formatting notice and explorer-scope action. A compact independent board
+sits left of the article; clickable validated text FENs/diagrams load positions.
+Model games continue in the reading pane, with whole-card review actions and
+available event/date/result/ECO/annotator metadata. Removed same-chapter and
+why-example text. Build, 12 article/query checks, and article/explorer/review
+desktop smokes pass, including pointer moves, navigation, return focus/scroll
+and narrow layout. OT-13 still requires player feedback; OT-14 remains pending.
+
+Follow-up correction: articles are related to games matching the current explorer
+sequence/position. Article boards now initialize from that matching explorer
+position, captured per reading-history entry and persisted across reloads.
+Starting position restores the captured position; diagrams remain clickable.
+Review returns and example paging retain board exploration. Build, article
+desktop smoke and native query/article/user-store checks cover matching position,
+article reset, review return, saved positions and legacy entries.
+
 Read this file, `MVP_TASKS.md`, and the last task commit on the branch. Check
 `git status` before editing. Continue OT-13. Source:
 `data/tmp/opening-theory.sqlite`; open read-only, never migrate or repair it.

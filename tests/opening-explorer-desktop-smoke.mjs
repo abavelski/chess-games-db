@@ -20,7 +20,7 @@ initializeBuild({ ...args, resume: true, phase: 'articles' }); publishOpeningLib
 writeFileSync(join(temporary, 'opening-library.json'), JSON.stringify({ path: args.output }));
 const hashes = [archivePath,args.source,args.output].map(fileHash);
 const originalCall = OpeningWorkerClient.prototype.call;
-let slowE4 = false, exploreCalls = 0;
+let slowE4 = true, exploreCalls = 0;
 OpeningWorkerClient.prototype.call = function(method, request) {
   if (method === 'explore') exploreCalls++;
   const result = originalCall.call(this, method, request);
@@ -38,6 +38,8 @@ async function smoke() {
   try {
     const created = once(app, 'browser-window-created'); await import('../electron/main.mjs'); const [, window] = await created;
     await once(window.webContents, 'did-finish-load');
+    // Cross a Chessground square-size boundary when a classic scrollbar hides.
+    window.setSize(1500, 920);
     await window.webContents.executeJavaScript(`(async()=>{
       window.waitExplorer=async predicate=>{const until=Date.now()+7000;while(!predicate()){if(Date.now()>until)throw Error('Explorer did not update: '+predicate);await new Promise(r=>setTimeout(r,20));}};
       window.explorerCounts=()=>[...document.querySelectorAll('.opening-counters strong')].map(e=>Number(e.textContent.replace(/[^0-9]/g,'')));
@@ -50,10 +52,21 @@ async function smoke() {
       const reset=explorerButton('Reset path'), find=explorerButton('Find other move orders');
       if(reset.nextElementSibling!==find)throw Error('Find other move orders must follow Reset path');
       window.explorerStage='row';
+      document.querySelector('#opening-games-tab').click();
+      await waitExplorer(()=>document.querySelectorAll('.opening-game-card').length===6);
+      await new Promise(r=>setTimeout(r,80));
+      window.openingBoardWidths=[originalOpeningBoard.getBoundingClientRect().width];
+      window.openingBoardResize=new ResizeObserver(entries=>openingBoardWidths.push(...entries.map(e=>e.contentRect.width)));
+      openingBoardResize.observe(originalOpeningBoard);
       document.querySelector('[data-opening-reply="e2e4"]').click();await expectExplorer(3,6);
+      await waitExplorer(()=>document.querySelectorAll('.opening-game-card').length===3);
+      await new Promise(r=>setTimeout(r,80));openingBoardResize.disconnect();
+      if(Math.max(...openingBoardWidths)-Math.min(...openingBoardWidths)>.5)throw Error('Board resized while filtering: '+JSON.stringify(openingBoardWidths));
       if(document.querySelector('.opening-board-container cg-board')!==originalOpeningBoard)throw Error('Board remounted during move/query');
+      document.querySelector('#opening-articles-tab').click();
       document.querySelector('.opening-board-container').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));await expectExplorer(6,10);
     })()`);
+    slowE4 = false;
     async function square(file, rank) {
       const point = await window.webContents.executeJavaScript(`(async()=>{const board=document.querySelector('.opening-board-container cg-board');board.scrollIntoView({block:'center'});await new Promise(r=>setTimeout(r,60));const b=board.getBoundingClientRect();return{x:Math.round(b.left+(${file}+.5)*b.width/8),y:Math.round(b.top+(8-${rank}+.5)*b.height/8)};})()`);
       window.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...point });
@@ -75,11 +88,12 @@ async function smoke() {
       explorerButton('Return to previous move order').click();await expectExplorer(1,1);
       if(document.querySelectorAll('.opening-breadcrumb [aria-current="step"]').length!==1)throw Error('Move order not restored');
       explorerButton('Reset path').click();await expectExplorer(6,10);
-      window.explorerStage='article scope';
+      window.explorerStage='article return';
       await waitExplorer(()=>document.querySelector('.opening-article-open'));document.querySelector('.opening-article-open').click();
-      await waitExplorer(()=>explorerButton('Limit explorer to this article'));explorerButton('Limit explorer to this article').click();await expectExplorer(1,3);
+      await waitExplorer(()=>document.querySelector('.opening-reading-body'));
+      if(explorerButton('Limit explorer to this article'))throw Error('Removed article filter action remains');
       await waitExplorer(()=>explorerButton('Back to articles'));explorerButton('Back to articles').click();await waitExplorer(()=>document.querySelector('.opening-layout').getClientRects().length);
-      explorerButton('Find other move orders').click();await expectExplorer(1,3);
+      explorerButton('Find other move orders').click();await expectExplorer(6,10);
       explorerButton('Reset path').click();await expectExplorer(6,10);
       if(document.querySelector('.opening-filter-chip,.opening-anchor-status')||explorerButton('Return to previous move order'))throw Error('Reset retained article scope or previous anchor');
       if(document.querySelector('.opening-board-container').dataset.fen!=='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')throw Error('Reset did not restore standard start');

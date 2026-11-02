@@ -263,10 +263,13 @@ Acceptance:
 - Reading works offline with no network requests or source HTML execution.
 - Article context and scroll persist while inspecting a linked example.
   Language fallback is explained; unavailable diagrams/links remain readable.
-- Directly linked examples and same-chapter examples have distinct labels;
-  unresolved links never navigate to a guessed target.
-- Selecting an article applies its direct model-game scope and updates the
-  explorer consistently. An article without indexed examples still opens.
+- Model games continue below the article with whole-card review actions and
+  available game metadata. Relationship evidence remains stored; the redundant
+  same-chapter/why-example labels are hidden following UI review.
+  Unresolved links never navigate to a guessed target.
+- Reading an article preserves the explorer scope. The reader has a compact
+  independent legal-move board; validated article FENs/diagrams load that board
+  on click. An article without indexed examples still opens.
 
 ## OT-12 — Integrate annotated example review and session return [DONE]
 

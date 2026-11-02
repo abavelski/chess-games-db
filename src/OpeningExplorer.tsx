@@ -29,7 +29,7 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
   const [materialError, setMaterialError] = useState<string | null>(null);
   const [articleNames, setArticleNames] = useState<Record<string, string>>(initialState?.articleNames ?? {});
   const [articleView, setArticleView] = useState<'related' | 'reader'>(initialState?.articleView === 'reader' ? 'reader' : 'related');
-  const [readerKeys, setReaderKeys] = useState<Array<{ key: string; id: number }>>(initialState?.readerKeys ?? []);
+  const [readerKeys, setReaderKeys] = useState<OpeningExplorerState['readerKeys']>(initialState?.readerKeys ?? []);
   const articleReturnLocation = useRef<{ scroll: number; focus: HTMLElement | null } | null>(null);
   const articleBack = useRef<HTMLButtonElement>(null);
   const returningFromArticle = useRef(false);
@@ -101,15 +101,12 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
   const setFilter = (patch: Partial<OpeningRoute['filters']>) => { setRoute(current => ({ ...current, filters: { ...current.filters, ...patch } })); setPage(1); };
-  const studyArticle = (article: OpeningArticleCard) => {
-    setArticleNames(current => ({ ...current, [article.key]: article.title })); setFilter({ articleKeys: [article.key] });
-  };
   const readArticle = (key: string) => {
     const id = ++nextReaderId.current;
     if (articleView !== 'reader') {
       articleReturnLocation.current = { scroll: window.scrollY, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null };
-      setReaderKeys([{ key, id }]);
-    } else setReaderKeys(current => current.at(-1)?.key === key ? current : [...current, { key, id }].slice(-8));
+      setReaderKeys([{ key, id, startFen: board.fen }]);
+    } else setReaderKeys(current => current.at(-1)?.key === key ? current : [...current, { key, id, startFen: board.fen }].slice(-8));
     setArticleView('reader');
   };
   const openGame = (game: OpeningGameCard, sourcePath = game.match.sourcePath) => onOpenStudy?.({ key: game.key, treeHash: game.treeHash,
@@ -150,7 +147,6 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
           <span><strong>{result ? num(result.sourceLineCount) : '…'}</strong> Source lines</span>
           <span><strong>{result ? num(result.relatedArticleCount) : '…'}</strong> Related articles</span>
         </div>
-        {!result && !error && <p role="status">Updating continuations…</p>}
         {result && <>
           {!!result.endingLineCount && <p>{num(result.endingLineCount)} source {result.endingLineCount === 1 ? 'line ends' : 'lines end'} here.</p>}
           {result.emptyLibrary ? <p>This library has no playable source trees. Articles remain available.</p>
@@ -178,7 +174,6 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
           }}>{labels[tab]}</button>)}</div>
         <div id="opening-material-panel" role="tabpanel" aria-labelledby={`opening-${kind}-tab`} aria-busy={!visibleMaterial && !materialError}>
           {materialError && <p role="alert">{materialError}</p>}
-          {!visibleMaterial && !materialError && <p role="status">Loading study material…</p>}
           {visibleMaterial?.items.map(item => kind === 'articles' ? (() => {
             const article = item as OpeningArticleCard;
             return <article key={article.key} className="opening-material-card opening-article-card"><h3>{article.title}</h3>
@@ -199,17 +194,15 @@ export function OpeningExplorer({ catalog, active, onOpenStudy, initialState, on
         </div>
       </section>
     </div>
-    <p className="opening-coverage">Indexed subset: {catalog.coverage.quarantinedDocuments} quarantined records; {catalog.coverage.deletedRecords} source-deleted records excluded; {num(catalog.coverage.unsupportedAnnotations)} unsupported annotations. Source theory is not claimed complete or current.</p>
     </div>
     <section className="opening-article-page" hidden={articleView !== 'reader'} aria-label="Article study page">
       <header className="opening-article-page-header"><h1>Article study</h1>
         <button ref={articleBack} type="button" className="secondary-button" onClick={closeArticle}>Back to articles</button></header>
       {readerKeys.length > 1 && <button type="button" className="secondary-button" onClick={() => setReaderKeys(current => current.slice(0, -1))}>Previous article</button>}
         {readerKeys.map((entry, i) => <div key={entry.id} hidden={i !== readerKeys.length - 1}>
-          {onOpenStudy && <OpeningArticleReader catalog={catalog} articleKey={entry.key}
-            selectedForStudy={route.filters.articleKeys?.length === 1 && route.filters.articleKeys[0] === entry.key}
+          {onOpenStudy && <OpeningArticleReader catalog={catalog} articleKey={entry.key} startFen={entry.startFen ?? board.fen}
             initialScroll={scrolls.current[entry.key] ?? 0}
-            active={active && articleView === 'reader' && i === readerKeys.length - 1} onArticle={readArticle} onStudy={onOpenStudy} onFilter={studyArticle} />}
+            active={active && articleView === 'reader' && i === readerKeys.length - 1} onArticle={readArticle} onStudy={onOpenStudy} />}
         </div>)}
     </section>
   </div>;

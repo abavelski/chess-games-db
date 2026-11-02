@@ -145,7 +145,7 @@ test('standalone article catalog and safe language fallback use controlled exact
   const article = service.article({ revision, key: 'synthetic:theory/synthetic.cbh:100', language: 'en' });
   assert.equal(article.language, 'de'); assert.equal(article.fallback, true);
   assert.equal(article.examples.length, 1); assert.equal(article.examples[0].evidence.length, 2);
-  assert.deepEqual(article.targets.map(t => t.status), ['resolved','ambiguous','unavailable']);
+  assert.deepEqual(article.targets.map(t => t.status), ['resolved','ambiguous','unavailable','unavailable','unavailable','unavailable']);
   assert.match(article.targets[0].evidence.notice, /unvalidated/);
 });
 

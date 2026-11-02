@@ -39,7 +39,8 @@ export interface ArticleTarget {
 export interface OpeningArticle {
   key: string; title: string; source: string; language: string | null; sourceLanguage: string | null; fallback: boolean; meaningful: boolean;
   availableLanguages: Array<{ language: string; sourceLanguage: string }>; blocks: ReadingBlock[]; targets: ArticleTarget[];
-  examples: Array<{ key: string; white: string | null; black: string | null; treeHash: string; evidence: string[] }>;
+  examples: Array<{ key: string; white: string | null; black: string | null; event: string | null; date: string | null;
+    result: string | null; eco: string | null; annotator: string | null; treeHash: string; evidence: string[] }>;
   examplesPage: number; examplesTotal: number; notices: Array<{ code: string; detail: string }>;
 }
 export interface OpeningSourceNode {
@@ -73,7 +74,7 @@ export interface OpeningStudyAPI {
 export interface OpeningExplorerState {
   route: OpeningRoute; kind: 'articles' | 'games' | 'comments'; page: number; flipped: boolean;
   previous: { route: OpeningRoute; page: number; kind: 'articles' | 'games' | 'comments'; flipped: boolean } | null;
-  articleView: 'related' | 'catalog' | 'reader'; articleReturnView?: 'related' | 'catalog'; readerKeys: Array<{ key: string; id: number }>;
+  articleView: 'related' | 'catalog' | 'reader'; articleReturnView?: 'related' | 'catalog'; readerKeys: Array<{ key: string; id: number; startFen?: string }>;
   articleNames: Record<string, string>; scrolls?: Record<string, number>;
 }
 export interface OpeningUserState {

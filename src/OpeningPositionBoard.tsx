@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { chessgroundDests } from 'chessops/compat';
 import { Chessground } from '@lichess-org/chessground';
 import type { Api } from '@lichess-org/chessground/api';
@@ -9,7 +9,7 @@ import { openingBoard } from './opening-session.mjs';
 
 const promotionCodes = { queen: 'q', rook: 'r', bishop: 'b', knight: 'n' } as const;
 const emptyShapes: DrawShape[] = [];
-export function OpeningPositionBoard({ initialFen, moves, onPlay, flipped = false, active = true, shapes = emptyShapes }: {
+export const OpeningPositionBoard = memo(function OpeningPositionBoard({ initialFen, moves, onPlay, flipped = false, active = true, shapes = emptyShapes }: {
   initialFen: string; moves: string[]; onPlay?: (uci: string) => void; flipped?: boolean; active?: boolean; shapes?: DrawShape[];
 }) {
   const board = useMemo(() => openingBoard(initialFen, moves), [initialFen, moves]);
@@ -70,4 +70,4 @@ export function OpeningPositionBoard({ initialFen, moves, onPlay, flipped = fals
     </div>}
     {error && <p role="alert">{error}</p>}
   </div>;
-}
+});

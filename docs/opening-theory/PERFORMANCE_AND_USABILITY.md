@@ -9,6 +9,15 @@ evidence is recorded and any blockers are addressed.
 
 ## Reproducible local measurements
 
+Move-filter rendering: explorer route, loading, continuation and material updates
+stay inside `OpeningExplorer`; session persistence uses refs and does not update
+the app root. `OpeningPositionBoard` is memoized so query responses skip its React
+render when board props are unchanged. Chessground remains mounted across moves.
+The opening workspace reserves the root scrollbar gutter: clearing result lists
+during queries previously removed the scrollbar and could resize the entire board
+(456 to 464 CSS pixels in the desktop regression). The explorer desktop smoke test
+checks board width throughout a delayed query as well as board DOM identity.
+
 The reference machine remains Windows 10.0.19045, Ryzen 5 5600X / 12 logical
 CPUs, 34,241,204,224 bytes RAM and Samsung SSD 980 1TB NVMe (E:). Electron is
 38.8.6 with Node 22.22.0. The external library is 7,404,560,384 bytes, UUID

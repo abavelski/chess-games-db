@@ -32,20 +32,40 @@ async function smoke() {
   try {
     const created = once(app, 'browser-window-created'); await import('../electron/main.mjs'); const [, window] = await created;
     await once(window.webContents, 'did-finish-load');
-    await window.webContents.executeJavaScript(`(async()=>{
+    await window.webContents.executeJavaScript(`(async()=>{try{
       window.waitArticle=async predicate=>{const until=Date.now()+7000;while(!predicate()){if(Date.now()>until)throw Error('Article UI did not update: '+predicate);await new Promise(r=>setTimeout(r,20));}};
       window.articleVisible=()=>[...document.querySelectorAll('.opening-article-reader')].find(e=>!e.closest('[hidden]'));
       window.articleButton=text=>[...document.querySelectorAll('.opening-explorer button')].find(e=>e.textContent===text&&!e.closest('[hidden]'));
       window.articleInput=(selector,value)=>{const el=document.querySelector(selector);Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,value);el.dispatchEvent(new Event('input',{bubbles:true}));};
       document.querySelector('[aria-label="Workspaces"] button:nth-child(2)').click();
       await waitArticle(()=>document.querySelector('.opening-article-open'));
+      document.querySelector('[data-opening-reply="e2e4"]').click();
+      await waitArticle(()=>document.querySelector('.opening-board-panel .opening-board-container').dataset.fen.includes('/4P3/')&&document.querySelector('.opening-continuations').getAttribute('aria-busy')==='false'&&[...document.querySelectorAll('.opening-article-card')].some(c=>c.querySelector('h3').textContent==='Synthetic Sicilian plans'));
+      window.articleContextFen=document.querySelector('.opening-board-panel .opening-board-container').dataset.fen;
       [...document.querySelectorAll('.opening-article-card')].find(c=>c.querySelector('h3').textContent==='Synthetic Sicilian plans').querySelector('.opening-article-open').click();
       await waitArticle(()=>articleVisible()?.querySelector('.opening-reading-body'));
       const reader=articleVisible();
+      const articleFen=articleContextFen;
+      if(reader.querySelector('.opening-article-board .opening-board-container').dataset.fen!==articleFen)throw Error('Article board did not initialize from the matching explorer position');
+      reader.querySelector('.opening-fen-link').click();
+      await waitArticle(()=>reader.querySelector('.opening-article-board .opening-board-container').dataset.fen.startsWith('4k3/'));
+      [...reader.querySelectorAll('.opening-article-board button')].find(b=>b.textContent==='Starting position').click();
+      await waitArticle(()=>reader.querySelector('.opening-article-board .opening-board-container').dataset.fen===articleFen);
+      reader.querySelector('.opening-fen-link').click();
+      await waitArticle(()=>reader.querySelector('.opening-article-board .opening-board-container').dataset.fen.startsWith('4k3/'));
       if(document.querySelector('[aria-label="Opening reading language"], [aria-label="Article reading language"]'))throw Error('Language selector remains');
       if(!reader.textContent.includes('English has no explanatory body. Showing German (GERMAN)'))throw Error('Language fallback is not visible');
       if(!reader.textContent.includes('Original synthetic prose explaining'))throw Error('Explanatory prose lost');
-      if(!reader.textContent.includes('Linked example')||!reader.textContent.includes('Same source chapter'))throw Error('Model-game evidence labels lost');
+      if(reader.textContent.includes('(unavailable)')||reader.textContent.includes('Games for the article')||reader.textContent.includes('Related Products in the ChessBase Shop'))throw Error('Dead source navigation remains');
+      if(!reader.textContent.includes('by Synthetic Writer'))throw Error('Author credit should remain as plain text');
+      if(/Why this example|Same chapter|Same source chapter|Limit explorer|safe reading fallback/.test(reader.textContent)||reader.querySelector('.opening-provenance'))throw Error('Removed article clutter remains');
+      if(!reader.textContent.includes('Synthetic Open · 2024.05.12 · B20')||!reader.textContent.includes('Annotated by Synthetic Author')||!reader.textContent.includes('1-0'))throw Error('Model game details missing');
+      const card=reader.querySelector('.opening-game-card'), hit=card.querySelector('.opening-game-open');
+      if(!reader.querySelector('.opening-reading-body').contains(card))throw Error('Model games must continue the article');
+      const cb=card.getBoundingClientRect(),hb=hit.getBoundingClientRect();
+      if(Math.abs(cb.width-hb.width)>2||Math.abs(cb.height-hb.height)>2)throw Error('Game card hit target does not cover the card');
+      const board=reader.querySelector('.opening-article-board').getBoundingClientRect(),text=reader.querySelector('.opening-reading-body').getBoundingClientRect();
+      if(board.right>text.left||board.width>365)throw Error('Compact study board must sit to the left of the article');
       window.readingBody=reader.querySelector('.opening-reading-body');readingBody.scrollTop=180;window.savedArticleScroll=readingBody.scrollTop;
       if(savedArticleScroll<100)throw Error('Fixture must exercise real article scrolling');
       window.sourceArticleLink=[...reader.querySelectorAll('.opening-prose-link')].find(b=>b.textContent==='Example');
@@ -56,6 +76,13 @@ async function smoke() {
       document.querySelector('.opening-workspace .review-header-actions button:last-child').click();
       await waitArticle(()=>articleVisible()&&Math.abs(readingBody.scrollTop-savedArticleScroll)<1);
       if(document.activeElement!==sourceArticleLink)throw Error('Returning did not restore article link focus');
+      if(!reader.querySelector('.opening-article-board .opening-board-container').dataset.fen.startsWith('4k3/'))throw Error('Returning from review reset the current article board');
+      const model=articleVisible().querySelector('.opening-game-open');model.focus({preventScroll:true});model.click();
+      await waitArticle(()=>document.querySelector('.opening-workspace .review-shell .review-board')?.dataset.fen);
+      if(!document.querySelector('.opening-workspace .review-shell').textContent.includes('Synthetic White 1'))throw Error('Model card opened the wrong game');
+      document.querySelector('.opening-workspace .review-header-actions button:last-child').click();
+      await waitArticle(()=>articleVisible()&&Math.abs(readingBody.scrollTop-savedArticleScroll)<1);
+      if(document.activeElement!==model)throw Error('Model card focus was not restored');
       if(document.querySelector('.opening-layout').getClientRects().length)throw Error('Article must have its own page without explorer board or continuations');
       if(document.querySelector('.opening-heading').getClientRects().length)throw Error('Explorer header remained on article page');
       const originalCounters=document.querySelector('.opening-counters').textContent;
@@ -79,13 +106,15 @@ async function smoke() {
       ambiguous.querySelector('button:not(:disabled)').click();await waitArticle(()=>document.querySelector('.opening-workspace .review-shell .review-board')?.dataset.fen);
       if(!document.querySelector('.opening-workspace .review-shell').textContent.includes('Synthetic White 5'))throw Error('Ambiguous link guessed the wrong occurrence');
       document.querySelector('.opening-workspace .review-header-actions button:last-child').click();await waitArticle(()=>articleVisible());
-      if(!articleVisible().querySelector('.opening-controlled-link .opening-unavailable'))throw Error('Unavailable source link disappeared');
+      if(articleVisible().querySelector('.opening-controlled-link .opening-unavailable'))throw Error('Dead source link placeholder remains');
       if([...document.querySelectorAll('button')].some(b=>b.textContent==='Browse all article titles'))throw Error('Removed catalogue button remains');
       // Resume a hostile source article directly to preserve reader security coverage.
       await new Promise(resolve=>setTimeout(resolve,250));
       const saved=await openingStudy.settings(), catalog=(await openingStudy.status()).catalog;
       const unsafe=(await openingStudy.articleCatalog({revision:catalog.revision,query:'Unsafe'})).items[0];
-      await openingStudy.settings({session:{...saved.session,explorer:{...saved.session.explorer,articleView:'reader',articleReturnView:'catalog',readerKeys:[{key:unsafe.key,id:1}]}}});
+      if(saved.session.explorer.readerKeys[0].startFen!==articleContextFen)throw Error('Article matching position was not saved');
+      await openingStudy.settings({session:{...saved.session,explorer:{...saved.session.explorer,articleView:'reader',articleReturnView:'catalog',readerKeys:[{key:unsafe.key,id:1,startFen:articleContextFen}]}}});
+      }catch(error){throw Error(error.stack);}
     })()`);
     window.reload(); await once(window.webContents, 'did-finish-load');
     await window.webContents.executeJavaScript(`(async()=>{
@@ -95,7 +124,43 @@ async function smoke() {
       if(!safe.textContent.includes('Safe words')||!safe.textContent.includes('retained'))throw Error('Malformed source lost readable text');
       if(safe.querySelector('script,style,iframe,object,embed,img[src],[onclick],[onerror],[onload]'))throw Error('Source active HTML entered the app DOM');
       if(safe.querySelectorAll('.opening-article-diagram cg-board').length!==1)throw Error('Validated diagram did not render locally');
-      if(!safe.textContent.includes('invalid or unsupported FEN'))throw Error('Unavailable diagram notice missing');
+      if(/invalid or unsupported FEN|Source diagram unavailable/.test(safe.textContent))throw Error('Dead FEN placeholder remains');
+      const board=safe.querySelector('.opening-article-board .opening-board-container'),fen=safe.querySelector('.opening-fen-link');
+      window.resumedArticleFen=board.dataset.fen;
+      if(!resumedArticleFen.includes('/4P3/')||resumedArticleFen.startsWith('4k3/'))throw Error('Reload did not restore saved explorer position');
+      fen.click();await until(()=>board.dataset.fen.startsWith('4k3/8/8/8/8/8/4P3/4K3 w'));
+      safe.querySelector('.opening-diagram-select').click();await until(()=>board.dataset.fen.startsWith('rnbqkbnr/pppppppp/'));
+      fen.click();await until(()=>board.dataset.fen.startsWith('4k3/8/8/8/8/8/4P3/4K3 w'));
+    })()`);
+    // Exercise real pointer input on the compact board after selecting a prose FEN.
+    async function square(file, rank) {
+      const point=await window.webContents.executeJavaScript(`(()=>{const b=document.querySelector('.opening-article-board cg-board').getBoundingClientRect();return{x:Math.round(b.left+(${file}+.5)*b.width/8),y:Math.round(b.top+(8-${rank}+.5)*b.height/8)};})()`);
+      window.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...point});
+      window.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...point});
+      await new Promise(resolve=>setTimeout(resolve,80));
+    }
+    await square(4,2);await square(4,4);
+    await window.webContents.executeJavaScript(`(async()=>{
+      const until=async p=>{const end=Date.now()+7000;while(!p()){if(Date.now()>end)throw Error('Article board timeout');await new Promise(r=>setTimeout(r,20));}};
+      const safe=document.querySelector('.opening-article-reader'),board=safe.querySelector('.opening-article-board .opening-board-container');
+      const action=text=>[...safe.querySelectorAll('.opening-article-board button')].find(b=>b.textContent===text);
+      await until(()=>board.dataset.fen.startsWith('4k3/8/8/8/4P3/8/8/4K3 b'));
+      action('Previous').click();await until(()=>board.dataset.fen.startsWith('4k3/8/8/8/8/8/4P3/4K3 w'));
+      action('Next').click();await until(()=>board.dataset.fen.startsWith('4k3/8/8/8/4P3/8/8/4K3 b'));
+      action('Reset position').click();await until(()=>board.dataset.fen.startsWith('4k3/8/8/8/8/8/4P3/4K3 w'));
+      action('Flip').click();await until(()=>safe.querySelector('.opening-article-board .orientation-black'));
+      action('Starting position').click();await until(()=>board.dataset.fen===resumedArticleFen);
+    })()`);
+    if(process.env.CHESS_ARTICLE_SCREENSHOT) writeFileSync(process.env.CHESS_ARTICLE_SCREENSHOT.replace(/\.png$/, '-wide.png'),(await window.webContents.capturePage()).toPNG());
+    window.setMinimumSize(0,0);window.setSize(640,800);
+    await window.webContents.executeJavaScript(`(async()=>{
+      await new Promise(resolve=>setTimeout(resolve,100));
+      const safe=document.querySelector('.opening-article-reader'),board=safe.querySelector('.opening-article-board').getBoundingClientRect(),body=safe.querySelector('.opening-reading-body').getBoundingClientRect();
+      if(board.bottom>body.top||document.documentElement.scrollWidth>innerWidth)throw Error('Narrow article layout overlaps or overflows');
+    })()`);
+    if(process.env.CHESS_ARTICLE_SCREENSHOT) writeFileSync(process.env.CHESS_ARTICLE_SCREENSHOT,(await window.webContents.capturePage()).toPNG());
+    await window.webContents.executeJavaScript(`(async()=>{
+      const until=async p=>{const end=Date.now()+7000;while(!p()){if(Date.now()>end)throw Error('Article navigation timeout');await new Promise(r=>setTimeout(r,20));}};
       if(document.querySelector('.opening-layout').getClientRects().length)throw Error('Reload restored inline article');
       document.querySelector('.opening-article-page-header button').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
       await until(()=>document.querySelector('.opening-layout').getClientRects().length);

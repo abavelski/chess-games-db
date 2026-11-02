@@ -21,19 +21,20 @@ export function createOpeningSource(path) {
     for (const a of f.annotations ?? []) db.prepare(`INSERT INTO game_annotations(game_id,sequence,move_index,annotation_type,language,text,payload_json) VALUES(?,?,?,?,?,?,?)`)
       .run(id, a.sequence, a.move_index, a.annotation_type, a.language, a.text, a.payload_json);
   }
+  db.prepare("UPDATE games SET event='Synthetic Open',played_date='2024.05.12',result='1-0',annotator='Synthetic Author' WHERE id=1").run();
   for (const id of [100,101,102]) {
     record.run(id, 2, id, 'article');
     db.prepare("INSERT INTO articles(id,primary_title,header_json) VALUES(?,?,'{}')").run(id, id === 100 ? 'Synthetic Sicilian plans' : id === 101 ? 'Standalone synthetic essay' : 'Unsafe synthetic source example');
   }
-  const html = articleFixtures[0].versions[1].html + '<p>Original synthetic study paragraph. Complete development, protect the king, and compare the central pawn structures before choosing a plan.</p>'.repeat(30) + articleFixtures[1].html;
+  const html = articleFixtures[0].versions[1].html + '<img alt="fen:broken"><img alt="fen:rnbqkbnr/pppppppp/8/8/8/7N/PPPPPPPP/RNBQKB1R b KQkq - 1 1"><p>Another position: 4k3/8/8/8/8/8/4P3/4K3 w - - 0 1</p>' + '<p>Original synthetic study paragraph. Complete development, protect the king, and compare the central pawn structures before choosing a plan.</p>'.repeat(30) + articleFixtures[1].html;
   db.prepare('INSERT INTO article_bodies(id,article_id,language,title,content) VALUES(1000,100,?,?,?)')
     .run('ENGLISH', 'Synthetic plans', articleFixtures[0].versions[0].html);
   db.prepare('INSERT INTO article_bodies(id,article_id,language,title,content) VALUES(1001,100,?,?,?)')
-    .run('GERMAN', 'Ein Plan', html);
+    .run('GERMAN', 'Ein Plan', html + '<p>by <a href="https://example.invalid/author">Synthetic Writer</a></p><p><a href="https://example.invalid/games">Games for the article</a></p><p><em><a href="https://example.invalid/shop">Related Products in the ChessBase Shop</a></em></p>');
   db.prepare('INSERT INTO article_bodies(id,article_id,language,title,content) VALUES(1002,101,?,?,?)')
     .run('ENGLISH', 'Standalone essay', articleFixtures[5].html);
   db.prepare('INSERT INTO article_bodies(id,article_id,language,title,content) VALUES(1003,102,?,?,?)')
-    .run('ENGLISH', 'Unsafe synthetic source example', articleFixtures[2].html + '</a></svg>' + articleFixtures[3].html);
+    .run('ENGLISH', 'Unsafe synthetic source example', articleFixtures[2].html + '</a></svg>' + articleFixtures[3].html + '<p>Try this FEN: 4k3/8/8/8/8/8/4P3/4K3 w - - 0 1</p>');
   const anchors = [...html.matchAll(/<a /g)].map(m => m.index);
   for (const [i, column] of anchors.entries()) db.prepare(`INSERT INTO article_links(id,body_id,ordinal,line,column_no,raw_start_tag,href,arguments_json,target_record_id,position_hint,resolution_status)
     VALUES(?,1001,?,1,?,'<a>','javascript:CBLink(...)','[]',?,?,?)`)
