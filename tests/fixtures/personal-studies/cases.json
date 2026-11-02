@@ -1,0 +1,12 @@
+[
+  {"name":"blank","pgn":"*","valid":true},
+  {"name":"unfinished","pgn":"1. e4 e5 *","valid":true},
+  {"name":"standard explicit FEN","pgn":"[FEN \"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"]\n\n*","valid":true},
+  {"name":"illegal nested move","pgn":"1. e4 e5 (1... c5 2. Bh6) *","valid":false},
+  {"name":"nonstandard FEN","pgn":"[FEN \"8/8/8/8/8/8/4K3/7k w - - 0 1\"]\n\n*","valid":false},
+  {"name":"setup","pgn":"[SetUp \"1\"]\n\n*","valid":false},
+  {"name":"variant","pgn":"[Variant \"Chess960\"]\n\n*","valid":false},
+  {"name":"multiple games","pgn":"1. e4 *\n\n1. d4 *","valid":false},
+  {"name":"garbage","pgn":"this is not PGN","valid":false},
+  {"name":"unterminated comment","pgn":"1. e4 {lost","valid":false}
+]

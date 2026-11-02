@@ -1,10 +1,10 @@
 # Personal Studies — ordered MVP implementation tasks
 
-**Status:** all tasks are **planned / unchecked**. This is the executable backlog, not a claim that the feature exists. Each task is a small reviewable change with independent unit/fixture tests and **no writes to users' real databases**. Task IDs are scoped here as **Personal Studies PS-xx** (not `docs/tasks/position-search/`).
+**Status:** implementation in progress; completed tasks are checked below. This is the executable backlog, not a claim that the feature exists. Each task is a small reviewable change with independent unit/fixture tests and **no writes to users' real databases**. Task IDs are scoped here as **Personal Studies PS-xx** (not `docs/tasks/position-search/`).
 
 ## Milestone A — isolated foundation
 
-### PS-01 · Contracts, fixtures and regression baseline
+### [x] PS-01 · Contracts, fixtures and regression baseline
 - **Depends on:** none.
 - **Build:** document exact one-game/one-chapter, standard-root, metadata, editable-tree, error limits and no-write boundaries; add deterministic example PGNs with nested variations, root comments, ratings, NAGs and drawings; establish existing suite baseline.
 - **Acceptance:** fixtures describe valid/invalid standard positions, unsupported FEN/variants, multi-game input and PGN fidelity; current `npm test`, `npm run build` and available desktop suites green before feature work. Check both Games and Openings session paths.

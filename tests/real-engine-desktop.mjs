@@ -68,7 +68,7 @@ async function smoke() {
     await window.webContents.executeJavaScript(`(async () => {
       await window.realWait(() => document.querySelector('.analysis-branch')?.textContent.includes('e4 e5'));
       window.realButton('Return to game position').click(); await window.realWait(() => !document.querySelector('.analysis-branch'));
-      document.querySelector('.review-header > button').click(); await window.realWait(() => !document.querySelector('.review-shell'));
+      document.querySelector('.review-header-actions > button:last-child').click(); await window.realWait(() => !document.querySelector('.review-shell'));
     })()`);
     await window.webContents.executeJavaScript(`(async () => {
       const wait = window.realWait, button = window.realButton;
@@ -79,7 +79,7 @@ async function smoke() {
         button('Stockfish').click(); button('Maia').click();
         await wait(() => document.querySelector('.stockfish-analysis .engine-status')?.textContent.includes('complete') && document.querySelector('.maia-analysis .engine-status')?.textContent.includes('complete'));
         if (!document.querySelector('.engine-line') || !document.querySelector('.maia-candidates button')) throw new Error('Missing post-castling evaluation');
-        document.querySelector('.review-header > button').click(); await wait(() => !document.querySelector('.review-shell'));
+        document.querySelector('.review-header-actions > button:last-child').click(); await wait(() => !document.querySelector('.review-shell'));
       }
     })()`);
     assert.deepEqual(errors, []); assert.equal(hash(), original);

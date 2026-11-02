@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {legacyFixtureArchive} from './fixtures/opening-archive.mjs';
 import {migrateGames} from '../scripts/migrate-games.mjs';
-for(const version of [3,4,5,6]) test(`explicit migration v${version} preserves bytes and restarts safely`,async()=>{
+for(const version of [3,4,5,6]) test(`explicit migration v${version} preserves bytes and restarts safely`,async(t)=>{
  const dir=mkdtempSync(join(tmpdir(),'games-migration-')),input=join(dir,'old.db'),output=join(dir,'new.db');
  try {
   const db=legacyFixtureArchive(input);
@@ -23,7 +23,11 @@ for(const version of [3,4,5,6]) test(`explicit migration v${version} preserves b
   assert.deepEqual(readFileSync(input),before);
   const result=new Database(output); assert.equal(result.prepare("SELECT 1 FROM sqlite_master WHERE name='source_records'").get(),undefined); result.close();
   await assert.rejects(migrateGames({input,output}),/exists/);
-  const alias=join(dir,'alias'); symlinkSync(input,alias); await assert.rejects(migrateGames({input,output:alias}),/exists/);
+  await t.test('symlink alias is rejected',async sub=>{
+   const alias=join(dir,'alias');
+   try {symlinkSync(input,alias);} catch(error) {if(process.platform==='win32'&&error.code==='EPERM'){sub.skip('Windows symlink privilege unavailable');return;}throw error;}
+   await assert.rejects(migrateGames({input,output:alias}),/exists/);
+  });
  } finally {rmSync(dir,{recursive:true,force:true});}
 });
 test('corruption fails without publishing an output',async()=>{

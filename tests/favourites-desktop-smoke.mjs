@@ -73,7 +73,7 @@ async function smoke() {
       reviewStar.click();
       await wait(() => reviewStar.getAttribute('aria-pressed') === 'false' && !reviewStar.disabled);
       if (!document.querySelector('.review-move[aria-current="step"]')?.textContent.includes('e4')) throw new Error('Saving favourite reset review position');
-      document.querySelector('.review-header > button').click();
+      document.querySelector('.review-header-actions > button:last-child').click();
       await wait(() => !document.querySelector('.review-shell') && idle() && document.querySelector('.empty-results h3'));
       document.querySelector('.empty-results button').click();
       await wait(() => !filter().checked && idle() && document.querySelectorAll('.result-item').length === 40);

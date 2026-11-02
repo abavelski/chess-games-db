@@ -165,8 +165,8 @@ async function smoke() {
       if (openingSelect('Opening family').value !== savedOpeningSelection || !document.querySelector('.pagination').textContent.includes('Page 2 of 2')) throw new Error('Opening selection/page lost on return');
       if (Math.abs(scrollY-savedOpeningScroll)>1) throw new Error('Opening list scroll lost');
       document.querySelector('.result-item').click();
-      await waitForOpening(() => document.querySelector('.review-header > button'));
-      document.querySelector('.review-header > button').click();
+      await waitForOpening(() => document.querySelector('.review-header-actions > button:last-child'));
+      document.querySelector('.review-header-actions > button:last-child').click();
       await waitForOpening(() => !document.querySelector('.review-shell'));
       window.scrollTo(0,0);
       document.querySelector('.browser-archive button').click();

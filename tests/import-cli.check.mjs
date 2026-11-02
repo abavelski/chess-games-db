@@ -79,13 +79,16 @@ test('cancelling a source worker leaves no partial game rows or orphaned relatio
   const result=new Database(target);assert.equal(result.prepare('SELECT count(*) n FROM games').get().n,0);assert.equal(result.prepare('SELECT count(*) n FROM game_sources').get().n,0);assert.deepEqual(result.pragma('foreign_key_check'),[]);assert.equal(result.pragma('integrity_check',{simple:true}),'ok');result.close();
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
-test('exclusive create and update refuse sidecars, symlinks and hardlink target aliases',async()=>{
+test('exclusive create and update refuse sidecars, symlinks and hardlink target aliases',async(t)=>{
  const {symlinkSync,linkSync}=await import('node:fs');
  const dir=mkdtempSync(join(tmpdir(),'import-aliases-')),input=join(dir,'games.pgn'),target=join(dir,'target.db');
  try{
   writeFileSync(input,pgn);writeFileSync(target+'-wal','orphan');
   await assert.rejects(importGames({mode:'create',input,sourceKey:'s',output:target,unenriched:true}),/existing output or sidecar/);rmSync(target+'-wal');
-  symlinkSync(join(dir,'missing'),target);await assert.rejects(importGames({mode:'create',input,sourceKey:'s',output:target,unenriched:true}),/existing output/);rmSync(target);
+  await t.test('dangling symlink is rejected',async sub=>{
+   try {symlinkSync(join(dir,'missing'),target);} catch(error) {if(process.platform==='win32'&&error.code==='EPERM'){sub.skip('Windows symlink privilege unavailable');return;}throw error;}
+   await assert.rejects(importGames({mode:'create',input,sourceKey:'s',output:target,unenriched:true}),/existing output/);rmSync(target);
+  });
   const r=await importGames({mode:'create',input,sourceKey:'s',output:target,unenriched:true});assert.equal(r.status,'completed');
   linkSync(target,join(dir,'hardlink'));await assert.rejects(importGames({mode:'update',input,sourceKey:'s',target,unenriched:true}),/aliases/);
  }finally{rmSync(dir,{recursive:true,force:true});}

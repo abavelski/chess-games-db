@@ -136,7 +136,7 @@ async function smoke() {
       await toggleStudy();
       await toggleStudy();
       if (!document.querySelector('.review-original') || document.querySelector('.review-reveal-button')) throw new Error('No future marker should leave the full score visible');
-      document.querySelector('.review-header > button').click();
+      document.querySelector('.review-header-actions > button:last-child').click();
       await waitForCritical(() => !document.querySelector('.review-shell'));
       document.querySelector('.result-item').click();
       await waitForCritical(() => document.querySelectorAll('.review-move').length === 1 && document.querySelector('.review-reveal-button'));
@@ -157,7 +157,7 @@ async function smoke() {
       await toggleStudy();
       if (!document.querySelector('.review-reveal-button')?.previousElementSibling.textContent.includes('Nf3')) throw new Error('Variation toggle must use score order');
       await toggleStudy();
-      document.querySelector('.review-header > button').click();
+      document.querySelector('.review-header-actions > button:last-child').click();
       await waitForCritical(() => !document.querySelector('.review-shell'));
       await changeCritical('no');
       await waitForCritical(() => !document.querySelector('.game-critical-badge'));

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 
 test('opening migration is additive, transactional, constrained and repeatable', () => {
-  const output = execFileSync('python3', ['-c', `
+  const output = execFileSync(process.platform === 'win32' ? 'python' : 'python3', ['-c', `
 import importlib.util, tempfile, sqlite3
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('init', 'scripts/init-db.py')
@@ -34,7 +34,9 @@ with tempfile.TemporaryDirectory() as folder:
  assert not c.execute('pragma foreign_key_check').fetchall()
  c.close()
  fresh=Path(folder)/'fresh.db'; m.initialize(fresh); m.initialize(fresh)
- assert sqlite3.connect(fresh).execute('pragma user_version').fetchone()[0]==7
+ fresh_connection=sqlite3.connect(fresh)
+ assert fresh_connection.execute('pragma user_version').fetchone()[0]==7
+ fresh_connection.close()
  # Failed migrations roll back both schema and user_version.
  bad=Path(folder)/'bad'; bad.mkdir(); (bad/'005_bad.sql').write_text('CREATE TABLE temporary_table (id);\\nTHIS IS INVALID;\\n')
  m.MIGRATIONS=bad; m.SCHEMA_VERSION=7
@@ -44,6 +46,7 @@ with tempfile.TemporaryDirectory() as folder:
  c=sqlite3.connect(p)
  assert c.execute('pragma user_version').fetchone()[0]==4
  assert not c.execute("select name from sqlite_master where name='temporary_table'").fetchone()
+ c.close()
  print('ok')
 `], { encoding: 'utf8' });
   assert.match(output, /ok/);
