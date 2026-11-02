@@ -63,6 +63,13 @@ try {
   studyButton('Delete selected move and descendants').click();await studyWait(()=>document.querySelector('.study-review .review-move[aria-current="step"]')?.textContent.includes('Nf3'));
   document.querySelector('[aria-label="Study first position"]').click();await studyWait(()=>!document.querySelector('.study-review .review-move[aria-current="step"]'));
   await studyPlay('d4');
+  studyField('Study drawing origin','d2');studyField('Study drawing destination','d4');studyButton('Toggle drawing').click();
+  await studyWait(()=>document.querySelector('.study-review .review-move[aria-current="step"] .lucide-compass'));
+  const prose=document.querySelector('[aria-label="Study position comment"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(prose,'My branch — København');prose.dispatchEvent(new Event('input',{bubbles:true}));
+  await studyWait(()=>document.querySelector('.study-review .review-comment')?.textContent.includes('My branch'));
+  studyButton('Save study').click();await new Promise(r=>setTimeout(r,150));
+  const record=(await personalStudies.list({search:'Renamed example'})).rows[0],stored=await personalStudies.get({id:record.id});
+  if(!stored.pgn.includes('[%cal Gd2d4]')||!stored.pgn.includes('My branch — København'))throw Error('Drawing or prose not persisted');
  })()`);
  assert.equal(existsSync(studyPath),true);assert.deepEqual(readFileSync(archive),before);
  console.log('Personal studies desktop passed: lazy storage, three workspaces, preserved Games move and preference.');

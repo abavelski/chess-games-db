@@ -66,7 +66,7 @@
 - **Acceptance:** comments and numeric NAGs survive save/reopen/export and child/sibling deletion; non-ASCII text and escaped PGN content safe; comment and NAG changes mark document dirty without touching Games personal-analysis store.
 - **Files likely:** editor annotations panel, pure codec tests.
 
-### PS-11 · Drawing edit & persistence
+### [x] PS-11 · Drawing edit & persistence
 - **Depends on:** PS-07–PS-10.
 - **Build:** Chessground user arrows and square highlights per selected position, common G/R/B/Y colors, discoverable tools and clear/remove, encode `[%cal]`/`[%csl]` in root/move PGN comments; keep engine autoShapes ephemeral.
 - **Acceptance:** each of four arrow and square colors exports and reimports; drawings at two different variations and at root remain independent; removing a shape does not delete prose, unknown PGN directives or engine arrows. Board flip does not change square IDs.

@@ -8,7 +8,7 @@ import { chessgroundDests } from 'chessops/compat';
 import { parseSquare } from 'chessops/util';
 import { parseStudy, serializeStudy, identityAtPath, pathForIdentity, positionById } from '../lib/personal-studies/pgn.mjs';
 import { addMove, deleteMove } from '../lib/personal-studies/edits.mjs';
-import { annotation, setComment, setNags } from '../lib/personal-studies/annotations.mjs';
+import { annotation, setComment, setNags, drawings, setDrawings, type StudyShape } from '../lib/personal-studies/annotations.mjs';
 import type { StudyDraft } from './personal-studies-types';
 
 export function PersonalStudyEditor({draft,active,onChange,disabled=false}:{draft:StudyDraft;active:boolean;onChange:(draft:StudyDraft)=>void;disabled?:boolean}) {
@@ -20,12 +20,14 @@ export function PersonalStudyEditor({draft,active,onChange,disabled=false}:{draf
  if(tree.current.pgn!==pgn)tree.current={pgn,tree:parseStudy(pgn)};
  const [moveInput,setMoveInput]=useState(''),[error,setError]=useState(''),[promotion,setPromotion]=useState<{from:string;to:string}|null>(null);
  const selectedId=identityAtPath(tree.current.tree,path),notes=annotation(tree.current.tree,selectedId);
+ const [brush,setBrush]=useState('green'),[origin,setOrigin]=useState(''),[destination,setDestination]=useState('');
  function commit(id:string){const output=serializeStudy(tree.current.tree),target=pathForIdentity(tree.current.tree,id);tree.current.pgn=output;setPath(target);onChange({...draft,pgn:output});if(viewer.current?.game.nodeAt(new Path(target)))viewer.current.toPath(new Path(target),false);}
  function play(input:string){try {const id=addMove(tree.current.tree,identityAtPath(tree.current.tree,path),input);commit(id);setMoveInput('');setPromotion(null);setError('');}catch(e){setError(String(e));viewer.current?.toPath(new Path(path),false);}}
- const handlers=useRef({play});handlers.current={play};
+ function draw(shapes:StudyShape[]){try{setDrawings(tree.current.tree,selectedId,shapes);commit(selectedId);setError('');}catch(e){setError(String(e));}}
+ const handlers=useRef({play,draw});handlers.current={play,draw};
  const configureBoard=useCallback((board:Viewer)=>{
   const current=positionById(tree.current.tree,identityAtPath(tree.current.tree,board.path.path));
-  board.ground?.set({turnColor:current.pos.turn,movable:{free:false,color:active&&!disabled?current.pos.turn:undefined,dests:active&&!disabled?chessgroundDests(current.pos):new Map(),events:{after:(from,to)=>{
+  board.ground?.set({drawable:{enabled:active&&!disabled,visible:true,shapes:drawings(tree.current.tree,current.node.id),onChange:shapes=>handlers.current.draw(shapes.filter(s=>['green','red','blue','yellow'].includes(s.brush??'')).map(s=>({brush:s.brush!,orig:s.orig,dest:s.dest})))},turnColor:current.pos.turn,movable:{free:false,color:active&&!disabled?current.pos.turn:undefined,dests:active&&!disabled?chessgroundDests(current.pos):new Map(),events:{after:(from,to)=>{
    if(current.pos.board.get(parseSquare(from)!)?.role==='pawn'&&['1','8'].includes(to[1])){board.toPath(board.path,false);setPromotion({from,to});}
    else handlers.current.play(from+to);
   }}},draggable:{enabled:active&&!disabled},selectable:{enabled:active&&!disabled},premovable:{enabled:false}});
@@ -51,6 +53,13 @@ export function PersonalStudyEditor({draft,active,onChange,disabled=false}:{draf
    </div>
    <form onSubmit={e=>{e.preventDefault();play(moveInput);}}><label>Enter move (SAN or UCI)<input aria-label="Study move" value={moveInput} onChange={e=>setMoveInput(e.target.value)} disabled={disabled}/></label><button disabled={disabled||!moveInput}>Add move</button></form>
    <button disabled={disabled||!path} onClick={()=>{try{commit(deleteMove(tree.current.tree,identityAtPath(tree.current.tree,path)));}catch(e){setError(String(e));}}}>Delete selected move and descendants</button>
+   <details><summary>Arrows and square highlights</summary><p>Right-drag for an arrow; right-click a square to highlight it. Use Shift/Alt/Ctrl with the right button for other colors, or use the controls below. Repeat a drawing to remove it.</p>
+    <label>Drawing color<select aria-label="Study drawing color" value={brush} onChange={e=>setBrush(e.target.value)}>{['green','red','blue','yellow'].map(color=><option key={color}>{color}</option>)}</select></label>
+    <label>From square<input aria-label="Study drawing origin" maxLength={2} value={origin} onChange={e=>setOrigin(e.target.value)}/></label>
+    <label>To square (empty for highlight)<input aria-label="Study drawing destination" maxLength={2} value={destination} onChange={e=>setDestination(e.target.value)}/></label>
+    <button disabled={disabled} onClick={()=>{const shape={brush,orig:origin,dest:destination||undefined} as StudyShape,current=drawings(tree.current.tree,selectedId),has=current.some(s=>s.brush===brush&&s.orig===origin&&s.dest===(destination||undefined));draw(has?current.filter(s=>!(s.brush===brush&&s.orig===origin&&s.dest===(destination||undefined))):[...current,shape]);}}>Toggle drawing</button>
+    <button disabled={disabled} onClick={()=>draw([])}>Clear position drawings</button>
+   </details>
    {error&&<p role="alert">{error}</p>}
    {promotion&&<Promotion onPick={suffix=>play(promotion.from+promotion.to+suffix)} onCancel={()=>setPromotion(null)}/>}
   </section>
