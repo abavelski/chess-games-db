@@ -58,6 +58,11 @@ try {
   studyButton('Flip study board').click();
   studyField('Study title','Renamed example');
   if(document.querySelector('.study-review .review-move[aria-current="step"]').dataset.reviewPath!==selected)throw Error('Metadata rerender lost nested selection');
+  window.studyPlay=async move=>{studyField('Study move',move);await studyWait(()=>document.querySelector('[aria-label="Study move"]').value===move);studyButton('Add move').click();await studyWait(()=>document.querySelector('.study-review .review-move[aria-current="step"]')?.textContent.includes(move));};
+  await studyPlay('a6');await studyPlay('Nf3');await studyPlay('d6');
+  studyButton('Delete selected move and descendants').click();await studyWait(()=>document.querySelector('.study-review .review-move[aria-current="step"]')?.textContent.includes('Nf3'));
+  document.querySelector('[aria-label="Study first position"]').click();await studyWait(()=>!document.querySelector('.study-review .review-move[aria-current="step"]'));
+  await studyPlay('d4');
  })()`);
  assert.equal(existsSync(studyPath),true);assert.deepEqual(readFileSync(archive),before);
  console.log('Personal studies desktop passed: lazy storage, three workspaces, preserved Games move and preference.');

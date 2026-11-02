@@ -27,7 +27,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
     <div className="study-actions"><button disabled={busy} onClick={()=>{setSaved(null);setDraft(null);}}>Back to studies</button><button disabled={busy} onClick={()=>void action(save)}>Save study</button>
     <button disabled={busy} onClick={()=>void action(async()=>open(await window.personalStudies.duplicate({id:saved.id})))}>Duplicate saved study</button>
     <button disabled={busy} onClick={()=>{if(window.confirm(`Delete “${saved.title}” permanently? This cannot be undone.`))void action(async()=>{await window.personalStudies.delete({id:saved.id,expectedRevision:saved.revision});setSaved(null);setDraft(null);});}}>Delete study</button></div>
-    <PersonalStudyEditor key={saved.id} draft={draft} active={active}/>
+    <PersonalStudyEditor key={saved.id} draft={draft} active={active} onChange={setDraft} disabled={busy}/>
     <StudyMetadata draft={draft} onChange={setDraft} disabled={busy}/>
   </section>:<>
    <button disabled={busy} onClick={()=>void action(async()=>open(await window.personalStudies.create({title:'Untitled study'})))}>New study</button>

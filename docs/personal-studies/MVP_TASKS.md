@@ -54,7 +54,7 @@
 - **Acceptance:** blank, complete and incomplete games open; flip/keyboard/path navigation and review layout work; can select every nested variation; existing game review remains visually/behaviorally unchanged.
 - **Files likely:** `src/PersonalStudyEditor.tsx`, opt-in shared component props.
 
-### PS-09 · Legal moves, full games, variations and deletion
+### [x] PS-09 · Legal moves, full games, variations and deletion
 - **Depends on:** PS-07–PS-08.
 - **Build:** add legal moves by board, append/branch at selected ply, promotion picker, select existing matching continuation, delete a selected move/subtree, and maintain a clear mainline. Support insert from beginning/root; independent nested variation branches.
 - **Acceptance:** edit changes only the selected study; illegal move and invalid promotion never alter tree; deleting a branch leaves siblings intact and moves selection to surviving ancestor; 2+ nested levels and initial position pass desktop tests. Never inadvertently merge imported duplicate siblings.
