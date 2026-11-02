@@ -33,6 +33,18 @@ try {
   document.querySelector('[aria-label="Workspaces"] button:nth-child(3)').click();
   await studyWait(()=>!document.querySelector('.personal-studies-workspace').closest('[hidden]'));
   if((await openingStudy.settings()).workspace!=='openings')throw Error('Studies replaced games/openings preference');
+  window.studyButton=text=>[...document.querySelectorAll('.personal-studies-workspace button')].find(b=>b.textContent===text);
+  window.studyField=(label,value)=>{const el=document.querySelector('[aria-label="'+label+'"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,value);el.dispatchEvent(new Event('input',{bubbles:true}));};
+  studyButton('New study').click();await studyWait(()=>document.querySelector('[aria-label="Study title"]'));
+  studyField('Study title','Round 3');await studyWait(()=>document.querySelector('[aria-label="Study title"]').value==='Round 3');
+  studyField('Study White','Alice');await studyWait(()=>document.querySelector('[aria-label="Study White"]').value==='Alice');
+  studyField('Study tags','Endgame, endgame');studyButton('Save study').click();
+  await new Promise(r=>setTimeout(r,150));
+  await studyWait(()=>!studyButton('Save study').disabled);
+  const records=await personalStudies.list({search:'Alice'});if(records.total!==1||records.rows[0].tags.length!==1)throw Error('Metadata/tag save failed');
+  studyButton('Back to studies').click();await studyWait(()=>document.querySelector('.study-list button')?.textContent==='Round 3');
+  studyField('Search studies','missing');await studyWait(()=>document.querySelector('.personal-studies-workspace [role="status"]').textContent==='0 studies');
+  studyField('Search studies','Alice');await studyWait(()=>document.querySelector('.study-list button'));
  })()`);
  assert.equal(existsSync(studyPath),true);assert.deepEqual(readFileSync(archive),before);
  console.log('Personal studies desktop passed: lazy storage, three workspaces, preserved Games move and preference.');

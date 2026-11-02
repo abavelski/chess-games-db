@@ -34,7 +34,7 @@
 - **Acceptance:** switching all three panes never discards Games/opening review, filters, selected moves, focused control or scroll; no engine processing in suspended pane; keyboard/screen-reader nav labels work; reopening app retains existing Games/Openings choice.
 - **Files likely:** `src/WorkspaceRoot.tsx`, optional new workspace preference adapter, desktop test.
 
-### PS-06 · Studies list, basic metadata, tags and new/delete
+### [x] PS-06 · Studies list, basic metadata, tags and new/delete
 - **Depends on:** PS-03–PS-05.
 - **Build:** `PersonalStudiesWorkspace` list/search/sort/filter, blank create, rename, tag editor (free-form labels), date/ratings/Event/players metadata, duplicate/delete confirmation, visible local storage path/help.
 - **Acceptance:** tournament and other study creation, unknown headers allowed, tags normalized, list results deterministic; search and filters compose, empty list and error states usable; no archive or opening-library entry is changed.

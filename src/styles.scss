@@ -1,4 +1,14 @@
 @import './viewer';
+
+.personal-studies-workspace { padding: 1.5rem; max-width: 1500px; margin: auto;
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; padding: .45rem .7rem; }
+  label { display: flex; flex-direction: column; gap: .25rem; }
+  input, select, textarea { padding: .45rem; min-width: 0; }
+  .study-metadata, .study-filters { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: .7rem; margin: 1rem 0; }
+  .study-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+  .study-list { padding: 0; list-style: none; li { display: flex; gap: 1rem; align-items: center; margin: .6rem 0; } }
+}
 @import './opening-study';
 
 :root {
