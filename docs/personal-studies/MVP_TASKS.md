@@ -10,7 +10,7 @@
 - **Acceptance:** fixtures describe valid/invalid standard positions, unsupported FEN/variants, multi-game input and PGN fidelity; current `npm test`, `npm run build` and available desktop suites green before feature work. Check both Games and Openings session paths.
 - **Files likely:** `tests/fixtures/personal-studies/*`, `docs/personal-studies/*`.
 
-### PS-02 · Dedicated SQLite schema and migration/backup policy
+### [x] PS-02 · Dedicated SQLite schema and migration/backup policy
 - **Depends on:** PS-01.
 - **Build:** private `personal-studies.sqlite3` schema in `app.userData` with `application_id`, `user_version`, unique IDs, single PGN tree, indexed metadata, tags and revisions. Lazy creation and standalone migration path, never tied to archive schemas.
 - **Acceptance:** new/missing DB initializes on first My Studies use; reopen preserves records; unknown future schema, corrupt DB and wrong app ID fail with actionable errors; no old library is accessed/modified. Transactions/foreign keys verified.
