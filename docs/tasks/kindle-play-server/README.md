@@ -72,8 +72,8 @@ Only start if explicitly enabled. Validate host/port, log actual bound address, 
 | --- | --- | --- | --- |
 | SERVER-01 | — | Done | Pure game state / chess legality module + focused tests |
 | SERVER-02 | SERVER-01 | Done | Independent Maia move provider using existing UCI process |
-| SERVER-03 | SERVER-01, SERVER-02 | Ready | HTTP router with the frozen contract and integration tests |
-| SERVER-04 | SERVER-03 | Blocked | Opt-in Electron lifecycle/configuration and setup instructions |
+| SERVER-03 | SERVER-01, SERVER-02 | Done | HTTP router with the frozen contract and integration tests |
+| SERVER-04 | SERVER-03 | Ready | Opt-in Electron lifecycle/configuration and setup instructions |
 | SERVER-05 | SERVER-04 | Blocked | Full tests, mock-engine and real-device/LAN acceptance record |
 
 ### SERVER-01 — authoritative in-memory chess game
@@ -94,6 +94,8 @@ Status: **Done**. Verified: `node --test tests/kindle-play-maia.test.mjs` (4 pas
 - Serialize one engine search at a time, bound cold startup/search (existing UCI process has 180 s behavior), and make a deterministic injected fake UCI fixture test the exact commands, selected rating, history, castling normalization, cleanup, and no UI-analysis interference.
 
 ### SERVER-03 — HTTP adapter / contract tests
+
+Status: **Done**. Verified: `node --test tests/kindle-play-http.test.mjs` (4 passing tests), including a real fake-UCI subprocess over HTTP, 2026-11-09.
 
 - Proposed module `electron/kindle-play-http.mjs`, using Node's built-in `node:http`; no Express/framework required. Keep business logic independently testable without Electron.
 - Implement the five routes and exact JSON response/status/error fields above, 4 KiB request limit, method and JSON checks, no CORS, `Cache-Control: no-store`; reject malformed/unexpected bodies, invalid paths and extra moves while BUSY. `/health` does not start/warm Maia.
