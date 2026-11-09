@@ -1,6 +1,6 @@
 # Kindle vs Maia — desktop HTTP server MVP
 
-Status: **Waiting for device**. Implementation and local acceptance complete; different-device LAN acceptance pending. Updated: 2026-11-09 (plan: 2026-11-08).
+Status: **Done**. Implementation, local acceptance and user-confirmed LAN verification complete. Updated: 2026-11-09 (plan: 2026-11-08).
 Repository: `abavelski/chess-games-db`; default branch **master**.
 Goal: expose a tiny, opt-in LAN HTTP server from the **existing Electron desktop application**, using its configured local **Maia 3 79M** installation as a playing opponent. Independent implementation plan; no Kindle repo checkout needed.
 
@@ -74,7 +74,7 @@ Only start if explicitly enabled. Validate host/port, log actual bound address, 
 | SERVER-02 | SERVER-01 | Done | Independent Maia move provider using existing UCI process |
 | SERVER-03 | SERVER-01, SERVER-02 | Done | HTTP router with the frozen contract and integration tests |
 | SERVER-04 | SERVER-03 | Done | Opt-in Electron lifecycle/configuration and setup instructions |
-| SERVER-05 | SERVER-04 | Waiting for device | Local checks passed; different-device LAN acceptance pending |
+| SERVER-05 | SERVER-04 | Done | Automated, real Maia, desktop and user-confirmed LAN acceptance complete |
 
 ### SERVER-01 — authoritative in-memory chess game
 
@@ -111,7 +111,7 @@ Status: **Done**. Verified: `node --test tests/kindle-play-lifecycle.test.mjs` (
 
 ### SERVER-05 — verification and handoff
 
-Status: **Waiting for device**. All automated, graphical desktop and real local Maia checks passed on 2026-11-09. No different LAN device was available to this session; that acceptance check is **not tested**. Stop here for human verification.
+Status: **Done**. All automated, graphical desktop and real local Maia checks passed on 2026-11-09. The user subsequently confirmed that LAN verification was complete and working, satisfying the remaining human acceptance check.
 
 - Run focused tests, `npm test`, `npm run build`; run `npm run test:desktop` in an available graphical environment. With a configured real local Maia installation, start server explicitly and use `curl` to play several legal moves at two ratings; verify process cleanup, invalid move rejection and FEN against chessops.
 - Confirm calls from a **different LAN device**, not only localhost. Do not report this as tested until observed.
@@ -144,7 +144,7 @@ r1bqkbnr/pp2pppp/2np4/2p5/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 0 4
 
 Focused checks cover standard king-destination castling (including conversion from engine king-to-rook output), all four promotions, en passant, checkmate after either side, stalemate, insufficient material, automatic fivefold repetition and 75-move draws. Failure tests cover missing configuration, startup/search timeouts, crashes, illegal bestmove, rollback, BUSY isolation, exact request bodies, fixed/chunked oversize uploads, lost POST response recovery by GET, and stale retry rejection. Health exposes no settings and does not warm Maia.
 
-**Human check still required:** follow [SETUP.md](SETUP.md) to explicitly enable a trusted-LAN bind, allow the desktop only on the private home network, and run health/start/move/GET/resign from a **different physical LAN device**. Record the device, desktop address, observed HTTP statuses/FEN/history and cleanup result here. Then mark SERVER-05 and the overall status Done. Localhost curl and the available graphical desktop were tested; remote device connectivity, firewall allowance, and the Kindle client's background/thinking/reconnect behavior have not been observed. No firewall rule or normal user-data server config was created by this work.
+**Human LAN acceptance — complete, 2026-11-09:** at the user's request, enabled the normal desktop's server on `0.0.0.0:8765` and started Electron. Localhost and desktop-LAN-address health requests both returned `{"apiVersion":1,"maiaAvailable":true}`. Supplied client base URL `http://192.168.1.15:8765`, API prefix `/api/v1`, JSON request content type and 195-second move timeout. The user then reported: "verification is done, works fine" and authorized committing, merging to master and pushing. This records user-confirmed remote acceptance; the device model and individual remote HTTP responses were not supplied. No firewall rule was created by this work. The desktop remains running with its opt-in user-data config; see [SETUP.md](SETUP.md) to disable it.
 
 ## Done when
 
