@@ -76,3 +76,13 @@ refresh and retry; the failed engine process is discarded automatically.
 
 Packaging already includes `electron/**/*` and unpacks `maia_bridge.py`; local
 models and machine-specific settings remain external. No renderer API is added.
+
+For repeatable local acceptance, run `npm run test:kindle:local` (or
+`npm.cmd run test:kindle:local` on Windows). This starts the real Electron entry
+point with an isolated temporary user-data directory and opt-in localhost
+configuration, uses the development Maia profile, calls all routes with curl,
+plays three move pairs at each of ratings 700 and 2300, checks every FEN and
+observes child/listener cleanup on quit. It does not change your normal desktop
+profile. `npm run test:desktop` includes the same flow with a fake UCI opponent.
+Neither command proves reachability from a different LAN device; perform that
+check separately using the desktop LAN address and the curl sequence above.

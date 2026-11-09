@@ -67,7 +67,7 @@ test('strict bodies, routes, methods, byte limits including chunked upload', asy
   assert.equal(status, 413);
 });
 
-test('busy conflicts and 503/504 failures expose unchanged committed state', async t => {
+test('busy conflicts and 503/504 failures expose unchanged committed state', { timeout: 5000 }, async t => {
   let reject;
   const call = await setup(t, { available: () => false, move: () => new Promise((_, fail) => { reject = fail; }) });
   assert.equal((await call('health')).body.maiaAvailable, false);
@@ -93,4 +93,37 @@ test('HTTP round trip through a real fake-UCI subprocess', async t => {
   await call('games', { rating: 700 });
   assert.deepEqual((await call('games/current/moves', move)).body.moves, ['e2e4','e7e5']);
   assert.equal((await call('games/current/moves', { uci: 'g1f3', expectedPly: 2 })).body.ply, 4);
+});
+
+test('lost move response is resolved by GET and cannot duplicate a committed move', { timeout: 5000 }, async t => {
+  let reply, entered;
+  const started = new Promise(resolve => { entered = resolve; });
+  const maia = { available: () => true, move: () => { entered(); return new Promise(resolve => { reply = resolve; }); } };
+  const server = createKindlePlayServer({ maia }); server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const base = `http://127.0.0.1:${server.address().port}/api/v1/`;
+  const post = (path, body) => fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  await post('games', { rating: 1500 });
+  const disconnected = httpRequest(base + 'games/current/moves', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+  disconnected.on('error', () => {}); disconnected.end(JSON.stringify(move));
+  await started;
+  disconnected.destroy(); reply('e7e5');
+  let state;
+  do { state = await (await fetch(base + 'games/current')).json(); } while (state.ply === 0);
+  assert.deepEqual(state.moves, ['e2e4', 'e7e5']);
+  const duplicate = await post('games/current/moves', move);
+  assert.equal(duplicate.status, 409); assert.equal((await duplicate.json()).error.code, 'STALE_PLY');
+});
+
+test('HTTP checkmate after the human move does not call Maia again', async t => {
+  const replies = ['e7e5', 'b8c6', 'g8f6']; let searches = 0;
+  const call = await setup(t, { available: () => true, move: () => replies[searches++] });
+  await call('games', { rating: 1500 });
+  for (const [index, uci] of ['e2e4', 'd1h5', 'f1c4', 'h5f7'].entries()) {
+    const response = await call('games/current/moves', { uci, expectedPly: index * 2 });
+    assert.equal(response.status, 200);
+  }
+  const state = (await call('games/current')).body;
+  assert.equal(state.ply, 7); assert.equal(searches, 3);
+  assert.deepEqual(state.result, { outcome: 'white_win', reason: 'checkmate' });
 });
