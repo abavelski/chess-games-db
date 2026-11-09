@@ -49,6 +49,9 @@ Keep SAN computation and chess legality in desktop chessops, not Kindle. Documen
 
 ## Codex execution protocol
 
+**Token-efficient CLI option:** use [`bash scripts/codex-play.sh`](../../CODEX_PLAY_CLI.md) from this repository. It invokes Codex on one task with Sol 6.1/medium by default, then runs the existing tests/build/desktop-smoke commands outside the model; use `verify` without Codex and `fix` to resume only with a short failing-log excerpt. The remainder of this task protocol and its human acceptance gates still apply. Do not ask Codex to duplicate the wrapper's full checks.
+
+
 Each row below is one independently shippable Codex assignment, ideally one branch/PR. **Use the first Ready task whose dependencies are accepted.** Apply the mandatory reuse-first rule above; list reused/extracted/new components in the task evidence before requesting review. Read this document, relevant modules and existing tests. Set *both* table and task-detail status to In progress with branch/date; write a failing focused test first, implement only that task, pass focused tests plus npm test and npm run build, and (when GUI touched) npm run test:desktop in a graphical environment. Record actual commands/results and commit SHA, avoid claiming device or live Maia checks from mocks. Set **Waiting for human** when automated checks are green; the **last task step is human verification**. Only after the owner explicitly accepts should the two status locations become Done. Do not silently mark the next task Ready until dependencies are accepted. Do not change the owner's existing engine profiles or real studies DB during tests; use temporary profiles/databases.
 
 | Order | Task | Depends on | Initial status | Codex deliverable |
