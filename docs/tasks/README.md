@@ -2,6 +2,9 @@
 
 ## Kindle Maia play improvements (planned)
 
+The [Codex CLI runbook](../CODEX_PLAY_CLI.md) provides one-task shell commands, deterministic desktop verification and token-saving repair prompts for Git Bash/macOS. No automatic human approval or merges.
+
+
 The [post-MVP server improvements](kindle-play-server/IMPROVEMENTS_PLAN.md) describe four ordered Codex tasks: manual start/stop and status IPC, a Maia workspace tab, either-side play, and live Personal Studies persistence. Each task ends with human verification. The companion [Kindle plan](https://github.com/abavelski/kindle-chess-puzzles/blob/main/docs/KINDLE_PLAY_IMPROVEMENTS.md) covers device-side changes and final acceptance.
 
 ## Personal Studies (planned)
