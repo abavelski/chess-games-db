@@ -1,5 +1,9 @@
 # Implementation tasks
 
+## Kindle Maia play improvements (planned)
+
+The [post-MVP server improvements](kindle-play-server/IMPROVEMENTS_PLAN.md) describe four ordered Codex tasks: manual start/stop and status IPC, a Maia workspace tab, either-side play, and live Personal Studies persistence. Each task ends with human verification. The companion [Kindle plan](https://github.com/abavelski/kindle-chess-puzzles/blob/main/docs/KINDLE_PLAY_IMPROVEMENTS.md) covers device-side changes and final acceptance.
+
 ## Personal Studies (planned)
 
 The third workspace **My Studies** is specified under [docs/personal-studies](../personal-studies/README.md), with a [product/architecture MVP plan](../personal-studies/MVP_PLAN.md), [storage and Lichess PGN interoperability](../personal-studies/DATA_AND_INTEROP.md), and [18 ordered implementation tasks](../personal-studies/MVP_TASKS.md). One local study equals one editable game; its SQLite database stays separate from the Games and Openings libraries. Planning only; no runtime behavior is changed.
