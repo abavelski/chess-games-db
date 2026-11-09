@@ -1,6 +1,6 @@
 # Kindle vs Maia — desktop HTTP server MVP
 
-Status: **Planned** (documentation only). Date: 2026-11-08.
+Status: **In progress**. Date: 2026-11-08.
 Repository: `abavelski/chess-games-db`; default branch **master**.
 Goal: expose a tiny, opt-in LAN HTTP server from the **existing Electron desktop application**, using its configured local **Maia 3 79M** installation as a playing opponent. Independent implementation plan; no Kindle repo checkout needed.
 
@@ -70,13 +70,15 @@ Only start if explicitly enabled. Validate host/port, log actual bound address, 
 
 | Task | Depends on | Status | Deliverable |
 | --- | --- | --- | --- |
-| SERVER-01 | — | Ready | Pure game state / chess legality module + focused tests |
-| SERVER-02 | SERVER-01 | Blocked | Independent Maia move provider using existing UCI process |
+| SERVER-01 | — | Done | Pure game state / chess legality module + focused tests |
+| SERVER-02 | SERVER-01 | Ready | Independent Maia move provider using existing UCI process |
 | SERVER-03 | SERVER-01, SERVER-02 | Blocked | HTTP router with the frozen contract and integration tests |
 | SERVER-04 | SERVER-03 | Blocked | Opt-in Electron lifecycle/configuration and setup instructions |
 | SERVER-05 | SERVER-04 | Blocked | Full tests, mock-engine and real-device/LAN acceptance record |
 
 ### SERVER-01 — authoritative in-memory chess game
+
+Status: **Done**. Verified: `node --test tests/kindle-play-game.test.mjs` (4 passing tests), 2026-11-09.
 
 - Add a small module, proposed `electron/kindle-play-game.mjs`, with new game, current snapshot, validate/apply tentative White UCI, apply legal engine UCI, terminal result, and resign. Use `chessops`; never blindly apply a UCI string.
 - Rating schema: integer 600..2600 inclusive, multiples of 100, defaults to client-selected 1500. Use server-enforced bounds. Reject starting a new game while one is playing; a finished one may be replaced.
