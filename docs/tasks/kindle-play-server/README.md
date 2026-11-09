@@ -71,8 +71,8 @@ Only start if explicitly enabled. Validate host/port, log actual bound address, 
 | Task | Depends on | Status | Deliverable |
 | --- | --- | --- | --- |
 | SERVER-01 | — | Done | Pure game state / chess legality module + focused tests |
-| SERVER-02 | SERVER-01 | Ready | Independent Maia move provider using existing UCI process |
-| SERVER-03 | SERVER-01, SERVER-02 | Blocked | HTTP router with the frozen contract and integration tests |
+| SERVER-02 | SERVER-01 | Done | Independent Maia move provider using existing UCI process |
+| SERVER-03 | SERVER-01, SERVER-02 | Ready | HTTP router with the frozen contract and integration tests |
 | SERVER-04 | SERVER-03 | Blocked | Opt-in Electron lifecycle/configuration and setup instructions |
 | SERVER-05 | SERVER-04 | Blocked | Full tests, mock-engine and real-device/LAN acceptance record |
 
@@ -86,6 +86,8 @@ Status: **Done**. Verified: `node --test tests/kindle-play-game.test.mjs` (4 pas
 - Atomicity: a failed Maia calculation cannot leave the accepted human half-move committed. Test start, move legality, ply conflict, terminal state, resign, castling, promotion, and failed engine rollback. Handle all valid chess rules; draw classification can use the library's existing automatic end detection.
 
 ### SERVER-02 — dedicated Maia opponent
+
+Status: **Done**. Verified: `node --test tests/kindle-play-maia.test.mjs` (4 passing tests), 2026-11-09.
 
 - Proposed module `electron/kindle-play-maia.mjs`: reuses `UciProcess`, `engineDefaults`/`validateSettings`, the configured local Python + checkpoint, and existing offline bridge. **Do not share the analysis manager's session or cancellation queue** with the server.
 - Lazily start one Maia child, send `setoption name Elo value N` before each request, full initial position and UCI move history, then `go nodes 1`. Wait for `bestmove`, sanitize and check legality. Stop on app quit; recover from process crashes/timeouts by discarding that process and allowing retry on unchanged board. Do not fall back to Stockfish or an arbitrary random move.
