@@ -73,8 +73,8 @@ Only start if explicitly enabled. Validate host/port, log actual bound address, 
 | SERVER-01 | — | Done | Pure game state / chess legality module + focused tests |
 | SERVER-02 | SERVER-01 | Done | Independent Maia move provider using existing UCI process |
 | SERVER-03 | SERVER-01, SERVER-02 | Done | HTTP router with the frozen contract and integration tests |
-| SERVER-04 | SERVER-03 | Ready | Opt-in Electron lifecycle/configuration and setup instructions |
-| SERVER-05 | SERVER-04 | Blocked | Full tests, mock-engine and real-device/LAN acceptance record |
+| SERVER-04 | SERVER-03 | Done | Opt-in Electron lifecycle/configuration and setup instructions |
+| SERVER-05 | SERVER-04 | Ready | Full tests, mock-engine and real-device/LAN acceptance record |
 
 ### SERVER-01 — authoritative in-memory chess game
 
@@ -102,6 +102,8 @@ Status: **Done**. Verified: `node --test tests/kindle-play-http.test.mjs` (4 pas
 - Endpoint tests over ephemeral localhost port + fake move provider, especially 201/200/400/404/409/422/503/504, GET-after-rejected-move, duplicate/stale requests, Maia timeout rollback, and resign/new-game behavior. Assert output FEN/history rather than just status codes.
 
 ### SERVER-04 — Electron integration and operational guidance
+
+Status: **Done**. Verified: `node --test tests/kindle-play-lifecycle.test.mjs` (3 passing tests), 2026-11-09. Operational instructions: [SETUP.md](SETUP.md). Packaging already covers the new modules.
 
 - Wire server start in `electron/main.mjs` when ready and shutdown in `will-quit`. Reuse settings loader from `engine-ipc.mjs` or factor it into a shared module. No privileged APIs exposed to the renderer.
 - Document desktop user-data config location, how to find the desktop LAN IP, firewall allowance only for trusted home LAN, the existing `docs/tasks/local-engine-review/SETUP.md` Maia installation, and quick `curl` tests. Default off, missing Maia behavior, desktop quit/restart behavior, and how to troubleshoot errors are explicit.

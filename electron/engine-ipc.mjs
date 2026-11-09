@@ -1,18 +1,12 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { engineFailureLogger } from './engine-log.mjs';
-import { EngineManager, engineDefaults, validateSettings } from './engines.mjs';
+import { EngineManager, validateSettings } from './engines.mjs';
+import { loadEngineSettings } from './engine-settings.mjs';
 
 export function registerEngineIpc({ app, ipcMain, dialog }) {
   const path = join(app.getPath('userData'), 'engines.json');
-  let settings = { ...engineDefaults };
-  const candidates = [path];
-  if (!app.isPackaged) candidates.push(fileURLToPath(new URL('../.local-engines/engines.json', import.meta.url)));
-  for (const candidate of candidates) {
-    try { settings = validateSettings(JSON.parse(readFileSync(candidate, 'utf8'))); break; }
-    catch { /* First launch or invalid settings; try the local development profile. */ }
-  }
+  let settings = loadEngineSettings(app);
   const logFailure = engineFailureLogger(join(app.getPath('userData'), 'logs', 'engines.log'));
   const managers = new Map();
   const manager = sender => {
@@ -39,4 +33,5 @@ export function registerEngineIpc({ app, ipcMain, dialog }) {
   ipcMain.handle('engine:analyze', (event, request) => manager(event.sender).analyze(request));
   ipcMain.handle('engine:stop', (event, engine) => manager(event.sender).stop(engine));
   app.on('will-quit', () => { for (const instance of managers.values()) instance.close(); });
+  return { settings: () => ({ ...settings }) };
 }
