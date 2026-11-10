@@ -31,7 +31,7 @@ function readJson(request) {
 function fields(body, names) {
   if (Object.keys(body).length !== names.length || names.some(name => !Object.hasOwn(body, name))) throw new PlayError(400, 'BAD_REQUEST', `Expected fields: ${names.join(', ') || 'none'}.`);
 }
-export function createKindlePlayServer({ maia, game = new KindlePlayGame(), log = console.warn }) {
+export function createKindlePlayServer({ maia, game = new KindlePlayGame(), log = console.warn, accepting = () => true }) {
   const server = createServer({ requestTimeout: 10000, headersTimeout: 10000 }, async (request, response) => {
     const route = request.url;
     const send = (status, value, headers = {}) => {
@@ -40,6 +40,7 @@ export function createKindlePlayServer({ maia, game = new KindlePlayGame(), log 
       response.end(JSON.stringify(value));
     };
     try {
+      if (!accepting()) throw new PlayError(503, 'SERVER_STOPPED', 'Desktop listener stopped.');
       const method = routes.get(route);
       if (!method) throw new PlayError(404, 'NOT_FOUND', 'Unknown API route.');
       if (request.method !== method) { response.setHeader('Allow', method); throw new PlayError(405, 'METHOD_NOT_ALLOWED', `Use ${method} for this route.`); }
@@ -51,7 +52,11 @@ export function createKindlePlayServer({ maia, game = new KindlePlayGame(), log 
         return send(200, state);
       }
       const body = await readJson(request);
-      if (route === '/api/v1/games') { fields(body, ['rating']); return send(201, game.start(body.rating)); }
+      if (!accepting()) throw new PlayError(503, 'SERVER_STOPPED', 'Desktop listener stopped.');
+      if (route === '/api/v1/games') {
+        fields(body, Object.hasOwn(body, 'playerColor') ? ['rating', 'playerColor'] : ['rating']);
+        return send(201, await game.start(body.rating, body.playerColor, input => maia.move(input)));
+      }
       if (route.endsWith('/resign')) { fields(body, []); return send(200, game.resign()); }
       fields(body, ['uci', 'expectedPly']);
       return send(200, await game.move(body.uci, body.expectedPly, input => maia.move(input)));

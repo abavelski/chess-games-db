@@ -14,6 +14,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
  const [page,setPage]=useState<{rows:Omit<Study,'pgn'>[];total:number}>({rows:[],total:0});
  const [saved,setSaved]=useState<Study|null>(null),[draft,setDraft]=useState<StudyDraft|null>(null),[busy,setBusy]=useState(false);
  const savedRef=useRef(saved);savedRef.current=saved;
+ const [external, setExternal] = useState<Study|null>(null);
  const [pendingLeave,setPendingLeave]=useState<(()=>void)|null>(null),[editorEpoch,setEditorEpoch]=useState(0);
  const dirty=!!saved&&!!draft&&JSON.stringify(draft)!==JSON.stringify(studyDraft(saved));
  const blocked=useRef(false);blocked.current=dirty||busy;
@@ -29,10 +30,22 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
  },[]);
  const generation=useRef(0);
  const refresh=useCallback(async()=>{const current=++generation.current;try {const result=await window.personalStudies.list(query);if(current===generation.current)setPage(result);}catch(e){if(current===generation.current)setError(String(e));}},[query]);
- useEffect(()=>{void refresh();return()=>{generation.current++;};},[refresh]);
+ useEffect(()=>{
+  if(!active)return;
+  let alive=true;
+  let timer:ReturnType<typeof setTimeout>;
+  async function check(){
+   await refresh();
+   const current=savedRef.current;
+   if(current)try{const latest=await window.personalStudies.get({id:current.id});if(alive&&savedRef.current?.id===current.id)setExternal(latest.revision>savedRef.current.revision?latest:null);}catch(e){if(alive)setError(String(e));}
+   if(alive)timer=setTimeout(()=>void check(),2000);
+  }
+  void check();
+  return()=>{alive=false;clearTimeout(timer);generation.current++;};
+ },[active,refresh]);
  useEffect(()=>{window.personalStudies.status().then(s=>setPath(s.path)).catch(e=>setError(String(e)));},[]);
  async function action(run:()=>Promise<void>){setBusy(true);setError('');try{await run();await refresh();}catch(e){setError(String(e));}finally{setBusy(false);}}
- function open(study:Study){savedRef.current=study;setSaved(study);setDraft(studyDraft(study));setNotice('');}
+ function open(study:Study){savedRef.current=study;setSaved(study);setDraft(studyDraft(study));setNotice('');setExternal(null);}
  function deleteSaved(){const target=savedRef.current;if(target&&window.confirm(`Delete “${target.title}” permanently? This cannot be undone.`))void action(async()=>{await window.personalStudies.delete({id:target.id,expectedRevision:target.revision});setSaved(null);setDraft(null);});}
  async function save(){if(!draft||!saved)return;const updated=await window.personalStudies.update({id:saved.id,draft:{...draft,tags:draft.tags?.filter(t=>t.trim())},expectedRevision:saved.revision});open(updated);blocked.current=false;}
  async function saveAndLeave(){const proceed=pendingLeave;if(!proceed)return;setBusy(true);setError('');try{await save();await refresh();setPendingLeave(null);setBusy(false);blocked.current=false;setTimeout(proceed,0);}catch(e){setError(String(e));}finally{setBusy(false);}}
@@ -57,6 +70,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
     <div className="study-actions"><button disabled={busy} onClick={()=>leave(()=>{setSaved(null);setDraft(null);})}>Back to studies</button><button disabled={busy} onClick={()=>void action(save)}>Save study</button>
     <button disabled={busy} onClick={()=>leave(()=>void action(async()=>open(await window.personalStudies.duplicate({id:saved.id}))))}>Duplicate saved study</button>
     <button disabled={busy} onClick={()=>leave(deleteSaved)}>Delete study</button></div>
+    {external&&<p role="status">This study has a newer saved revision. Your draft is retained. <button disabled={busy} onClick={()=>leave(()=>{open(external);setEditorEpoch(e=>e+1);})}>Reload saved revision</button></p>}
     <PersonalStudyEditor key={saved.id+':'+editorEpoch} draft={draft} active={active} onChange={setDraft} disabled={busy}/>
     <StudyMetadata draft={draft} onChange={setDraft} disabled={busy}/>
   </section>:<>
@@ -71,7 +85,7 @@ export default function PersonalStudiesWorkspace({ active }: {active: boolean}) 
    </div>
    <p role="status">{page.total} studies</p>
    {!page.total&&<p>No studies match. Create a study or adjust the filters.</p>}
-   <ul className="study-list">{page.rows.map(study=><li key={study.id}><button disabled={busy} onClick={()=>void action(async()=>open(await window.personalStudies.get({id:study.id})))}>{study.title}</button><span>{[study.white,study.black,study.event,study.year,study.tags.join(', ')].filter(Boolean).join(' · ')}</span></li>)}</ul>
+   <ul className="study-list">{page.rows.map(study=><li key={study.id}><button disabled={busy} onClick={()=>void action(async()=>open(await window.personalStudies.get({id:study.id})))}>{study.title}</button><span>{[study.origin_kind==='kindle-play'?'Kindle Play':null,study.origin_kind==='kindle-play'&&study.result==='*'?'In progress':null,study.white,study.black,study.event,study.year,study.tags.join(', ')].filter(Boolean).join(' · ')}</span></li>)}</ul>
    <button disabled={!query.offset||busy} onClick={()=>setQuery(q=>({...q,offset:Math.max(0,(q.offset??0)-40)}))}>Previous studies</button>
    <button disabled={(query.offset??0)+40>=page.total||busy} onClick={()=>setQuery(q=>({...q,offset:(q.offset??0)+40}))}>Next studies</button>
   </>}

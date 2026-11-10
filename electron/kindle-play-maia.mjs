@@ -27,7 +27,7 @@ export class KindlePlayMaia {
     validateRating(rating);
     const position = Chess.fromSetup(parseFen(initialFen).unwrap()).unwrap();
     const history = moves.map(move => applyUci(position, move));
-    if (position.turn !== 'black' || position.isEnd()) throw new Error('Expected a playable Black position.');
+    if (position.isEnd()) throw new Error('Expected a playable position.');
     const settings = validateSettings(this.settings());
     const signature = JSON.stringify(settings);
     if (this.signature !== signature) { this.session?.close(); this.session = null; }

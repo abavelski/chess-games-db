@@ -9,6 +9,12 @@ const playing = fileURLToPath(new URL('./fixtures/fake-playing-maia.mjs', import
 const settings = { pythonPath: process.execPath, checkpointPath: fixture };
 const request = { initialFen, moves: ['e2e4'], rating: 1500 };
 
+test('dedicated Maia process can supply the White opening', async () => {
+  const maia = new KindlePlayMaia(settings, { processFactory: () => new UciProcess(process.execPath, [playing]) });
+  try { assert.equal(await maia.move({ ...request, moves: [] }), 'e2e4'); }
+  finally { maia.close(); }
+});
+
 test('lazy independent process, exact commands, ratings, complete history and serialization', async () => {
   const sessions = [], commands = [];
   const maia = new KindlePlayMaia(settings, { processFactory: () => {

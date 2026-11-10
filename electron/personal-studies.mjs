@@ -49,5 +49,5 @@ export function registerPersonalStudies({ app, ipcMain, authorize, dialog, getWi
   };
   try{const result=run(request);return result instanceof Promise?result.catch(fail):result;}catch(error){return fail(error);}
  });
- return {close:()=>store.close()};
+ return {store, close:()=>store.close()};
 }

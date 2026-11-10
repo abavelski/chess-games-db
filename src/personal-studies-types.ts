@@ -1,6 +1,6 @@
 export interface StudyDraft {
  title: string; kind?: 'tournament' | 'other'; pgn?: string; tags?: string[];
- origin_kind?: 'blank' | 'pgn-file' | 'pgn-paste' | 'lichess-pgn'; origin_url?: string | null;
+ origin_kind?: 'blank' | 'pgn-file' | 'pgn-paste' | 'lichess-pgn' | 'kindle-play'; origin_url?: string | null;
 }
 export interface Study extends Required<Omit<StudyDraft,'origin_url'>> {
  id: string; revision: number; origin_url: string | null; root_fen: string;
