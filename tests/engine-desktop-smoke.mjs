@@ -28,7 +28,7 @@ async function smoke() {
     await once(window.webContents, 'did-finish-load');
     await window.webContents.executeJavaScript(`(async () => {
       const wait = async predicate => { const end = Date.now() + 8000; while (!predicate()) { if (Date.now() > end) throw new Error('Timed out: ' + predicate); await new Promise(r => setTimeout(r, 25)); } };
-      const button = text => [...document.querySelectorAll('button')].find(b => b.textContent === text || b.getAttribute('aria-label') === text);
+      const button = text => [...document.querySelectorAll('.review-shell button'), ...document.querySelectorAll('button')].find(b => b.textContent === text || b.getAttribute('aria-label') === text);
       window.smokeWait = wait; window.smokeButton = button;
       window.smokeSetting = async (label, value) => {
         button('Game review settings').click(); await wait(() => document.querySelector('dialog[open]'));

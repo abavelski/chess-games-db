@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ChessArchive } from './database.mjs';
 import { registerEngineIpc } from './engine-ipc.mjs';
-import { startKindlePlayServer } from './kindle-play-lifecycle.mjs';
+import { createKindlePlayController, registerKindlePlayIpc } from './kindle-play-lifecycle.mjs';
 import { registerOpeningWorkspace } from './opening-workspace.mjs';
 import { registerPersonalStudies } from './personal-studies.mjs';
 
@@ -75,7 +75,8 @@ app.whenReady().then(() => {
   personalStudies = registerPersonalStudies({ app, ipcMain, dialog, clipboard, getWindow: () => window,
     authorize: event => Boolean(window && event.sender === window.webContents) });
   const engines = registerEngineIpc({ app, ipcMain, dialog });
-  void startKindlePlayServer(app, engines.settings);
+  registerKindlePlayIpc({ ipcMain, controller: createKindlePlayController(app, engines.settings, { store: personalStudies.store }),
+    authorize: event => Boolean(window && event.sender === window.webContents) });
   openingWorkspace = registerOpeningWorkspace({ app, ipcMain, dialog, getWindow: () => window,
     authorize: event => Boolean(BrowserWindow.fromWebContents(event.sender)) });
   ipcMain.handle('archive:open', async () => {

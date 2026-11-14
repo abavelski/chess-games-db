@@ -277,14 +277,25 @@ async function checkWindow(window) {
     const scrollY = window.scrollY;
     document.querySelector('.result-item').click();
     await waitFor(() => document.querySelector('.review-shell cg-board'));
-    document.querySelector('.review-header-actions button:last-child').click();
-    await waitFor(() => !document.querySelector('.review-shell') && document.activeElement?.classList.contains('result-item'));
+    const back = document.querySelector('.review-header-actions button:last-child').getBoundingClientRect();
+    return { originalText, scrollY, x: Math.round(back.left + back.width / 2), y: Math.round(back.top + back.height / 2) };
+  })()`);
+  // Use a native click so React processes return/focus restoration as a discrete user event.
+  window.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, x: grouping.x, y: grouping.y });
+  window.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, x: grouping.x, y: grouping.y });
+  const restored = await window.webContents.executeJavaScript(`(async () => {
+    const { originalText, scrollY } = ${JSON.stringify(grouping)};
+    const deadline = Date.now() + 5000;
+    while (document.querySelector('.review-shell') || !document.activeElement?.classList.contains('result-item')) {
+      if (Date.now() > deadline) throw new Error('Back to games did not restore result focus');
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
     if (document.querySelector('.results-list').textContent !== originalText) throw new Error('Return changed the page');
     if (Math.abs(window.scrollY - scrollY) > 1) throw new Error('Return lost list scroll');
     if (document.querySelector('[aria-label="Previous page"]').disabled) throw new Error('Page was reset');
     return true;
   })()`);
-  assert.equal(grouping,true);
+  assert.equal(restored,true);
 
 }
 

@@ -23,12 +23,46 @@ async function setup(t, maia = { available: () => true, move: () => 'e7e5' }) {
 }
 const move = { uci: 'e2e4', expectedPly: 0 };
 
+test('additive color fixtures, strict validation and failed Black opening reconciliation', async t => {
+  let reply = 'e2e4';
+  const call = await setup(t, { available: () => true, move: () => {
+    if (reply instanceof Error) throw reply;
+    return reply;
+  } });
+  for (const color of ['White', 'BLACK', '', null, 1]) {
+    assert.equal((await call('games', { rating: 1500, playerColor: color })).status, 400);
+  }
+  assert.equal((await call('games', { rating: 1500, playerColor: 'black', extra: true })).status, 400);
+  reply = new PlayError(504, 'ENGINE_TIMEOUT', 'timeout');
+  assert.equal((await call('games', { rating: 1500, playerColor: 'black' })).status, 504);
+  assert.equal((await call('games/current')).status, 404);
+  reply = 'bad';
+  assert.equal((await call('games', { rating: 1500, playerColor: 'black' })).status, 503);
+  reply = 'e2e4';
+  const black = (await call('games', { rating: 1500, playerColor: 'black' })).body;
+  assert.equal(black.playerColor, 'black'); assert.equal(black.ply, 1);
+  assert.deepEqual(black.moves, ['e2e4']); assert.deepEqual(black.sanMoves, ['e4']);
+  assert.match(black.fen, / b /); assert.equal(black.lastMoveAt, black.startedAt);
+  assert.deepEqual((await call('games/current')).body, black);
+  reply = 'g1f3';
+  assert.equal((await call('games/current/moves', { uci: 'e7e6', expectedPly: 0 })).status, 409);
+  assert.equal((await call('games/current/moves', { uci: 'e7e4', expectedPly: 1 })).status, 422);
+  const turn = await call('games/current/moves', { uci: 'e7e5', expectedPly: 1 });
+  assert.equal(turn.status, 200); assert.equal(turn.body.ply, 3);
+  assert.deepEqual(turn.body.sanMoves, ['e4', 'e5', 'Nf3']);
+  assert.equal(turn.body.gameId, black.gameId); assert.equal(turn.body.startedAt, black.startedAt);
+  assert.equal((await call('games/current/resign', {})).body.result.outcome, 'white_win');
+  const white = await call('games', { rating: 1500, playerColor: 'white' });
+  assert.equal(white.status, 201); assert.equal(white.body.ply, 0);
+  assert.deepEqual(white.body.sanMoves, []); assert.equal(white.body.lastMoveAt, null);
+});
+
 test('frozen HTTP game contract, FEN, rejection, resignation and replacement', async t => {
   const call = await setup(t);
   assert.deepEqual((await call('health')).body, { apiVersion: 1, maiaAvailable: true });
   assert.equal((await call('games/current')).body.error.code, 'NO_GAME');
   const created = await call('games', { rating: 1500 }); assert.equal(created.status, 201);
-  assert.deepEqual(created.body, { apiVersion: 1, rating: 1500, playerColor: 'white', fen: initialFen, moves: [], ply: 0, status: 'playing', result: null, lastMove: null });
+  assert.deepEqual(created.body, { apiVersion: 1, rating: 1500, playerColor: 'white', gameId: created.body.gameId, startedAt: created.body.startedAt, lastMoveAt: null, sanMoves: [], fen: initialFen, moves: [], ply: 0, status: 'playing', result: null, lastMove: null });
   assert.deepEqual((await call('games/current')).body, created.body);
   assert.equal((await call('games', { rating: 1500 })).status, 409);
   const illegal = await call('games/current/moves', { ...move, uci: 'e2e5' });

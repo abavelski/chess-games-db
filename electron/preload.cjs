@@ -2,6 +2,12 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+contextBridge.exposeInMainWorld('kindlePlay', Object.freeze({
+  status: () => ipcRenderer.invoke('kindle-play:status'),
+  start: () => ipcRenderer.invoke('kindle-play:start'),
+  stop: () => ipcRenderer.invoke('kindle-play:stop'),
+}));
+
 contextBridge.exposeInMainWorld('personalStudies', Object.freeze({
   backup: () => ipcRenderer.invoke('personal-studies:backup'),
   copyPgn: request => ipcRenderer.invoke('personal-studies:copyPgn', request),
